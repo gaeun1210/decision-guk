@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>개인정보 처리 안내 — 결정국</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+  <style>
+    body { margin: 0; background: #19274d; color: #2b2522; font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; line-height: 1.75; }
+    main { max-width: 760px; margin: 32px auto; padding: 28px 24px; background: #fff1df; border: 3px solid #c49b75; border-radius: 20px; }
+    h1 { margin-top: 0; font-size: 26px; color: #19274d; }
+    h2 { font-size: 18px; color: #19274d; margin-top: 26px; }
+    table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    th, td { padding: 8px 10px; border: 1px solid #e0c7ad; text-align: left; vertical-align: top; }
+    th { background: #ffe0a6; }
+    a { color: #2f4c85; font-weight: 700; }
+    .small { font-size: 13px; color: #6b5a4b; }
+    @media (max-width: 650px) { main { margin: 0; border-radius: 0; border-width: 0; padding: 20px 16px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>🏛️ 결정국 개인정보 처리 안내</h1>
+    <p>결정국은 일상의 사소한 선택을 돕는 <b>학습용·놀이용 웹 서비스</b>입니다. 꼭 필요한 정보만 받고, 본인 외에는 볼 수 없게 관리합니다.</p>
+
+    <h2>1. 수집하는 정보</h2>
+    <table>
+      <tr><th>구분</th><th>항목</th><th>목적</th></tr>
+      <tr><td>회원가입·로그인</td><td>이메일, 비밀번호(암호화된 형태로 인증 서버가 보관)</td><td>본인 확인, 내 기록만 보여 주기</td></tr>
+      <tr><td>서비스 이용</td><td>고민 제목·내용·선택지, 판결 결과, 가격·예산(쇼핑 고민일 때), 선택한 캐릭터</td><td>결정 기록실·통계 제공</td></tr>
+    </table>
+    <p class="small">로그인하지 않은 <b>체험 모드</b>에서는 아무 정보도 서버로 보내지 않고, 사용 중인 브라우저에만 저장합니다.</p>
+
+    <h2>2. 보관과 접근 통제</h2>
+    <ul>
+      <li>데이터는 Supabase(PostgreSQL)에 저장되며, <b>행 단위 접근 제어(RLS)</b>로 로그인한 본인만 자기 기록을 조회·추가·삭제할 수 있습니다.</li>
+      <li>판결 기록은 수정할 수 없고, 언제든 본인이 지울 수 있습니다.</li>
+      <li>비밀번호는 결정국 화면 코드가 보관하지 않습니다.</li>
+    </ul>
+
+    <h2>3. 보관 기간과 삭제</h2>
+    <ul>
+      <li>회원 탈퇴 시 계정, 결정 기록, 캐릭터 설정을 <b>즉시 삭제</b>합니다. (로그인 → 내 계정 → 회원 탈퇴)</li>
+      <li>기록은 결정 기록실에서 하나씩, 또는 설정에서 한꺼번에 지울 수 있습니다.</li>
+    </ul>
+
+    <h2>4. 제3자 제공</h2>
+    <p>수집한 정보를 다른 곳에 팔거나 제공하지 않습니다. 단, 서비스 운영을 위해 Supabase(데이터 저장·인증)와 Vercel(웹 호스팅)을 사용합니다.</p>
+
+    <h2>5. 유의 사항</h2>
+    <p>결정국의 판결은 입력한 답과 공개된 규칙으로 만든 참고 의견이며, 법률·금융·의료 등 전문 판단을 대신하지 않습니다. 민감한 개인정보(주민등록번호, 계좌번호, 건강 정보 등)는 고민 내용에 적지 마세요.</p>
+
+    <p class="small">시행일: 2026년 11월 4일 · 문의: 저장소 <a href="https://github.com/gaeun1210/decision-guk">gaeun1210/decision-guk</a></p>
+    <p><a href="./">← 결정국으로 돌아가기</a></p>
+  </main>
+</body>
+</html>

@@ -4,6 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>결정국 — 고민은 접수하고, 결정은 즐겁게!</title>
+  <meta name="description" content="고민을 접수하면 성향이 다른 장관 4명이 질문하고 투표해 판결을 내려 주는 픽셀 국무회의. 점심 메뉴부터 쇼핑까지, 결정은 즐겁게!" />
+  <meta name="theme-color" content="#19274d" />
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/icon-192.png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="결정국 — 고민은 접수하고, 결정은 즐겁게!" />
+  <meta property="og:description" content="장관 4명이 질문하고 투표해 판결을 내려 주는 픽셀 국무회의" />
+  <meta property="og:image" content="https://decision-guk.vercel.app/assets/og.jpg" />
+  <meta property="og:url" content="https://decision-guk.vercel.app/" />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri@latest/dist/galmuri.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
   <style>
@@ -527,6 +537,74 @@
       .m-card img { width: 48px; }
     }
 
+    /* ===== 대화형 결재 ===== */
+    .chat { display: grid; gap: 10px; padding: 4px 2px 6px; }
+    .msg { display: flex; align-items: flex-end; gap: 8px; animation: popIn .3s both ease-out; }
+    .msg.me { justify-content: flex-end; }
+    .face { display: grid; justify-items: center; gap: 2px; flex: none; width: 66px; }
+    .face img { width: 56px; height: 56px; object-fit: cover; border-radius: 50%; background: #fff; border: 2px solid #e5ccb2; image-rendering: pixelated; }
+    .msg.owl .face img { object-fit: contain; border-radius: 12px; }
+    .msg.me .face img { object-fit: contain; object-position: top; background: #e4edff; }
+    .msg.wide .bubble { flex: 1; max-width: 560px; }
+    .face small { font-size: 11px; font-weight: 800; color: #6b5a4b; text-align: center; line-height: 1.2; }
+    .face-emoji { font-size: 40px; line-height: 58px; }
+    .bubble { position: relative; max-width: min(78%, 520px); padding: 10px 13px; border-radius: 16px; background: #fff; border: 2px solid #e5ccb2; line-height: 1.6; font-size: 15px; }
+    .msg.them .bubble { border-bottom-left-radius: 4px; }
+    .msg.me .bubble { background: #2f4c85; border-color: #2f4c85; color: #fff; border-bottom-right-radius: 4px; }
+    .msg.pm .bubble { background: #fff7e6; border-color: #e7b766; }
+    .msg.owl .bubble { background: #eef3ff; border-color: #c5d3f0; font-weight: 800; }
+    .msg.verdict-msg .bubble { background: #ffe0a6; border-color: #e19b34; max-width: min(88%, 560px); }
+    .msg.verdict-msg .verdict-line b { font-size: 24px; }
+    .msg .tally { margin: 8px 0 2px; background: #fffaf2; }
+    .msg .m-head { margin-bottom: 4px; }
+    .msg .m-head .pick-chip { margin-left: 0; }
+    .bubble .sub { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; font-size: 13px; opacity: .95; }
+    .opt-tag { padding: 1px 8px; border-radius: 999px; background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.45); }
+    .dots { display: inline-flex; gap: 4px; padding: 4px 2px; }
+    .dots i { width: 7px; height: 7px; border-radius: 50%; background: #b9a58f; animation: blink 1s infinite ease-in-out; }
+    .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+    @keyframes blink { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+    .chat-tools { text-align: right; margin: 2px 0 6px; }
+    .btn-row.three .primary { flex: 1 1 140px; }
+    .btn-row.slim { margin-top: 8px; align-items: center; }
+    .btn-row.slim .delete-btn { margin-left: auto; }
+    .answer-row { display: flex; gap: 10px; align-items: flex-start; }
+    .answer-col { flex: 1; min-width: 0; }
+    .me-face { margin-top: 28px; }
+    .center { text-align: center; margin: 10px 0 0; }
+    .danger-link { color: #a33b25; }
+    .primary.danger { background: linear-gradient(#d65a44, #b8402c); border-color: #9c3322; box-shadow: 0 4px 0 #7f2819; }
+    .example-item { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border: 0; border-bottom: 1px solid #ead7c6; background: transparent; color: var(--ink); text-align: left; }
+    .example-item:last-child { border-bottom: 0; }
+    .example-item:hover, .example-item:focus-visible { background: #fff6e9; }
+    .pop-sub { display: block; font-size: 12px; color: #7b6d61; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pop-go { font-size: 12px; font-weight: 900; color: #2f4c85; white-space: nowrap; }
+    .record-row.as-btn { width: 100%; border: 0; border-bottom: 1px solid #ead7c6; background: transparent; text-align: left; color: var(--ink); }
+    .record-row.as-btn:hover { background: #fff6e9; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0 14px; }
+    .stat { display: grid; justify-items: center; gap: 2px; padding: 12px 6px; border-radius: 13px; background: #fff; border: 1px solid #e5ccb2; text-align: center; }
+    .stat b { font-size: 26px; color: #19274d; }
+    .stat span { font-size: 12px; font-weight: 700; color: #6b5a4b; }
+    .sub-h { margin: 6px 0 2px; font-size: 17px; }
+    .stat-note { font-weight: 700; }
+    .rec-tools { display: grid; gap: 8px; margin-bottom: 6px; }
+    .rec-tools input { width: 100%; padding: 10px 12px; border: 2px solid #ddc7b2; border-radius: 11px; background: #fffaf5; color: var(--ink); }
+    .empty-faces { display: flex; justify-content: center; align-items: flex-end; gap: 10px; margin-bottom: 8px; }
+    .empty-faces img { height: 80px; width: auto; image-rendering: pixelated; }
+    .empty .primary { margin-top: 12px; }
+    .share-preview { display: grid; place-items: center; margin-bottom: 8px; }
+    .share-preview img { width: min(100%, 360px); border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+    .footer-links { display: block; margin-top: 3px; font-size: 12px; opacity: .8; font-weight: 600; }
+    .footer-links a { color: inherit; }
+    @media (max-width: 650px) {
+      .modal-backdrop { padding: 0; place-items: stretch; }
+      .modal { width: 100%; max-height: none; height: 100%; border-radius: 0; border-width: 0; padding: 16px 14px 24px; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .face { width: 52px; } .face img { width: 46px; height: 46px; }
+      .bubble { max-width: 82%; font-size: 14px; }
+      .me-face { display: none; }
+    }
+
     @media (max-width: 1000px) {
       .topbar { flex-wrap: wrap; }
       nav { width: 100%; justify-content: flex-start; overflow-x: auto; }
@@ -599,7 +677,7 @@
       <button class="active" data-action="home">🏠 홈</button>
       <button data-action="meeting">🏛️ 국무회의</button>
       <button data-action="records">📜 결정 기록실</button>
-      <button data-action="ranking">🏆 랭킹</button>
+      <button data-action="stats">📊 내 통계</button>
       <button data-action="settings">⚙️ 설정</button>
       <button class="login-btn" data-action="login">👤 로그인</button>
     </nav>
@@ -619,6 +697,7 @@
             <button class="category" type="button" data-category="쇼핑">🛍️ 쇼핑</button>
             <button class="category" type="button" data-category="연애">❤️ 연애</button>
             <button class="category" type="button" data-category="게임">🎮 게임</button>
+            <button class="category" type="button" data-category="일상">📌 일상</button>
           </div>
           <button class="primary" type="submit">⚒️ 국무회의 시작하기 ▸</button>
         </form>
@@ -637,27 +716,9 @@
         <div class="records-list" id="recent-list"></div>
       </article>
 
-      <article class="panel" id="ranking-panel">
-        <h2 class="panel-heading">🔥 인기 고민 TOP 3 <span class="record-note">(예시)</span>
-          <button class="more" data-action="ranking">더보기 ›</button>
-        </h2>
-        <div class="popular-list">
-          <div class="popular-item">
-            <span class="rank">1</span><span class="pop-icon">✈️</span>
-            <div><div class="pop-title">이번 휴가, 어디로 갈까?</div><div class="bar"><i style="width:88%"></i></div></div>
-            <span class="pop-count">예시</span>
-          </div>
-          <div class="popular-item">
-            <span class="rank">2</span><span class="pop-icon">🛍️</span>
-            <div><div class="pop-title">이 옷 사도 될까?</div><div class="bar"><i style="width:72%"></i></div></div>
-            <span class="pop-count">예시</span>
-          </div>
-          <div class="popular-item">
-            <span class="rank">3</span><span class="pop-icon">🍴</span>
-            <div><div class="pop-title">오늘 저녁 메뉴 추천!</div><div class="bar"><i style="width:58%"></i></div></div>
-            <span class="pop-count">예시</span>
-          </div>
-        </div>
+      <article class="panel" id="example-panel">
+        <h2 class="panel-heading">💡 이런 고민도 접수해 보세요</h2>
+        <div class="popular-list" id="example-list"></div>
       </article>
 
       <article class="panel special-panel">
@@ -665,973 +726,22 @@
         <div class="special-grid">
           <button class="special" data-action="reconsider"><b>♟️</b><span>재심 청구</span><small>(다시 생각하기)</small></button>
           <button class="special" data-action="records"><b>📜</b><span>결정 기록실</span><small>(내 기록 보기)</small></button>
-          <button class="special" data-action="friends"><b>👥</b><span>친구와 함께</span><small>(공동 결정)</small></button>
-          <button class="special" data-action="ranking"><b>🏆</b><span>결정왕 랭킹</span><small>(주간 순위)</small></button>
+          <button class="special" data-action="stats"><b>📊</b><span>내 결정 통계</span><small>(장관별 적중률)</small></button>
+          <button class="special" data-action="share"><b>📤</b><span>판결문 공유</span><small>(최근 판결)</small></button>
         </div>
       </article>
     </section>
   </main>
 
   <footer>
-    <div class="footer-brand">🏛️ 결정국은 여러분의 현명한 결정을 응원합니다! 🧡</div>
-    <div class="footer-cat"><img src="assets/cat.png" alt="" />✨</div>
+    <div class="footer-brand">🏛️ 결정국은 여러분의 현명한 결정을 응원합니다! 🧡
+      <span class="footer-links"><a href="privacy.html">개인정보 처리 안내</a> · 놀이용 서비스이며 전문 판단을 대신하지 않습니다</span></div>
+    <div class="footer-cat"><img src="assets/cat_podium.png" alt="" />✨</div>
   </footer>
 
   <div id="modal-root"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
-  <script>
-    const STORAGE_KEY = "decision-country-records";
-    const sampleRecords = [
-      { title: "오늘 저녁은 배달 vs 직접 요리?", verdict: "배달 승!", category: "맛집", date: "예시", icon: "🍴" },
-      { title: "이번 주말 어디로 갈까?", verdict: "제주도!", category: "여행", date: "예시", icon: "✈️" },
-      { title: "새 핸드폰을 살까 말까?", verdict: "보류!", category: "쇼핑", date: "예시", icon: "🛍️" },
-      { title: "다이어트 시작할까?", verdict: "시작하자!", category: "일상", date: "예시", icon: "📖" },
-      { title: "넷플릭스 볼까? 디즈니+ 볼까?", verdict: "디즈니+!", category: "일상", date: "예시", icon: "🎬" }
-    ];
-
-    // 장관 정보: 질문 하나씩을 맡고, 사용자의 답이 그 장관의 표가 된다(규칙 공개, AI 미사용). 순서는 첫 화면 배치(토끼·쿼카·곰·병아리)와 같다.
-    const MINISTERS = [
-      { name: "신중주의", priority: "safe", img: "rabbit_desk", emoji: "🐰", animal: "토끼", question: "어느 쪽이 나중에 후회가 가장 적을 것 같나요?" },
-      { name: "낭만주의", priority: "fun",  img: "quokka_desk", emoji: "🐹", animal: "쿼카", question: "솔직히 어느 쪽이 가장 끌리나요?" },
-      { name: "현실주의", priority: "cost", img: "bear_desk",   emoji: "🐻", animal: "곰",   question: "어느 쪽이 돈과 시간이 가장 덜 드나요?" },
-      { name: "행동파",   priority: "easy", img: "chick_desk",  emoji: "🐤", animal: "병아리", question: "어느 쪽을 지금 바로 시작할 수 있나요?" }
-    ];
-    const LIMITS = { title: 100, detail: 1000, option: 40, optionsMax: 6, moneyMin: 1, moneyMax: 100000000 };
-    const PRIORITY_LABEL = { cost: "비용·시간", fun: "즐거움", safe: "후회 없음", easy: "실행 쉬움" };
-
-    const CATEGORIES = ["여행", "맛집", "쇼핑", "연애", "게임", "일상"];
-    let selectedCategory = "일상";
-    const modalRoot = document.getElementById("modal-root");
-
-    function getRecords() {
-      try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        return Array.isArray(saved) ? saved : [];
-      } catch { return []; }
-    }
-    function saveRecords(records) {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, 100))); return true; }
-      catch { return false; }
-    }
-
-    // ===== 로그인·서버 저장 (Supabase) =====
-    // 공개(publishable) 키만 둔다. 이 키로는 RLS 규칙이 허용한 일(로그인한 사람의 "자기 기록" 조회·추가·삭제)만 할 수 있다.
-    // service_role/secret 키는 RLS를 건너뛰므로 절대 이 파일이나 저장소에 넣지 않는다.
-    const SUPABASE_URL = "https://acujnijqjbwblqtuxatj.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_UxzsgGhTjOXjL8zlI9v5Nw_vtfGi5jO";
-    const db = window.supabase && window.supabase.createClient
-      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } })
-      : null;
-    let currentUser = null;
-    let profileAvatar = "";
-
-    function dbDate(iso) {
-      const d = new Date(iso);
-      return isNaN(d) ? "" : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-    }
-    function fromRow(row) {
-      return {
-        id: row.id, title: row.title, verdict: row.verdict, category: row.category,
-        date: dbDate(row.created_at), icon: categoryIcon(row.category), detail: row.detail,
-        tally: row.tally, label: row.label, retrial: row.retrial,
-        opinions: Array.isArray(row.opinions) ? row.opinions.filter(o => Array.isArray(o) && o.length === 2).map(([n, t]) => [String(n), String(t)]) : []
-      };
-    }
-
-    // 기록 불러오기: 로그인 → 서버(RLS로 내 것만), 비로그인 → 이 브라우저(체험 모드)
-    async function loadRecords() {
-      if (!currentUser) return { records: getRecords(), source: "local" };
-      const { data, error } = await db.from("decisions")
-        .select("id,title,category,detail,verdict,label,tally,opinions,retrial,created_at")
-        .order("created_at", { ascending: false }).limit(100);
-      if (error) return { records: [], source: "server", error };
-      return { records: data.map(fromRow), source: "server" };
-    }
-
-    async function addRecord(record, m) {
-      if (!currentUser) {
-        const list = getRecords(); list.unshift(record);
-        return { ok: saveRecords(list), source: "local" };
-      }
-      const shop = m.category === "쇼핑";
-      const { error } = await db.from("decisions").insert({
-        title: record.title, category: record.category, detail: record.detail || "",
-        options: m.options, priority: m.priority,
-        price: shop ? m.shop.priceValue : null, budget: shop ? m.shop.budgetValue : null,
-        verdict: record.verdict, label: record.label, tally: record.tally,
-        opinions: record.opinions, retrial: !!record.retrial
-      }); // user_id는 DB가 auth.uid()로 채운다(화면에서 보내지 않음)
-      return { ok: !error, source: "server", error };
-    }
-
-    async function removeRecord(item, index) {
-      if (!currentUser) {
-        const list = getRecords(); list.splice(index, 1);
-        return { ok: saveRecords(list) };
-      }
-      const { error } = await db.from("decisions").delete().eq("id", item.id);
-      return { ok: !error, error };
-    }
-
-    async function clearRecords() {
-      if (!currentUser) { try { localStorage.removeItem(STORAGE_KEY); } catch {} return { ok: true }; }
-      const { error } = await db.from("decisions").delete().eq("user_id", currentUser.id);
-      return { ok: !error, error };
-    }
-
-    function authMessage(error) {
-      const msg = String(error && (error.message || error.code) || "");
-      if (/invalid login credentials/i.test(msg)) return "이메일 또는 비밀번호가 맞지 않아요.";
-      if (/email not confirmed/i.test(msg)) return "이메일 인증을 먼저 완료해 주세요. 받은 메일함(스팸함 포함)을 확인해 주세요.";
-      if (/rate limit|too many/i.test(msg)) return "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.";
-      if (/password/i.test(msg)) return "비밀번호 조건을 확인해 주세요(8자 이상, 영문과 숫자를 섞어 주세요).";
-      if (/already registered|already exists/i.test(msg)) return "이미 가입된 이메일이에요. 로그인해 주세요.";
-      if (/fetch|network/i.test(msg)) return "서버에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.";
-      return "처리하지 못했어요. 잠시 후 다시 시도해 주세요.";
-    }
-    function dbMessage(error) {
-      if (!error) return "";
-      if (/jwt|auth|permission|policy|42501/i.test(String(error.message || error.code))) return "권한이 없어 처리하지 못했어요. 다시 로그인해 주세요.";
-      if (/check|23514|violates/i.test(String(error.message || error.code))) return "입력값이 허용 범위를 벗어나 저장하지 않았어요.";
-      return "서버에 저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
-    }
-
-    async function loadProfile() {
-      profileAvatar = "";
-      if (!currentUser) return;
-      const { data } = await db.from("profiles").select("avatar").eq("user_id", currentUser.id).maybeSingle();
-      if (data && AVATARS.some(a => a[0] === data.avatar)) profileAvatar = data.avatar;
-    }
-    async function setAvatar(id) {
-      if (!currentUser) { try { localStorage.setItem(AVATAR_KEY, id); } catch {} return { ok: true }; }
-      const { error } = await db.from("profiles").upsert({ user_id: currentUser.id, avatar: id, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-      if (!error) profileAvatar = id;
-      return { ok: !error, error };
-    }
-
-    async function onAuthChanged(session) {
-      currentUser = session && session.user ? session.user : null;
-      await loadProfile();
-      applyAvatar();
-      showRecent();
-    }
-
-    function openLogin(mode = "login", notice = "") {
-      if (!db) {
-        openModal("👤 로그인", `<p class="err">로그인 서버에 연결하지 못했어요(네트워크 또는 차단 문제). 지금은 체험 모드로 이 브라우저에만 저장됩니다.</p>`);
-        return;
-      }
-      const signup = mode === "signup";
-      openModal("👤 " + (signup ? "회원가입" : "로그인"), `
-        <div class="chip-row tabs" role="tablist">
-          <button type="button" class="chip" role="tab" data-mode="login" aria-pressed="${!signup}">로그인</button>
-          <button type="button" class="chip" role="tab" data-mode="signup" aria-pressed="${signup}">회원가입</button>
-        </div>
-        <form id="auth-form" novalidate>
-          <div class="field"><label for="auth-email">이메일</label>
-            <input id="auth-email" type="email" autocomplete="email" maxlength="254" required /></div>
-          <div class="field"><label for="auth-pw">비밀번호</label>
-            <input id="auth-pw" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="8" maxlength="72" required />
-            ${signup ? `<div class="hint">8자 이상, 영문과 숫자를 섞어 주세요.</div>` : ""}</div>
-          <p class="err" id="auth-err" role="alert" hidden></p>
-          <p class="ok" id="auth-ok" role="status" ${notice ? "" : "hidden"}>${escapeHTML(notice)}</p>
-          <button class="primary" type="submit" id="auth-submit">${signup ? "가입하기" : "로그인"}</button>
-        </form>
-        <p class="hint">로그인하면 결정 기록이 계정에 저장되어 다른 기기에서도 볼 수 있고, 다른 사람은 내 기록을 볼 수 없습니다. 비밀번호는 인증 서버(Supabase)가 보관하며 결정국 화면 코드는 비밀번호를 저장하지 않습니다.</p>`, () => {
-          modalRoot.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => openLogin(b.dataset.mode));
-          document.getElementById("auth-email").focus();
-          document.getElementById("auth-form").onsubmit = async event => {
-            event.preventDefault();
-            const email = document.getElementById("auth-email").value.trim();
-            const password = document.getElementById("auth-pw").value;
-            showError("auth-err", "");
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showError("auth-err", "이메일 형식을 확인해 주세요.");
-            if (password.length < 8) return showError("auth-err", "비밀번호는 8자 이상이어야 해요.");
-            if (signup && !(/[A-Za-z]/.test(password) && /\d/.test(password))) return showError("auth-err", "비밀번호에 영문과 숫자를 함께 넣어 주세요.");
-            const btn = document.getElementById("auth-submit"); btn.disabled = true; btn.textContent = "처리 중…";
-            try {
-              if (signup) {
-                const { data, error } = await db.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
-                if (error) throw error;
-                if (data.session) { closeModal(); return; }
-                openLogin("login", "가입 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.");
-              } else {
-                const { error } = await db.auth.signInWithPassword({ email, password });
-                if (error) throw error;
-                closeModal();
-              }
-            } catch (error) {
-              showError("auth-err", authMessage(error));
-              btn.disabled = false; btn.textContent = signup ? "가입하기" : "로그인";
-            }
-          };
-        });
-    }
-
-    function openAccount() {
-      openModal("👤 내 계정", `
-        <p>로그인한 계정: <b>${escapeHTML(currentUser.email || "")}</b></p>
-        <p class="hint">결정 기록은 이 계정에만 저장되며, 행 단위 접근 제어(RLS)로 다른 사람은 볼 수도 지울 수도 없습니다.</p>
-        <p class="err" id="acct-err" role="alert" hidden></p>
-        <button class="primary secondary" id="logout-btn">로그아웃</button>`, () => {
-          document.getElementById("logout-btn").onclick = async () => {
-            const { error } = await db.auth.signOut();
-            if (error) return showError("acct-err", authMessage(error));
-            closeModal();
-          };
-        });
-    }
-
-
-    function escapeHTML(value) {
-      return String(value ?? "").replace(/[&<>"']/g, char => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-      })[char]);
-    }
-    // 금액 검증: 원 단위 정수 1~100,000,000만 허용하고, 그 밖의 값은 보정하지 않고 거부한다.
-    function parseMoney(raw) {
-      const text = String(raw ?? "").replace(/[,\s]/g, "");
-      if (!text) return { error: "금액을 입력해 주세요." };
-      if (/^-/.test(text)) return { error: "음수는 입력할 수 없어요." };
-      if (!/^\d+$/.test(text)) return { error: "숫자(원 단위 정수)만 입력해 주세요." };
-      const n = Number(text);
-      if (n < LIMITS.moneyMin) return { error: "1원 이상으로 입력해 주세요." };
-      if (n > LIMITS.moneyMax) return { error: "1억 원(100,000,000원) 이하로 입력해 주세요." };
-      return { value: n };
-    }
-    function today() {
-      const d = new Date();
-      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-    }
-    function categoryIcon(category) {
-      return ({ 여행: "✈️", 맛집: "🍴", 쇼핑: "🛍️", 연애: "❤️", 게임: "🎮" })[category] || "📌";
-    }
-    function avatar(minister) {
-      return minister.img
-        ? `<img class="avatar" src="assets/${minister.img}.png" alt="" />`
-        : `<span class="avatar emoji">${minister.emoji}</span>`;
-    }
-
-    async function showRecent() {
-      const list = document.getElementById("recent-list"), note = document.getElementById("recent-note");
-      const { records: saved, error } = await loadRecords();
-      if (currentUser && !saved.length) {
-        note.textContent = "";
-        list.innerHTML = `<div class="record-row"><span class="record-title record-empty">${error ? "기록을 불러오지 못했어요." : "아직 내 기록이 없어요. 첫 고민을 접수해 보세요!"}</span></div>`;
-        return;
-      }
-      const records = (saved.length ? saved : sampleRecords).slice(0, 3);
-      note.textContent = saved.length ? "" : "(예시)";
-      list.innerHTML = records.map(item => `
-        <div class="record-row">
-          <span class="record-icon">${escapeHTML(item.icon || "📌")}</span>
-          <span class="record-title" title="${escapeHTML(item.title)}">${escapeHTML(item.title)}</span>
-          <span class="verdict-pill">${escapeHTML(item.verdict)}</span>
-          <span class="record-date">${escapeHTML(item.date || "")}</span>
-        </div>`).join("");
-    }
-
-    function openModal(title, body, onReady) {
-      modalRoot.innerHTML = `
-        <div class="modal-backdrop" role="presentation">
-          <section class="modal" role="dialog" aria-modal="true" aria-label="${escapeHTML(title)}">
-            <div class="modal-head">
-              <h2>${escapeHTML(title)}</h2>
-              <button class="close" aria-label="닫기">×</button>
-            </div>
-            <div class="modal-body">${body}</div>
-          </section>
-        </div>`;
-      modalRoot.querySelector(".close").onclick = closeModal;
-      modalRoot.querySelector(".modal-backdrop").addEventListener("click", event => {
-        if (event.target.classList.contains("modal-backdrop")) closeModal();
-      });
-      if (onReady) onReady();
-    }
-    function closeModal() { modalRoot.innerHTML = ""; }
-    document.addEventListener("keydown", event => { if (event.key === "Escape") closeModal(); });
-
-    // ===== 국무회의: 안건 → 장관 질문(또는 구매 질문) → 가장 중요한 기준 → (동점이면 총리 질문) → 결재 =====
-    let meeting = null;
-
-    function newMeeting(prefill) {
-      return {
-        title: prefill || "", category: selectedCategory, detail: "",
-        rawOptions: ["", ""], options: [], yesNo: false,
-        answers: {}, qIndex: 0,
-        shop: { price: "", budget: "", owned: null, use: null, need: null },
-        priority: null, reversible: null, urgent: null, tiebreak: null, retrial: false
-      };
-    }
-
-    function startMeeting(prefill = "") {
-      meeting = newMeeting(prefill);
-      renderAgenda();
-    }
-
-    function stepBar(active) {
-      const shop = meeting.category === "쇼핑";
-      const names = ["안건 접수", shop ? "구매 심사" : "장관 질문", "중요 기준", "결재"];
-      return `<ol class="steps" aria-label="진행 단계">${names.map((n, i) =>
-        `<li class="${i < active ? "done" : i === active ? "now" : ""}" ${i === active ? 'aria-current="step"' : ""}>${n}</li>`).join("")}</ol>`;
-    }
-
-    function showError(id, message) {
-      const box = document.getElementById(id);
-      if (box) { box.textContent = message; box.hidden = !message; }
-    }
-
-    function normalize(text) { return text.replace(/\s+/g, "").toLowerCase(); }
-
-    // ① 안건 접수
-    function renderAgenda() {
-      const m = meeting;
-      const shop = m.category === "쇼핑";
-      openModal("🏛️ 국무회의", `
-        ${stepBar(0)}
-        <form id="agenda-form" novalidate>
-          <div class="field">
-            <label for="meeting-title">고민 제목</label>
-            <input id="meeting-title" maxlength="${LIMITS.title}" value="${escapeHTML(m.title)}" placeholder="예) 오늘 저녁 뭐 먹지?" autocomplete="off" />
-          </div>
-          <div class="field">
-            <span class="label">고민 유형</span>
-            <div class="chip-row" role="group" aria-label="고민 유형">
-              ${CATEGORIES.map(c => `<button type="button" class="chip" data-cat="${c}" aria-pressed="${c === m.category}">${categoryIcon(c)} ${c}</button>`).join("")}
-            </div>
-          </div>
-          ${shop ? `
-          <div class="info-box">🛍️ <b>구매 재판</b>으로 진행합니다. 다음 단계에서 가격·예산과 필요성을 물어볼게요.</div>` : `
-          <div class="field">
-            <span class="label">선택지 <small>(최대 ${LIMITS.optionsMax}개)</small></span>
-            <div id="option-list">
-              ${m.rawOptions.map((o, i) => `
-                <div class="opt-row">
-                  <span class="opt-no">${i + 1}</span>
-                  <input class="opt-input" maxlength="${LIMITS.option}" value="${escapeHTML(o)}" placeholder="${i === 0 ? "예) 마라탕" : i === 1 ? "예) 탕수육" : "선택지"}" aria-label="선택지 ${i + 1}" autocomplete="off" />
-                  ${m.rawOptions.length > 2 ? `<button type="button" class="opt-del" data-del="${i}" aria-label="선택지 ${i + 1} 삭제">✕</button>` : ""}
-                </div>`).join("")}
-            </div>
-            ${m.rawOptions.length < LIMITS.optionsMax ? `<button type="button" class="add-opt" id="add-opt">＋ 선택지 추가</button>` : ""}
-            <div class="hint">선택지를 하나만 적거나 비워 두면 「한다 / 안 한다」로 회의합니다.</div>
-          </div>`}
-          <details class="field more" ${m.detail ? "open" : ""}>
-            <summary>고민 내용 더 적기 (선택)</summary>
-            <textarea id="meeting-detail" maxlength="${LIMITS.detail}" placeholder="상황이나 마음에 걸리는 점을 적어 주세요.">${escapeHTML(m.detail)}</textarea>
-          </details>
-          <p class="err" id="agenda-err" role="alert" hidden></p>
-          <div class="notice">일상 선택을 돕는 놀이용 서비스입니다. 법률·금융·의료 등 전문 판단이나 위기 상황을 대신하지 않습니다.</div>
-          <button class="primary" type="submit">다음 ▶</button>
-        </form>`, () => {
-          const keep = () => {
-            m.title = document.getElementById("meeting-title").value;
-            m.detail = document.getElementById("meeting-detail").value;
-            document.querySelectorAll(".opt-input").forEach((el, i) => { m.rawOptions[i] = el.value; });
-          };
-          modalRoot.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { keep(); m.category = b.dataset.cat; renderAgenda(); });
-          const add = document.getElementById("add-opt");
-          if (add) add.onclick = () => { keep(); m.rawOptions.push(""); renderAgenda(); modalRoot.querySelectorAll(".opt-input")[m.rawOptions.length - 1].focus(); };
-          modalRoot.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { keep(); m.rawOptions.splice(Number(b.dataset.del), 1); renderAgenda(); });
-          document.getElementById("meeting-title").focus();
-          document.getElementById("agenda-form").onsubmit = event => {
-            event.preventDefault();
-            keep();
-            const title = m.title.trim();
-            if (!title) return showError("agenda-err", "고민 제목을 적어 주세요.");
-            if (title.length > LIMITS.title) return showError("agenda-err", `고민 제목은 ${LIMITS.title}자 이하로 적어 주세요.`);
-            if (m.detail.length > LIMITS.detail) return showError("agenda-err", `고민 내용은 ${LIMITS.detail}자 이하로 적어 주세요.`);
-            m.title = title;
-            if (m.category === "쇼핑") {
-              m.options = ["구매 승인", "하루 더 생각하기", "보류"];
-              return renderShop();
-            }
-            const opts = m.rawOptions.map(o => o.trim()).filter(Boolean);
-            if (opts.some(o => o.length > LIMITS.option)) return showError("agenda-err", `선택지는 각각 ${LIMITS.option}자 이하로 적어 주세요.`);
-            const seen = new Set();
-            for (const o of opts) {
-              if (seen.has(normalize(o))) return showError("agenda-err", `「${o}」${j(o,"가")} 두 번 적혀 있어요. 서로 다른 선택지를 적어 주세요.`);
-              seen.add(normalize(o));
-            }
-            m.yesNo = opts.length < 2;
-            const next = m.yesNo ? (opts.length === 1 ? [opts[0], "하지 않기"] : ["한다", "안 한다"]) : opts.slice(0, LIMITS.optionsMax);
-            if (next.join("\u0000") !== m.options.join("\u0000")) m.answers = {}; // 선택지가 바뀌면 이전 답은 버린다
-            m.options = next;
-            m.qIndex = 0;
-            renderQuestion();
-          };
-        });
-    }
-
-    // ② 장관 질문(일반 고민): 장관마다 질문 하나, 답이 곧 그 장관의 표
-    function renderQuestion() {
-      const m = meeting;
-      const minister = MINISTERS[m.qIndex];
-      const current = m.answers[minister.name];
-      openModal("🏛️ 국무회의", `
-        ${stepBar(1)}
-        <div class="q-card">
-          <img class="q-sprite" src="assets/${minister.img}.png" alt="${minister.animal} ${minister.name} 장관" />
-          <div class="q-bubble">
-            <div class="q-who">${minister.emoji} ${minister.name} 장관 <span class="q-count">질문 ${m.qIndex + 1} / ${MINISTERS.length}</span></div>
-            <div class="q-text">${escapeHTML(minister.question)}</div>
-          </div>
-        </div>
-        <div class="q-title">안건: ${escapeHTML(m.title)}</div>
-        <div class="choice-list" role="group" aria-label="${escapeHTML(minister.question)}">
-          ${m.options.map((o, i) => `<button type="button" class="choice" data-answer="${i}" aria-pressed="${current === i}">${escapeHTML(o)}</button>`).join("")}
-          <button type="button" class="choice abstain" data-answer="-1" aria-pressed="${current === -1}">비슷해요 / 잘 모르겠어요</button>
-        </div>
-        <div class="btn-row">
-          <button type="button" class="primary secondary" id="q-back">◀ 이전</button>
-        </div>`, () => {
-          modalRoot.querySelectorAll("[data-answer]").forEach(b => b.onclick = () => {
-            m.answers[minister.name] = Number(b.dataset.answer);
-            if (m.qIndex < MINISTERS.length - 1) { m.qIndex++; renderQuestion(); }
-            else renderPriority();
-          });
-          document.getElementById("q-back").onclick = () => {
-            if (m.qIndex > 0) { m.qIndex--; renderQuestion(); } else renderAgenda();
-          };
-          const first = modalRoot.querySelector('.choice[aria-pressed="true"]') || modalRoot.querySelector(".choice");
-          if (first) first.focus();
-        });
-    }
-
-    // ② 구매 심사(쇼핑): 가격·예산은 필수 정수 1~100,000,000, 범위 밖은 거부
-    function renderShop() {
-      const m = meeting, s = m.shop;
-      const seg = (key, items, label) => `
-        <div class="field">
-          <span class="label">${label}</span>
-          <div class="chip-row" role="group" aria-label="${label}">
-            ${items.map(([v, t]) => `<button type="button" class="chip" data-shop="${key}" data-val="${v}" aria-pressed="${String(s[key]) === v}">${t}</button>`).join("")}
-          </div>
-        </div>`;
-      openModal("🛍️ 구매 재판", `
-        ${stepBar(1)}
-        <div class="q-card">
-          <img class="q-sprite" src="assets/bear_desk.png" alt="곰 현실주의 장관" />
-          <div class="q-bubble"><div class="q-who">🐻 현실주의 장관</div><div class="q-text">「${escapeHTML(m.title)}」, 숫자부터 확인하겠습니다!</div></div>
-        </div>
-        <form id="shop-form" novalidate>
-          <div class="field-row">
-            <div class="field">
-              <label for="price">상품 가격 (원)</label>
-              <input id="price" inputmode="numeric" autocomplete="off" value="${escapeHTML(s.price)}" placeholder="예) 59000" aria-describedby="price-err" />
-              <p class="err small" id="price-err" hidden></p>
-            </div>
-            <div class="field">
-              <label for="budget">쓸 수 있는 예산 (원)</label>
-              <input id="budget" inputmode="numeric" autocomplete="off" value="${escapeHTML(s.budget)}" placeholder="예) 80000" aria-describedby="budget-err" />
-              <p class="err small" id="budget-err" hidden></p>
-            </div>
-          </div>
-          ${seg("owned", [["true", "있어요"], ["false", "없어요"]], "비슷한 물건을 이미 가지고 있나요?")}
-          ${seg("use", [["week", "이번 주 안에"], ["month", "한 달 안에"], ["unknown", "아직 모르겠어요"]], "언제 쓸 계획인가요?")}
-          ${seg("need", [["high", "많이 불편해요"], ["mid", "조금 불편해요"], ["low", "별로 안 불편해요"]], "이게 없으면 얼마나 불편한가요?")}
-          <p class="err" id="shop-err" role="alert" hidden></p>
-          <div class="btn-row">
-            <button type="button" class="primary secondary" id="shop-back">◀ 이전</button>
-            <button type="submit" class="primary">다음 ▶</button>
-          </div>
-        </form>`, () => {
-          const keep = () => { s.price = document.getElementById("price").value; s.budget = document.getElementById("budget").value; };
-          modalRoot.querySelectorAll("[data-shop]").forEach(b => b.onclick = () => {
-            keep();
-            const v = b.dataset.val;
-            s[b.dataset.shop] = v === "true" ? true : v === "false" ? false : v;
-            renderShop();
-          });
-          document.getElementById("shop-back").onclick = () => { keep(); renderAgenda(); };
-          document.getElementById("shop-form").onsubmit = event => {
-            event.preventDefault();
-            keep();
-            const p = parseMoney(s.price), b = parseMoney(s.budget);
-            showError("price-err", p.error || ""); showError("budget-err", b.error || "");
-            document.getElementById("price").setAttribute("aria-invalid", String(!!p.error));
-            document.getElementById("budget").setAttribute("aria-invalid", String(!!b.error));
-            if (p.error || b.error) return showError("shop-err", "가격과 예산을 다시 확인해 주세요.");
-            if (s.owned === null || s.use === null || s.need === null) return showError("shop-err", "세 가지 질문에 모두 답해 주세요.");
-            s.priceValue = p.value; s.budgetValue = b.value;
-            renderPriority();
-          };
-        });
-    }
-
-    // ③ 가장 중요한 기준 (+ 되돌림·마감)
-    function renderPriority() {
-      const m = meeting;
-      const pairs = [["reversible", [["true", "쉽게 바꿀 수 있어요"], ["false", "되돌리기 어려워요"]], "나중에 되돌릴 수 있나요? (선택)"],
-                     ["urgent", [["true", "오늘 안에 정해야 해요"], ["false", "여유가 있어요"]], "언제까지 정해야 하나요? (선택)"]];
-      openModal("🏛️ 국무회의", `
-        ${stepBar(2)}
-        <div class="q-card">
-          <img class="q-sprite" src="assets/cat_podium.png" alt="고양이 국무총리" />
-          <div class="q-bubble"><div class="q-who">👑 국무총리</div><div class="q-text">마지막 질문입니다. 이번 고민에서 가장 중요한 건 무엇인가요? 고른 기준의 장관 표는 <b>1.5표</b>로 계산합니다.</div></div>
-        </div>
-        <div class="prio-grid" role="group" aria-label="가장 중요한 기준">
-          ${MINISTERS.map(x => `<button type="button" class="prio" data-prio="${x.priority}" aria-pressed="${m.priority === x.priority}">
-            <img src="assets/${x.img}.png" alt="" /><b>${PRIORITY_LABEL[x.priority]}</b><small>${x.name} 장관</small></button>`).join("")}
-        </div>
-        ${pairs.map(([key, items, label]) => `
-          <div class="field">
-            <span class="label">${label}</span>
-            <div class="chip-row" role="group" aria-label="${label}">
-              ${items.map(([v, t]) => `<button type="button" class="chip" data-ctx="${key}" data-val="${v}" aria-pressed="${String(m[key]) === v}">${t}</button>`).join("")}
-            </div>
-          </div>`).join("")}
-        <p class="err" id="prio-err" role="alert" hidden></p>
-        <div class="btn-row">
-          <button type="button" class="primary secondary" id="prio-back">◀ 이전</button>
-          <button type="button" class="primary" id="prio-go">⚒️ 표결 시작</button>
-        </div>`, () => {
-          modalRoot.querySelectorAll("[data-prio]").forEach(b => b.onclick = () => { m.priority = b.dataset.prio; renderPriority(); });
-          modalRoot.querySelectorAll("[data-ctx]").forEach(b => b.onclick = () => {
-            const key = b.dataset.ctx, v = b.dataset.val === "true";
-            m[key] = m[key] === v ? null : v; // 다시 누르면 선택 해제
-            renderPriority();
-          });
-          document.getElementById("prio-back").onclick = () => {
-            if (m.category === "쇼핑") renderShop(); else { m.qIndex = MINISTERS.length - 1; renderQuestion(); }
-          };
-          document.getElementById("prio-go").onclick = () => {
-            if (!m.priority) return showError("prio-err", "가장 중요한 기준을 하나 골라 주세요.");
-            m.tiebreak = null;
-            const result = decide(m);
-            if (result.tie) renderTiebreak(result); else showResult(m, result);
-          };
-        });
-    }
-
-    // 동점이면 국무총리가 한 번 더 묻는다
-    function renderTiebreak(result) {
-      const m = meeting;
-      openModal("🏛️ 국무회의", `
-        ${stepBar(2)}
-        <div class="q-card">
-          <img class="q-sprite" src="assets/cat_podium.png" alt="고양이 국무총리" />
-          <div class="q-bubble"><div class="q-who">👑 국무총리</div><div class="q-text">표가 똑같이 갈렸습니다! 둘 중 하나만 고른다면, 지금 마음이 조금이라도 더 가는 쪽은?</div></div>
-        </div>
-        <div class="choice-list" role="group" aria-label="동점 결선">
-          ${result.tie.map(i => `<button type="button" class="choice" data-tb="${i}">${escapeHTML(m.options[i])}</button>`).join("")}
-        </div>
-        <div class="btn-row"><button type="button" class="primary secondary" id="tb-back">◀ 기준 다시 고르기</button></div>`, () => {
-          modalRoot.querySelectorAll("[data-tb]").forEach(b => b.onclick = () => { m.tiebreak = Number(b.dataset.tb); showResult(m, decide(m)); });
-          document.getElementById("tb-back").onclick = renderPriority;
-        });
-    }
-
-    // 받침에 맞는 조사: j("마라탕","를") → "을", j("영화","로") → "로"
-    function j(word, particle) {
-      const ch = String(word).trim().slice(-1), code = ch.charCodeAt(0) - 0xAC00;
-      const hangul = code >= 0 && code <= 11171;
-      const jong = hangul ? code % 28 : 0;
-      const has = hangul ? jong !== 0 : /[0-9lmnLMN]$/.test(ch) && !/[2459]$/.test(ch);
-      if (particle === "로") return has && jong !== 8 ? "으로" : "로";
-      const pairs = { 를: ["을", "를"], 가: ["이", "가"], 는: ["은", "는"], 이라고: ["이라고", "라고"] };
-      return has ? pairs[particle][0] : pairs[particle][1];
-    }
-
-    // ===== 판결 규칙 (AI 미사용, 같은 입력이면 항상 같은 결과) =====
-    function variant(seed, list) {
-      let h = 0;
-      for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-      return list[h % list.length];
-    }
-
-    function decide(m) {
-      return m.category === "쇼핑" ? decideShop(m) : decideGeneral(m);
-    }
-
-    function marginLabel(count, winner, voters, allSame) {
-      if (allSame && voters >= 3) return "만장일치";
-      const sorted = [...count].sort((a, b) => b - a);
-      const diff = sorted[0] - (sorted[1] || 0);
-      return diff >= 2 ? "압도적 우세" : diff >= 1 ? "우세" : "근소한 차이";
-    }
-
-    // "하지 않는다", "안 산다" 같은 '하지 않는' 선택지인지
-    function isNegative(m, i) {
-      const o = String(m.options[i] || "");
-      return (m.yesNo && i === 1) || /(하지\s?않|않는다|않기|않을래|안\s?(한|함|해|할|하|가|사|먹|볼|봐)|말기|말자|그만|포기)/.test(o);
-    }
-
-    function decideGeneral(m) {
-      const count = m.options.map(() => 0);
-      const votes = {};
-      MINISTERS.forEach(x => {
-        const a = Number.isInteger(m.answers[x.name]) ? m.answers[x.name] : -1;
-        votes[x.name] = a >= 0 && a < m.options.length ? a : -1;
-        if (votes[x.name] >= 0) count[votes[x.name]] += x.priority === m.priority ? 1.5 : 1; // 중요 기준 장관은 1.5표
-      });
-      const voters = MINISTERS.filter(x => votes[x.name] >= 0);
-      const abstain = MINISTERS.length - voters.length;
-      if (!voters.length) {
-        return { votes, count, abstain, winner: -1, verdict: "판단 보류!", label: "전원 기권",
-          pmLine: "장관 전원이 기권했습니다. 선택지끼리 차이가 거의 없다는 뜻이에요. 정보를 조금 더 모은 뒤 재심을 청구해 주세요.",
-          nextLine: "각 선택지의 가격·거리·소요 시간 중 하나만이라도 찾아본 뒤 다시 회의해 보세요." };
-      }
-      const max = Math.max(...count);
-      const top = count.map((c, i) => (c === max ? i : -1)).filter(i => i >= 0);
-      let winner, label, pmExtra = "";
-      if (top.length > 1) {
-        if (m.tiebreak === null || !top.includes(m.tiebreak)) return { tie: top, votes, count, abstain };
-        winner = m.tiebreak; label = "박빙 · 총리 결선";
-        pmExtra = " 동점이라 국무총리 결선 질문으로 정했습니다.";
-      } else {
-        winner = top[0];
-        label = marginLabel(count, winner, voters.length, voters.every(x => votes[x.name] === winner));
-      }
-      const win = m.options[winner];
-      const decider = MINISTERS.find(x => x.priority === m.priority);
-      const deciderNote = votes[decider.name] >= 0
-        ? ` 가장 중요한 기준(${PRIORITY_LABEL[m.priority]})을 맡은 ${decider.name} 장관의 표는 1.5표로 계산했습니다.`
-        : ` 가장 중요한 기준(${PRIORITY_LABEL[m.priority]})을 맡은 ${decider.name} 장관은 기권했습니다.`;
-      return {
-        votes, count, abstain, winner, label, verdict: `${win}!`,
-        pmLine: `「${win}」${j(win,"로")} 결정합니다.${pmExtra}${deciderNote}`,
-        nextLine: isNegative(m, winner)
-          ? "이번에는 하지 않기로 했어요. 마음이 바뀌면 재심 청구로 다시 회의해 보세요."
-          : m.urgent === true ? `오늘 안에 「${win}」${j(win,"를")} 위한 첫 행동 하나를 바로 해 보세요.` : `「${win}」${j(win,"를")} 위해 지금 할 수 있는 가장 작은 행동 하나를 정해 보세요.`
-      };
-    }
-
-    function generalOpinion(x, m, r) {
-      const a = r.votes[x.name];
-      const opt = a >= 0 ? m.options[a] : "";
-      const seed = m.title + x.name;
-      const tailR = m.reversible === true ? "R1" : m.reversible === false ? "R0" : "";
-      const tailU = m.urgent === true ? "U1" : m.urgent === false ? "U0" : "";
-      const T = {
-        신중주의: { pick: [`후회가 가장 적을 것 같다고 하신 「${opt}」${j(opt,"를")} 지지합니다.`, `나중에 돌아봐도 아쉽지 않을 쪽은 「${opt}」${j(opt,"이라고")} 보셨죠. 저도 같은 생각입니다.`],
-          abstain: "후회할 정도는 비슷하다고 하셨으니 이번에는 기권하겠습니다.",
-          R1: " 다시 바꿀 수 있는 선택이라 부담도 적습니다.", R0: " 되돌리기 어려운 선택이니 결정 전에 놓친 정보가 없는지 한 번만 더 확인하세요." },
-        낭만주의: { pick: [`가장 끌린다고 하신 「${opt}」! 마음이 가는 쪽이 만족도도 큽니다.`, `설레는 쪽이 정답일 때가 많아요. 저는 「${opt}」에 한 표!`],
-          abstain: "둘 다 끌린다니 행복한 고민이네요! 저는 기권합니다.",
-          R1: " 되돌릴 수 있으니 기분 좋은 쪽으로 가 봐요.", R0: " 오래 남을 선택일수록 마음이 중요합니다." },
-        현실주의: { pick: [`돈과 시간이 가장 덜 든다고 하신 「${opt}」에 한 표 드립니다.`, `부담이 가장 적은 「${opt}」${j(opt,"가")} 합리적입니다.`],
-          abstain: "비용 차이가 크지 않다고 하셨으니 기권하겠습니다.",
-          U1: " 오늘 안에 정해야 하니 부담이 적은 쪽이 안전합니다.", U0: " 여유가 있다면 실제 비용을 한 번 더 비교해 보세요." },
-        행동파: { pick: [`지금 바로 할 수 있는 「${opt}」! 일단 시작하면 고민이 줄어듭니다.`, `고민은 짧게, 실행은 빠르게! 「${opt}」${j(opt,"로")} 갑시다.`],
-          abstain: "어느 쪽도 바로 하기 어렵다면 이번엔 쉬겠습니다.",
-          U1: " 오늘 정해야 하니 바로 실행하세요.", U0: " 작게 먼저 해 보고 다시 판단해도 늦지 않습니다." }
-      }[x.name];
-      if (a < 0) return T.abstain;
-      if (isNegative(m, a)) {
-        const N = {
-          신중주의: `하지 않는 쪽이 후회가 적을 것 같다고 하셨죠. 「${opt}」에 한 표, 이번엔 쉬어 가도 괜찮습니다.`,
-          낭만주의: `마음이 크게 끌리지 않는다면 억지로 할 필요는 없어요. 「${opt}」에 한 표!`,
-          현실주의: `돈과 시간을 아끼는 쪽은 「${opt}」입니다. 한 표 드립니다.`,
-          행동파: `지금 당장 하기 어렵다면 「${opt}」도 괜찮아요. 대신 다시 정할 날짜를 하나 잡아 두세요.`
-        };
-        return N[x.name] + (x.name === "행동파" ? "" : (T[tailR] || "") + (T[tailU] || ""));
-      }
-      return variant(seed, T.pick) + (T[tailR] || "") + (T[tailU] || "");
-    }
-
-    function decideShop(m) {
-      const s = m.shop;
-      const pct = Math.round(s.priceValue / s.budgetValue * 100);
-      const rule = {
-        현실주의: pct > 100 ? [2, `가격이 예산보다 ${pct - 100}% 비쌉니다.`]
-                : pct >= 70 ? [1, `예산의 ${pct}%를 한 번에 씁니다. 다른 지출부터 확인해 보세요.`]
-                : [0, `예산의 ${pct}% 수준이라 부담이 적습니다.`],
-        신중주의: s.owned && s.need !== "high" ? [2, "비슷한 물건이 있고, 없어도 크게 불편하지 않다고 하셨습니다."]
-                : s.owned ? [1, "비슷한 물건이 있으니 새로 필요한 이유를 한 줄로 적어 보세요."]
-                : s.need === "low" ? [1, "없어도 불편하지 않다면 하루만 더 지켜봅시다."]
-                : [0, "겹치는 물건이 없고 필요도 분명합니다."],
-        낭만주의: s.owned && s.need === "low" ? [1, "설렘만으로 사기엔 이미 비슷한 게 있네요."]
-                : [0, "갖고 싶은 마음도 충분한 이유입니다!"],
-        행동파: s.use === "week" ? [0, "이번 주에 바로 쓴다면 미룰 이유가 없습니다."]
-              : s.use === "month" ? [1, "한 달 안에 쓸 거라면 할인과 후기를 확인할 시간이 있습니다."]
-              : [2, "언제 쓸지 모르면 지금 살 필요는 없습니다."]
-      };
-      const votes = {}, reasons = {}, count = [0, 0, 0];
-      MINISTERS.forEach(x => {
-        const [v, why] = rule[x.name];
-        votes[x.name] = v; reasons[x.name] = why;
-        count[v] += x.priority === m.priority ? 1.5 : 1;
-      });
-      // 장관 4명이 모두 투표하고 한 명만 1.5표라 1위 동점은 생기지 않는다.
-      let winner = count.indexOf(Math.max(...count));
-      let label = marginLabel(count, winner, 4, MINISTERS.every(x => votes[x.name] === winner));
-      let pmExtra = "";
-      if (pct > 100 && winner !== 2) { winner = 2; label = "총리 직권"; pmExtra = " 가격이 예산을 넘으면 표결과 관계없이 국무총리 직권으로 보류합니다."; }
-      const verdict = `${m.options[winner]}!`;
-      const next = winner === 0 ? "사기 전에 같은 상품의 최저가와 반품 조건만 확인하세요."
-        : winner === 1 ? "장바구니에 담아 두고 내일 같은 시간에 다시 열어 보세요. 그래도 갖고 싶다면 그때 사도 늦지 않습니다."
-        : "지금은 사지 않기로 해요. 정말 필요해지면 재심을 청구해 주세요.";
-      return {
-        votes, count, abstain: 0, winner, label, verdict, reasons, pct,
-        pmLine: `「${m.options[winner]}」${j(m.options[winner],"로")} 판결합니다.${pmExtra} 가장 중요한 기준(${PRIORITY_LABEL[m.priority]}) 장관의 표는 1.5표로 계산했습니다.`,
-        nextLine: next
-      };
-    }
-
-    function opinionsOf(m, r) {
-      return MINISTERS.map(x => {
-        const a = r.votes[x.name];
-        const text = m.category === "쇼핑" ? r.reasons[x.name] : generalOpinion(x, m, r);
-        return { name: x.name, pick: a >= 0 ? m.options[a] : null, text };
-      });
-    }
-
-    // ④ 결재 화면
-    function showResult(m, r) {
-      const ops = opinionsOf(m, r);
-      const fmt = n => (Number.isInteger(n) ? n : n.toFixed(1));
-      const tally = m.options.map((o, i) => `${o} ${fmt(r.count[i])}표`).join(" · ") + (r.abstain ? ` · 기권 ${r.abstain}` : "");
-      const record = {
-        title: m.title, verdict: r.verdict, category: m.category, date: today(),
-        icon: categoryIcon(m.category), detail: m.detail.trim(), priority: m.priority, tally,
-        label: r.label, retrial: m.retrial,
-        opinions: ops.map(o => [o.name, (o.pick ? `「${o.pick}」 — ` : "기권 — ") + o.text]),
-        createdAt: Date.now()
-      };
-
-      const total = r.count.reduce((a, b) => a + b, 0) || 1;
-      const minority = ops.filter(o => o.pick && o.pick !== m.options[r.winner] && r.winner >= 0);
-      const shopLine = m.category === "쇼핑"
-        ? `<div class="hint">가격 ${m.shop.priceValue.toLocaleString()}원 · 예산 ${m.shop.budgetValue.toLocaleString()}원 (예산의 ${r.pct}%)</div>` : "";
-      openModal(m.category === "쇼핑" ? "📜 구매 재판 판결" : "📜 국무회의 최종 결재", `
-        ${stepBar(3)}
-        <div class="q-title">안건: ${escapeHTML(m.title)} ${m.retrial ? '<span class="badge">재심</span>' : ""}</div>
-        ${shopLine}
-        <div class="result-summary">
-          <div class="label-chip">${escapeHTML(r.label)}</div>
-          <div class="verdict-line">판결: <b>${escapeHTML(r.verdict)}</b><span class="stamp late" aria-hidden="true">결재</span></div>
-          <div class="pm-line">👑 국무총리: ${escapeHTML(r.pmLine)}</div>
-          <div class="next-line">👉 다음 할 일: ${escapeHTML(r.nextLine)}</div>
-        </div>
-        <div class="tally" aria-label="개표 결과">
-          ${m.options.map((o, i) => `
-            <div class="tally-row ${i === r.winner ? "win" : ""}">
-              <span class="tally-name">${escapeHTML(o)}</span>
-              <span class="bar"><span style="width:${Math.round(r.count[i] / total * 100)}%"></span></span>
-              <span class="tally-num">${fmt(r.count[i])}표</span>
-            </div>`).join("")}
-          ${r.abstain ? `<div class="hint">기권 ${r.abstain}명</div>` : ""}
-        </div>
-        <div class="m-cards">
-          ${ops.map((o, i) => {
-            const x = MINISTERS.find(y => y.name === o.name);
-            return `<div class="m-card reveal" style="--d:${0.6 + i * 0.25}s">
-              <img src="assets/${x.img}.png" alt="${x.animal}" />
-              <div>
-                <div class="m-head"><strong>${x.name}</strong>${x.priority === m.priority ? '<span class="badge">결정권 1.5표</span>' : ""}
-                  <span class="pick-chip ${o.pick ? "" : "none"}">${o.pick ? escapeHTML(o.pick) : "기권"}</span></div>
-                <div>${escapeHTML(o.text)}</div>
-              </div>
-            </div>`;
-          }).join("")}
-        </div>
-        ${minority.length ? `<div class="minority reveal" style="--d:1.7s"><b>소수 의견</b>
-          ${minority.map(o => { const x = MINISTERS.find(y => y.name === o.name); return `<div>· ${x.name}: 「${escapeHTML(o.pick)}」 — ${PRIORITY_LABEL[x.priority]}을 더 중시한다면 이쪽도 좋은 선택입니다.</div>`; }).join("")}
-        </div>` : ""}
-        <div class="clerk"><img class="owl" src="assets/owl.png" alt="" /><span id="clerk-msg" role="status">서기관 부엉이: 기록하는 중…</span></div>
-        <div class="notice">이 결과는 입력한 답과 공개된 규칙으로 만든 참고 의견입니다. 중요한 결정은 관련 정보를 직접 확인해 주세요.</div>
-        <div class="btn-row">
-          <button class="primary secondary" id="result-reconsider">♟️ 재심 청구 (답 고치기)</button>
-          <button class="primary" id="result-done">기록하고 닫기 ✓</button>
-        </div>`, () => {
-          document.getElementById("result-done").onclick = closeModal;
-          addRecord(record, m).then(res => {
-            const el = document.getElementById("clerk-msg");
-            if (el) el.textContent = res.ok
-              ? (res.source === "server" ? "서기관 부엉이: 내 계정의 결정 기록실에 적어 두었습니다!" : "서기관 부엉이: 이 브라우저의 기록실에 적어 두었습니다! (체험 모드 — 로그인하면 계정에 저장돼요)")
-              : "서기관 부엉이: 기록하지 못했어요. " + (res.source === "server" ? dbMessage(res.error) : "브라우저 저장소를 쓸 수 없어요.");
-            showRecent();
-          });
-          document.getElementById("result-reconsider").onclick = () => {
-            m.retrial = true; m.tiebreak = null; m.qIndex = 0;
-            if (m.category === "쇼핑") renderShop(); else renderQuestion();
-          };
-        });
-    }
-
-    async function showRecords() {
-      const { records, source, error } = await loadRecords();
-      const mode = source === "server"
-        ? `<p class="hint">🔒 ${escapeHTML(currentUser.email || "")} 계정의 기록입니다. 다른 사람은 볼 수 없어요.</p>`
-        : `<p class="hint">🧪 체험 모드: 이 브라우저에만 저장됩니다. <button type="button" class="link-btn" id="rec-login">로그인</button>하면 계정에 저장돼요.</p>`;
-      const wire = () => { const b = document.getElementById("rec-login"); if (b) b.onclick = () => openLogin(); };
-      if (error) { openModal("📜 결정 기록실", mode + `<p class="err">${escapeHTML(dbMessage(error))}</p>`, wire); return; }
-      if (!records.length) {
-        openModal("📜 결정 기록실", mode + `<div class="empty"><img class="owl" src="assets/owl.png" alt="서기관 부엉이" /><br>아직 저장된 결정이 없습니다.<br>고민을 접수하고 첫 결정을 만들어 보세요!</div>`, wire);
-        return;
-      }
-      openModal("📜 결정 기록실", mode + `
-        <p class="err" id="rec-err" role="alert" hidden></p>
-        <div id="all-records">
-          ${records.map((item, index) => `
-            <details class="record-detail">
-              <summary class="list-action">
-                <span>${escapeHTML(item.icon || "📌")}</span>
-                <span class="record-title">${escapeHTML(item.title)}</span>
-                <span class="verdict-pill">${escapeHTML(item.verdict)}</span>
-              </summary>
-              <div class="record-body">
-                <div class="hint">${escapeHTML(item.date || "")} · ${escapeHTML(item.category || "")}${item.label ? " · " + escapeHTML(item.label) : ""}${item.tally ? " · " + escapeHTML(item.tally) : ""}</div>
-                ${(item.opinions || []).map(([n, t]) => `<div class="opinion small"><strong>${escapeHTML(n)}</strong>${escapeHTML(t)}</div>`).join("")}
-                <button class="delete-btn" data-delete="${index}">이 기록 삭제</button>
-              </div>
-            </details>`).join("")}
-        </div>`, () => {
-          wire();
-          modalRoot.querySelectorAll("[data-delete]").forEach(button => {
-            button.onclick = async () => {
-              button.disabled = true;
-              const index = Number(button.dataset.delete);
-              const res = await removeRecord(records[index], index);
-              if (!res.ok) { button.disabled = false; return showError("rec-err", dbMessage(res.error) || "삭제하지 못했어요."); }
-              showRecent();
-              showRecords();
-            };
-          });
-        });
-    }
-
-    document.querySelectorAll(".category").forEach(button => {
-      button.onclick = () => {
-        document.querySelectorAll(".category").forEach(item => item.classList.remove("selected"));
-        button.classList.add("selected");
-        selectedCategory = button.dataset.category;
-      };
-    });
-
-    document.getElementById("quick-form").onsubmit = event => {
-      event.preventDefault();
-      startMeeting(document.getElementById("quick-title").value.trim());
-    };
-
-    const AVATARS = [
-      ["grandpa", "할아버지"], ["grandma", "할머니"], ["man30", "직장인"], ["woman30", "직장인"], ["teen_boy", "음악 소년"],
-      ["teen_girl", "카메라 소녀"], ["student", "학생"], ["skater", "스케이트"], ["woman40", "커피 한 잔"], ["man50", "골프"]
-    ];
-    const AVATAR_KEY = "decision-country-avatar";
-    function getAvatar() {
-      if (currentUser) return profileAvatar;
-      try { const v = localStorage.getItem(AVATAR_KEY); return AVATARS.some(a => a[0] === v) ? v : ""; } catch { return ""; }
-    }
-    function applyAvatar() {
-      const btn = document.querySelector(".login-btn"); const id = getAvatar();
-      if (!btn) return;
-      const label = currentUser ? "내 계정" : "로그인";
-      btn.innerHTML = id ? `<img src="assets/people/person_${id}.png" alt="">${label}` : `👤 ${label}`;
-    }
-    applyAvatar();
-    document.querySelectorAll("[data-action]").forEach(button => {
-      button.addEventListener("click", () => {
-        const action = button.dataset.action;
-        if (action === "home") window.scrollTo({ top: 0, behavior: "smooth" });
-        if (action === "meeting") startMeeting();
-        if (action === "records") showRecords();
-        if (action === "ranking") document.getElementById("ranking-panel").scrollIntoView({ behavior: "smooth" });
-        if (action === "settings") openModal("⚙️ 설정", `
-          <div class="field"><label>기록 관리</label><p class="hint">${currentUser ? "결정 기록은 로그인한 계정에 저장되며, 본인만 보고 지울 수 있습니다." : "체험 모드: 결정 기록은 이 브라우저에만 보관되며 서버로 전송되지 않습니다. 로그인하면 계정에 저장됩니다."}</p></div>
-          <div class="field"><label>내 캐릭터 고르기</label>
-            <p class="hint">${currentUser ? "선택한 캐릭터는 내 계정에 저장됩니다." : "체험 모드에서는 이 브라우저에만 저장됩니다."}</p>
-            <p class="err" id="set-err" role="alert" hidden></p>
-            <div class="avatar-grid">${AVATARS.map(a => `<button type="button" class="avatar-opt" data-avatar="${a[0]}" aria-pressed="${getAvatar() === a[0]}" title="${a[1]}"><img src="assets/people/person_${a[0]}.png" alt="${a[1]}"></button>`).join("")}</div></div>
-          <button class="delete-btn" id="clear-records">저장된 기록 모두 삭제</button>`, () => {
-            modalRoot.querySelectorAll("[data-avatar]").forEach(b => b.onclick = async () => {
-              const res = await setAvatar(b.dataset.avatar);
-              if (!res.ok) return showError("set-err", dbMessage(res.error));
-              modalRoot.querySelectorAll("[data-avatar]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
-              applyAvatar();
-            });
-            document.getElementById("clear-records").onclick = async () => {
-              const res = await clearRecords();
-              if (!res.ok) return showError("set-err", dbMessage(res.error));
-              showRecent();
-              closeModal();
-            };
-          });
-        if (action === "login") { if (currentUser) openAccount(); else openLogin(); }
-        if (action === "reconsider") {
-          loadRecords().then(({ records }) => startMeeting(records[0] ? records[0].title : ""));
-        }
-        if (action === "friends") openModal("👥 친구와 함께", `
-          <p>친구와 고민을 함께 결정하는 기능입니다.</p>
-          <p class="hint">공동 참여 기능은 준비 중입니다. 지금은 각자 고민을 접수해 의견을 확인해 보세요.</p>
-          <button class="primary" id="friends-start">고민 접수하기</button>`, () => {
-            document.getElementById("friends-start").onclick = () => startMeeting();
-          });
-      });
-    });
-
-
-    // 배경 이미지(1264x842) 위에 말풍선·이름표를 같은 자리에 덮어 그린다. (이미지 속 말풍선 글자 오타 대체)
-    const SCENE_W = 1264, SCENE_H = 842;
-    const VIEW_TOP = 138, VIEW_ROWS = 495; // 화면에 보여 줄 그림 구간(국무총리 말풍선~관객)
-    const SCENE_ITEMS = [
-      { x: 618,  y: 236, w: 112, h: 54, text: "신중하게 검토해야 합니다!", chip: [690, 403, "신중주의"] },
-      { x: 744,  y: 246, w: 108, h: 46, text: "재미도 중요합니다!",         chip: [807, 400, "낭만주의"] },
-      { x: 852,  y: 148, w: 172, h: 50, text: "지금부터 국무회의를 시작하겠습니다!", chip: [938, 328, "국무총리"] },
-      { x: 1022, y: 233, w: 116, h: 50, text: "예산도 따져 봅시다!",         chip: [1077, 400, "현실주의"] },
-      { x: 1155, y: 262, w: 94,  h: 46, text: "일단 해봅시다!",             chip: [1187, 405, "행동파"] }
-    ];
-    function layoutScene() {
-      const box = document.getElementById("hero-art");
-      const img = document.getElementById("scene-img");
-      if (!box || !img) return;
-      const narrow = window.matchMedia("(max-width: 1000px)").matches;
-      const phone = window.matchMedia("(max-width: 600px)").matches;
-      const w = box.clientWidth;
-      const hero = box.parentElement;
-      let scale, offsetX, yTop = VIEW_TOP;
-      if (narrow) {
-        // 태블릿·폰: 너비에 맞춰 그림 구간을 통째로 보여 준다(폰은 오른쪽 62%만)
-        const base = phone ? w / (SCENE_W * 0.62) : w / SCENE_W;
-        box.style.height = Math.round(VIEW_ROWS * base) + "px";
-        hero.style.minHeight = "";
-        scale = base;
-        offsetX = Math.max(0, SCENE_W * scale - w) * (phone ? 1 : 0.5);
-      } else {
-        // 데스크톱: 히어로 높이에 장면 전체(VIEW_ROWS)가 들어오게 맞추고 오른쪽에 붙인다. 왼쪽은 글자 영역(그림이 서서히 나타남)
-        box.style.height = "";
-        hero.style.minHeight = "";
-        const h = box.clientHeight;
-        scale = h / VIEW_ROWS;
-        const imgW0 = SCENE_W * scale;
-        offsetX = imgW0 >= w ? (imgW0 - w) / 2 : imgW0 - w; // 그림이 더 좁으면 음수(오른쪽 정렬)
-      }
-      const imgW = SCENE_W * scale, imgH = SCENE_H * scale;
-      img.style.width = imgW + "px"; img.style.height = imgH + "px";
-      img.style.left = (-offsetX) + "px"; img.style.top = (-yTop * scale) + "px";
-      img.style.webkitMaskImage = img.style.maskImage = narrow ? "none" : "linear-gradient(90deg, transparent 0, #000 22%)";
-      box.querySelectorAll(".sbubble, .schip").forEach(el => el.remove());
-      const fs = Math.max(phone ? 7 : 11, Math.round(10.5 * scale));
-      SCENE_ITEMS.forEach(item => {
-        const bub = document.createElement("div");
-        bub.className = "sbubble";
-        bub.style.cssText = `left:${item.x * scale - offsetX}px;top:${(item.y - yTop) * scale}px;width:${item.w * scale}px;height:${(item.h - 6) * scale}px;font-size:${fs}px`;
-        bub.innerHTML = `<div class="body"></div><div class="tail"></div>`;
-        bub.firstChild.textContent = item.text;
-        box.appendChild(bub);
-        const [cx, cy, name] = item.chip;
-        const c = document.createElement("div");
-        c.className = "schip";
-        c.style.cssText = `left:${cx * scale - offsetX}px;top:${(cy - yTop) * scale}px;font-size:${Math.max(phone ? 7 : 10, Math.round(10 * scale))}px`;
-        c.textContent = name;
-        box.appendChild(c);
-      });
-    }
-    window.addEventListener("resize", layoutScene);
-    window.addEventListener("load", layoutScene);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutScene);
-    if (window.ResizeObserver) new ResizeObserver(layoutScene).observe(document.querySelector(".hero"));
-    layoutScene();
-
-    showRecent();
-    if (db) {
-      db.auth.getSession().then(({ data }) => onAuthChanged(data.session));
-      db.auth.onAuthStateChange((event, session) => {
-        if (event === "INITIAL_SESSION") return;
-        setTimeout(() => onAuthChanged(session), 0); // 콜백 안에서 바로 DB를 부르지 않도록 다음 틱에 처리
-      });
-    }
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
