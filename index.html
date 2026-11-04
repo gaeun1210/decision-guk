@@ -99,8 +99,8 @@
       pointer-events: none;
     }
     @media (min-width: 1001px) {
-      .hero::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
-        background: linear-gradient(90deg, rgba(18, 28, 56, .88) 0%, rgba(18, 28, 56, .78) 28%, rgba(18, 28, 56, .35) 40%, rgba(18, 28, 56, 0) 46%); }
+      .hero { background: linear-gradient(90deg, #17223f 0%, #22345c 45%, #2c4a6e 100%); }
+      .hero::after { display: none; }
     }
     .hero-copy { position: relative; z-index: 2; }
     .hero-copy { max-width: 640px; }
@@ -969,10 +969,10 @@
 
     // 배경 이미지(1264x842) 위에 말풍선·이름표를 같은 자리에 덮어 그린다. (이미지 속 말풍선 글자 오타 대체)
     const SCENE_W = 1264, SCENE_H = 842;
-    const VIEW_TOP = 297, VIEW_ROWS = 335, CENTER_Y = 465; // 캐릭터 구간(말풍선~이름표)이 이 범위
+    const VIEW_TOP = 225, VIEW_ROWS = 520; // 화면에 보여 줄 그림 구간(나무~관객, 전체 장면)
     const SCENE_ITEMS = [
-      { x: 548,  y: 352, w: 112, h: 52, text: "신중하게 검토해야 합니다!", chip: [604, 545, "신중주의"] },
-      { x: 678,  y: 360, w: 122, h: 42, text: "재미도 중요합니다!",         chip: [735, 548, "낭만주의"] },
+      { x: 518,  y: 360, w: 122, h: 42, text: "재미도 중요합니다!",         chip: [578, 548, "낭만주의"] },
+      { x: 682,  y: 352, w: 112, h: 52, text: "신중하게 검토해야 합니다!", chip: [738, 545, "신중주의"] },
       { x: 806,  y: 318, w: 168, h: 50, text: "지금부터 국무회의를 시작하겠습니다!", chip: [890, 524, "국무총리"] },
       { x: 980,  y: 362, w: 118, h: 40, text: "예산도 따져 봅시다!",         chip: [1040, 545, "현실주의"] },
       { x: 1126, y: 392, w: 98,  h: 38, text: "일단 해봅시다!",             chip: [1175, 542, "행동파"] }
@@ -984,21 +984,30 @@
       const narrow = window.matchMedia("(max-width: 1000px)").matches;
       const phone = window.matchMedia("(max-width: 600px)").matches;
       const w = box.clientWidth;
-      // 태블릿·폰: 캐릭터 구간만 보이도록 높이를 계산. 데스크톱: 히어로 전체가 배경이며 캐릭터 구간을 가운데로 맞춤
-      const base = phone ? w / (SCENE_W * 0.62) : w / SCENE_W;
-      box.style.height = narrow ? Math.round(VIEW_ROWS * base) + "px" : "";
       const hero = box.parentElement;
-      hero.style.minHeight = narrow ? "" : Math.round(VIEW_ROWS * base) + "px";
-      const h = box.clientHeight;
-      const scale = phone ? Math.max(base, h / SCENE_H) : Math.max(w / SCENE_W, h / SCENE_H);
+      let scale, offsetX, yTop = VIEW_TOP;
+      if (narrow) {
+        // 태블릿·폰: 너비에 맞춰 그림 구간을 통째로 보여 준다(폰은 오른쪽 62%만)
+        const base = phone ? w / (SCENE_W * 0.62) : w / SCENE_W;
+        box.style.height = Math.round(VIEW_ROWS * base) + "px";
+        hero.style.minHeight = "";
+        scale = base;
+        offsetX = Math.max(0, SCENE_W * scale - w) * (phone ? 1 : 0.5);
+      } else {
+        // 데스크톱: 히어로 높이에 장면 전체(VIEW_ROWS)가 들어오게 맞추고 오른쪽에 붙인다. 왼쪽은 글자 영역(그림이 서서히 나타남)
+        box.style.height = "";
+        hero.style.minHeight = "";
+        const h = box.clientHeight;
+        scale = h / VIEW_ROWS;
+        const imgW0 = SCENE_W * scale;
+        offsetX = imgW0 >= w ? (imgW0 - w) / 2 : imgW0 - w; // 그림이 더 좁으면 음수(오른쪽 정렬)
+      }
       const imgW = SCENE_W * scale, imgH = SCENE_H * scale;
-      const offsetX = Math.max(0, imgW - w) * (phone ? 1 : 0.5);
-      const rows = h / scale;                         // 화면에 보이는 그림 행 수
-      const yTop = narrow ? VIEW_TOP : Math.max(0, Math.min(SCENE_H - rows, CENTER_Y - rows / 2));
       img.style.width = imgW + "px"; img.style.height = imgH + "px";
       img.style.left = (-offsetX) + "px"; img.style.top = (-yTop * scale) + "px";
+      img.style.webkitMaskImage = img.style.maskImage = narrow ? "none" : "linear-gradient(90deg, transparent 0, #000 22%)";
       box.querySelectorAll(".sbubble, .schip").forEach(el => el.remove());
-      const fs = Math.max(phone ? 7 : 8, Math.round(9.5 * scale));
+      const fs = Math.max(phone ? 7 : 11, Math.round(12.5 * scale));
       SCENE_ITEMS.forEach(item => {
         const bub = document.createElement("div");
         bub.className = "sbubble";
@@ -1009,7 +1018,7 @@
         const [cx, cy, name] = item.chip;
         const c = document.createElement("div");
         c.className = "schip";
-        c.style.cssText = `left:${cx * scale - offsetX}px;top:${(cy - yTop) * scale}px;font-size:${Math.max(phone ? 7 : 8, Math.round(8.5 * scale))}px`;
+        c.style.cssText = `left:${cx * scale - offsetX}px;top:${(cy - yTop) * scale}px;font-size:${Math.max(phone ? 7 : 10, Math.round(10 * scale))}px`;
         c.textContent = name;
         box.appendChild(c);
       });
