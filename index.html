@@ -543,8 +543,10 @@
     .msg.me { justify-content: flex-end; }
     .face { display: grid; justify-items: center; gap: 2px; flex: none; width: 66px; }
     .face img { width: 56px; height: 56px; object-fit: cover; border-radius: 50%; background: #fff; border: 2px solid #e5ccb2; image-rendering: pixelated; }
-    .msg.owl .face img { object-fit: contain; border-radius: 12px; }
-    .msg.me .face img { object-fit: contain; object-position: top; background: #e4edff; }
+    .msg.them .face img { width: auto; height: 84px; max-width: 70px; object-fit: contain; object-position: bottom; border: 0; border-radius: 0; background: none; }
+    .msg.them .face { width: 72px; }
+    .msg.me .face img { width: auto; height: 84px; max-width: 70px; object-fit: contain; object-position: bottom; border: 0; border-radius: 0; background: none; }
+    .msg.me .face { width: 72px; }
     .msg.wide .bubble { flex: 1; max-width: 560px; }
     .face small { font-size: 11px; font-weight: 800; color: #6b5a4b; text-align: center; line-height: 1.2; }
     .face-emoji { font-size: 40px; line-height: 58px; }
@@ -601,6 +603,7 @@
       .modal { width: 100%; max-height: none; height: 100%; border-radius: 0; border-width: 0; padding: 16px 14px 24px; }
       .stat-grid { grid-template-columns: repeat(2, 1fr); }
       .face { width: 52px; } .face img { width: 46px; height: 46px; }
+      .msg .face { width: 56px; } .msg .face img { height: 66px !important; max-width: 54px !important; }
       .bubble { max-width: 82%; font-size: 14px; }
       .me-face { display: none; }
     }

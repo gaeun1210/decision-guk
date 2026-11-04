@@ -3,10 +3,10 @@ const STORAGE_KEY = "decision-country-records";
 
 // 장관 정보: 질문 하나씩을 맡고, 사용자의 답이 그 장관의 표가 된다(규칙 공개, AI 미사용). 순서는 첫 화면 배치(토끼·쿼카·곰·병아리)와 같다.
 const MINISTERS = [
-  { name: "신중주의", priority: "safe", img: "rabbit_desk", face: "face_rabbit", emoji: "🐰", animal: "토끼", question: "어느 쪽이 나중에 후회가 가장 적을 것 같나요?" },
-  { name: "낭만주의", priority: "fun",  img: "quokka_desk", face: "face_quokka", emoji: "🐹", animal: "쿼카", question: "솔직히 어느 쪽이 가장 끌리나요?" },
-  { name: "현실주의", priority: "cost", img: "bear_desk", face: "face_bear",   emoji: "🐻", animal: "곰",   question: "어느 쪽이 돈과 시간이 가장 덜 드나요?" },
-  { name: "행동파",   priority: "easy", img: "chick_desk", face: "face_chick",  emoji: "🐤", animal: "병아리", question: "어느 쪽을 지금 바로 시작할 수 있나요?" }
+  { name: "신중주의", priority: "safe", img: "rabbit_desk", face: "face_rabbit", stand: "stand_rabbit", emoji: "🐰", animal: "토끼", question: "어느 쪽이 나중에 후회가 가장 적을 것 같나요?" },
+  { name: "낭만주의", priority: "fun",  img: "quokka_desk", face: "face_quokka", stand: "stand_quokka", emoji: "🐹", animal: "쿼카", question: "솔직히 어느 쪽이 가장 끌리나요?" },
+  { name: "현실주의", priority: "cost", img: "bear_desk", face: "face_bear", stand: "stand_bear",   emoji: "🐻", animal: "곰",   question: "어느 쪽이 돈과 시간이 가장 덜 드나요?" },
+  { name: "행동파",   priority: "easy", img: "chick_desk", face: "face_chick", stand: "stand_chick",  emoji: "🐤", animal: "병아리", question: "어느 쪽을 지금 바로 시작할 수 있나요?" }
 ];
 const LIMITS = { title: 100, detail: 1000, option: 40, optionsMax: 6, moneyMin: 1, moneyMax: 100000000 };
 const PRIORITY_LABEL = { cost: "비용·시간", fun: "즐거움", safe: "후회 없음", easy: "실행 쉬움" };
@@ -706,8 +706,8 @@ function opinionsOf(m, r) {
 // ④ 결재 화면
 // ===== 결재: 실시간 대화처럼 장관들이 차례로 발언한다 =====
 const SPEAKERS = {
-  pm:  { name: "국무총리", img: "assets/face_cat.png", cls: "pm" },
-  owl: { name: "서기관 부엉이", img: "assets/owl.png", cls: "owl" }
+  pm:  { name: "국무총리", img: "assets/stand_cat.png", cls: "pm" },
+  owl: { name: "서기관 부엉이", img: "assets/stand_owl.png", cls: "owl" }
 };
 function userFace() {
   const id = getAvatar();
@@ -724,7 +724,7 @@ function chatLine(who, html, extra = "") {
   if (who === "user") {
     return `<div class="msg me ${extra}"><div class="bubble">${html}</div><div class="face">${userFace()}<small>${userName()}</small></div></div>`;
   }
-  const sp = SPEAKERS[who] || (() => { const x = MINISTERS.find(y => y.name === who); return { name: `${x.name} 장관`, img: `assets/${x.face}.png`, cls: x.priority }; })();
+  const sp = SPEAKERS[who] || (() => { const x = MINISTERS.find(y => y.name === who); return { name: `${x.name} 장관`, img: `assets/${x.stand}.png`, cls: x.priority }; })();
   return `<div class="msg them ${sp.cls} ${extra}"><div class="face"><img src="${sp.img}" alt="" /><small>${escapeHTML(sp.name)}</small></div><div class="bubble">${html}</div></div>`;
 }
 
