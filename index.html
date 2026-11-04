@@ -263,6 +263,7 @@
       font-size: 14px;
     }
     .record-row:last-child { border-bottom: 0; }
+    .record-empty { grid-column: 1 / -1; white-space: normal; font-weight: 700; color: #6b5a4b; }
     .record-icon { font-size: 25px; }
     .record-title {
       overflow: hidden;
@@ -917,7 +918,7 @@
       const { records: saved, error } = await loadRecords();
       if (currentUser && !saved.length) {
         note.textContent = "";
-        list.innerHTML = `<div class="record-row"><span class="record-title">${error ? "기록을 불러오지 못했어요." : "아직 내 기록이 없어요. 첫 고민을 접수해 보세요!"}</span></div>`;
+        list.innerHTML = `<div class="record-row"><span class="record-title record-empty">${error ? "기록을 불러오지 못했어요." : "아직 내 기록이 없어요. 첫 고민을 접수해 보세요!"}</span></div>`;
         return;
       }
       const records = (saved.length ? saved : sampleRecords).slice(0, 3);
@@ -1250,6 +1251,12 @@
       return diff >= 2 ? "압도적 우세" : diff >= 1 ? "우세" : "근소한 차이";
     }
 
+    // "하지 않는다", "안 산다" 같은 '하지 않는' 선택지인지
+    function isNegative(m, i) {
+      const o = String(m.options[i] || "");
+      return (m.yesNo && i === 1) || /(하지\s?않|않는다|않기|않을래|안\s?(한|함|해|할|하|가|사|먹|볼|봐)|말기|말자|그만|포기)/.test(o);
+    }
+
     function decideGeneral(m) {
       const count = m.options.map(() => 0);
       const votes = {};
@@ -1284,7 +1291,9 @@
       return {
         votes, count, abstain, winner, label, verdict: `${win}!`,
         pmLine: `「${win}」${j(win,"로")} 결정합니다.${pmExtra}${deciderNote}`,
-        nextLine: m.urgent === true ? `오늘 안에 「${win}」${j(win,"를")} 위한 첫 행동 하나를 바로 해 보세요.` : `「${win}」${j(win,"를")} 위해 지금 할 수 있는 가장 작은 행동 하나를 정해 보세요.`
+        nextLine: isNegative(m, winner)
+          ? "이번에는 하지 않기로 했어요. 마음이 바뀌면 재심 청구로 다시 회의해 보세요."
+          : m.urgent === true ? `오늘 안에 「${win}」${j(win,"를")} 위한 첫 행동 하나를 바로 해 보세요.` : `「${win}」${j(win,"를")} 위해 지금 할 수 있는 가장 작은 행동 하나를 정해 보세요.`
       };
     }
 
@@ -1309,6 +1318,15 @@
           U1: " 오늘 정해야 하니 바로 실행하세요.", U0: " 작게 먼저 해 보고 다시 판단해도 늦지 않습니다." }
       }[x.name];
       if (a < 0) return T.abstain;
+      if (isNegative(m, a)) {
+        const N = {
+          신중주의: `하지 않는 쪽이 후회가 적을 것 같다고 하셨죠. 「${opt}」에 한 표, 이번엔 쉬어 가도 괜찮습니다.`,
+          낭만주의: `마음이 크게 끌리지 않는다면 억지로 할 필요는 없어요. 「${opt}」에 한 표!`,
+          현실주의: `돈과 시간을 아끼는 쪽은 「${opt}」입니다. 한 표 드립니다.`,
+          행동파: `지금 당장 하기 어렵다면 「${opt}」도 괜찮아요. 대신 다시 정할 날짜를 하나 잡아 두세요.`
+        };
+        return N[x.name] + (x.name === "행동파" ? "" : (T[tailR] || "") + (T[tailU] || ""));
+      }
       return variant(seed, T.pick) + (T[tailR] || "") + (T[tailU] || "");
     }
 
