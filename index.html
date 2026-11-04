@@ -968,14 +968,14 @@
 
 
     // 배경 이미지(1264x842) 위에 말풍선·이름표를 같은 자리에 덮어 그린다. (이미지 속 말풍선 글자 오타 대체)
-    const SCENE_W = 1264, SCENE_H = 842;
-    const VIEW_TOP = 318, VIEW_ROWS = 425; // 화면에 보여 줄 그림 구간(국무총리 말풍선~관객)
+    const SCENE_W = 1024, SCENE_H = 682;
+    const VIEW_TOP = 105, VIEW_ROWS = 405; // 화면에 보여 줄 그림 구간(국무총리 말풍선~관객)
     const SCENE_ITEMS = [
-      { x: 558,  y: 400, w: 122, h: 42, text: "재미도 중요합니다!",         chip: [652, 557, "낭만주의"] },
-      { x: 700,  y: 349, w: 112, h: 52, text: "신중하게 검토해야 합니다!", chip: [772, 523, "신중주의"] },
-      { x: 818,  y: 331, w: 168, h: 50, text: "지금부터 국무회의를 시작하겠습니다!", chip: [902, 489, "국무총리"] },
-      { x: 992,  y: 363, w: 118, h: 40, text: "예산도 따져 봅시다!",         chip: [1030, 523, "현실주의"] },
-      { x: 1119, y: 418, w: 98,  h: 38, text: "일단 해봅시다!",             chip: [1150, 561, "행동파"] }
+      { x: 488, y: 178, w: 108, h: 54, text: "신중하게 검토해야 합니다!", chip: [545, 300, "신중주의"] },
+      { x: 596, y: 188, w: 104, h: 46, text: "재미도 중요합니다!",         chip: [648, 300, "낭만주의"] },
+      { x: 688, y: 104, w: 144, h: 50, text: "지금부터 국무회의를 시작하겠습니다!", chip: [760, 266, "국무총리"] },
+      { x: 822, y: 172, w: 112, h: 50, text: "예산도 따져 봅시다!",         chip: [878, 300, "현실주의"] },
+      { x: 930, y: 200, w: 88,  h: 46, text: "일단 해봅시다!",             chip: [975, 300, "행동파"] }
     ];
     function layoutScene() {
       const box = document.getElementById("hero-art");
@@ -1007,7 +1007,7 @@
       img.style.left = (-offsetX) + "px"; img.style.top = (-yTop * scale) + "px";
       img.style.webkitMaskImage = img.style.maskImage = narrow ? "none" : "linear-gradient(90deg, transparent 0, #000 22%)";
       box.querySelectorAll(".sbubble, .schip").forEach(el => el.remove());
-      const fs = Math.max(phone ? 7 : 11, Math.round(12.5 * scale));
+      const fs = Math.max(phone ? 7 : 11, Math.round(10.5 * scale));
       SCENE_ITEMS.forEach(item => {
         const bub = document.createElement("div");
         bub.className = "sbubble";
