@@ -933,14 +933,15 @@
     });
 
 
-    // 배경 이미지(1024x682) 위에 말풍선·이름표를 같은 자리에 덮어 그린다. (이미지 속 말풍선 글자 오타 대체)
-    const SCENE_W = 1024, SCENE_H = 682;
+    // 배경 이미지(1264x842) 위에 말풍선·이름표를 같은 자리에 덮어 그린다. (이미지 속 말풍선 글자 오타 대체)
+    const SCENE_W = 1264, SCENE_H = 842;
+    const VIEW_TOP = 125, VIEW_ROWS = 295, CENTER_Y = 268; // 캐릭터 구간(말풍선~이름표)이 이 범위
     const SCENE_ITEMS = [
-      { x: 496, y: 195, w: 98,  h: 42, text: "신중하게 검토해야 합니다!", chip: [545, 300, "신중주의"] },
-      { x: 600, y: 206, w: 95,  h: 32, text: "재미도 중요합니다!",         chip: [648, 300, "낭만주의"] },
-      { x: 694, y: 122, w: 132, h: 40, text: "지금부터 국무회의를 시작하겠습니다!", chip: [760, 266, "국무총리"] },
-      { x: 828, y: 201, w: 98,  h: 32, text: "예산도 따져 봅시다!",         chip: [878, 300, "현실주의"] },
-      { x: 936, y: 225, w: 76,  h: 30, text: "일단 해봅시다!",             chip: [975, 300, "행동파"] }
+      { x: 612,  y: 240, w: 118, h: 47, text: "신중하게 검토해야 합니다!", chip: [672, 376, "신중주의"] },
+      { x: 740,  y: 254, w: 118, h: 37, text: "재미도 중요합니다!",         chip: [798, 376, "낭만주의"] },
+      { x: 855,  y: 149, w: 163, h: 52, text: "지금부터 국무회의를 시작하겠습니다!", chip: [938, 326, "국무총리"] },
+      { x: 1022, y: 247, w: 122, h: 37, text: "예산도 따져 봅시다!",         chip: [1085, 376, "현실주의"] },
+      { x: 1155, y: 278, w: 96,  h: 35, text: "일단 해봅시다!",             chip: [1206, 376, "행동파"] }
     ];
     function layoutScene() {
       const box = document.getElementById("hero-art");
@@ -949,21 +950,21 @@
       const narrow = window.matchMedia("(max-width: 1000px)").matches;
       const phone = window.matchMedia("(max-width: 600px)").matches;
       const w = box.clientWidth;
-      // 태블릿·폰: 이미지 윗부분(335행)이 보이도록 높이를 계산. 데스크톱: 히어로 전체가 배경이며 캐릭터가 있는 구간을 가운데로 맞춤
-      const base = phone ? w / (SCENE_W * 0.58) : w / SCENE_W;
-      box.style.height = narrow ? Math.round(335 * base) + "px" : "";
+      // 태블릿·폰: 캐릭터 구간만 보이도록 높이를 계산. 데스크톱: 히어로 전체가 배경이며 캐릭터 구간을 가운데로 맞춤
+      const base = phone ? w / (SCENE_W * 0.55) : w / SCENE_W;
+      box.style.height = narrow ? Math.round(VIEW_ROWS * base) + "px" : "";
       const hero = box.parentElement;
-      hero.style.minHeight = narrow ? "" : Math.round(215 * base) + "px"; // 말풍선~이름표(약 200행)가 항상 보이게 최소 높이 확보
+      hero.style.minHeight = narrow ? "" : Math.round(VIEW_ROWS * base) + "px";
       const h = box.clientHeight;
       const scale = phone ? Math.max(base, h / SCENE_H) : Math.max(w / SCENE_W, h / SCENE_H);
       const imgW = SCENE_W * scale, imgH = SCENE_H * scale;
       const offsetX = Math.max(0, imgW - w) * (phone ? 1 : 0.5);
       const rows = h / scale;                         // 화면에 보이는 그림 행 수
-      const yTop = narrow ? 0 : Math.max(0, Math.min(SCENE_H - rows, 218 - rows / 2));
+      const yTop = narrow ? VIEW_TOP : Math.max(0, Math.min(SCENE_H - rows, CENTER_Y - rows / 2));
       img.style.width = imgW + "px"; img.style.height = imgH + "px";
       img.style.left = (-offsetX) + "px"; img.style.top = (-yTop * scale) + "px";
       box.querySelectorAll(".sbubble, .schip").forEach(el => el.remove());
-      const fs = Math.max(8, Math.round(9.5 * scale));
+      const fs = Math.max(phone ? 7 : 8, Math.round(9.5 * scale));
       SCENE_ITEMS.forEach(item => {
         const bub = document.createElement("div");
         bub.className = "sbubble";
@@ -974,7 +975,7 @@
         const [cx, cy, name] = item.chip;
         const c = document.createElement("div");
         c.className = "schip";
-        c.style.cssText = `left:${cx * scale - offsetX}px;top:${(cy - yTop) * scale}px;font-size:${Math.max(8, Math.round(8.5 * scale))}px`;
+        c.style.cssText = `left:${cx * scale - offsetX}px;top:${(cy - yTop) * scale}px;font-size:${Math.max(phone ? 7 : 8, Math.round(8.5 * scale))}px`;
         c.textContent = name;
         box.appendChild(c);
       });
