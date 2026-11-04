@@ -1224,13 +1224,13 @@ document.querySelectorAll("[data-action]").forEach(button => {
 
 // 배경 이미지(1264x842) 위에 말풍선·이름표를 같은 자리에 덮어 그린다. (이미지 속 말풍선 글자 오타 대체)
 const SCENE_W = 1264, SCENE_H = 842;
-const VIEW_TOP = 138, VIEW_ROWS = 495; // 화면에 보여 줄 그림 구간(국무총리 말풍선~관객)
+const VIEW_TOP = 138, VIEW_ROWS = 495, DESK_TOP = 140, DESK_ROWS = 300; // 화면에 보여 줄 그림 구간(국무총리 말풍선~관객)
 const SCENE_ITEMS = [
-  { x: 618,  y: 236, w: 112, h: 54, text: "신중하게 검토해야 합니다!", chip: [690, 403, "신중주의"] },
-  { x: 744,  y: 246, w: 108, h: 46, text: "재미도 중요합니다!",         chip: [807, 400, "낭만주의"] },
-  { x: 852,  y: 148, w: 172, h: 50, text: "지금부터 국무회의를 시작하겠습니다!", chip: [938, 328, "국무총리"] },
-  { x: 1022, y: 233, w: 116, h: 50, text: "예산도 따져 봅시다!",         chip: [1077, 400, "현실주의"] },
-  { x: 1155, y: 262, w: 94,  h: 46, text: "일단 해봅시다!",             chip: [1187, 405, "행동파"] }
+  { x: 618,  y: 236, w: 112, h: 54, text: "신중하게 검토해야 합니다!", chip: [690, 413, "신중주의"] },
+  { x: 744,  y: 246, w: 108, h: 46, text: "재미도 중요합니다!",         chip: [807, 403, "낭만주의"] },
+  { x: 852,  y: 148, w: 172, h: 50, text: "지금부터 국무회의를 시작하겠습니다!", chip: [938, 340, "국무총리"] },
+  { x: 1022, y: 233, w: 116, h: 50, text: "예산도 따져 봅시다!",         chip: [1075, 403, "현실주의"] },
+  { x: 1155, y: 262, w: 94,  h: 46, text: "일단 해봅시다!",             chip: [1187, 415, "행동파"] }
 ];
 function layoutScene() {
   const box = document.getElementById("hero-art");
@@ -1249,18 +1249,22 @@ function layoutScene() {
     scale = base;
     offsetX = Math.max(0, SCENE_W * scale - w) * (phone ? 1 : 0.5);
   } else {
-    // 데스크톱: 히어로 높이에 장면 전체(VIEW_ROWS)가 들어오게 맞추고 오른쪽에 붙인다. 왼쪽은 글자 영역(그림이 서서히 나타남)
+    // 데스크톱: 장관들이 있는 구간(x 600~1264)이 접수 카드 오른쪽 빈 공간을 채우도록 키운다.
+    // 단, 말풍선~관객 머리(DESK_ROWS행)는 항상 보이도록 확대 한도를 둔다. 그림은 오른쪽에 붙인다.
     box.style.height = "";
     hero.style.minHeight = "";
     const h = box.clientHeight;
-    scale = h / VIEW_ROWS;
-    const imgW0 = SCENE_W * scale;
-    offsetX = imgW0 >= w ? (imgW0 - w) / 2 : imgW0 - w; // 그림이 더 좁으면 음수(오른쪽 정렬)
+    const copy = hero.querySelector(".hero-copy");
+    const free = Math.max(200, w - (copy ? copy.getBoundingClientRect().right - box.getBoundingClientRect().left : w * 0.4) - 24);
+    scale = Math.max(h / VIEW_ROWS, Math.min(free / (SCENE_W - 600), h / DESK_ROWS));
+    const rows = h / scale;
+    yTop = Math.max(0, Math.min(SCENE_H - rows, DESK_TOP + (DESK_ROWS - rows) / 2 + (rows - DESK_ROWS) * 0.1));
+    offsetX = SCENE_W * scale - w; // 오른쪽 정렬(음수면 왼쪽이 비고 그라데이션으로 이어짐)
   }
   const imgW = SCENE_W * scale, imgH = SCENE_H * scale;
   img.style.width = imgW + "px"; img.style.height = imgH + "px";
   img.style.left = (-offsetX) + "px"; img.style.top = (-yTop * scale) + "px";
-  img.style.webkitMaskImage = img.style.maskImage = narrow ? "none" : "linear-gradient(90deg, transparent 0, #000 22%)";
+  img.style.webkitMaskImage = img.style.maskImage = narrow ? "none" : "linear-gradient(90deg, transparent 0, rgba(0,0,0,.35) 22%, #000 42%)"; // 그림 왼쪽(돌담)은 글자 영역 쪽으로 서서히 사라짐
   box.querySelectorAll(".sbubble, .schip").forEach(el => el.remove());
   const fs = Math.max(phone ? 7 : 11, Math.round(10.5 * scale));
   SCENE_ITEMS.forEach(item => {
