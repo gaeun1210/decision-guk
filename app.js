@@ -1226,11 +1226,11 @@ document.querySelectorAll("[data-action]").forEach(button => {
 const SCENE_W = 1264, SCENE_H = 842;
 const VIEW_TOP = 138, VIEW_ROWS = 495, DESK_TOP = 140, DESK_ROWS = 300; // 화면에 보여 줄 그림 구간(국무총리 말풍선~관객)
 const SCENE_ITEMS = [
-  { x: 618,  y: 236, w: 112, h: 54, text: "신중하게 검토해야 합니다!", chip: [690, 413, "신중주의"] },
-  { x: 744,  y: 246, w: 108, h: 46, text: "재미도 중요합니다!",         chip: [807, 403, "낭만주의"] },
+  { x: 618,  y: 236, w: 112, h: 54, text: "신중하게 검토해야 합니다!", chip: [706, 414, "신중주의"] },
+  { x: 744,  y: 246, w: 108, h: 46, text: "재미도 중요합니다!",         chip: [820, 402, "낭만주의"] },
   { x: 852,  y: 148, w: 172, h: 50, text: "지금부터 국무회의를 시작하겠습니다!", chip: [938, 340, "국무총리"] },
-  { x: 1022, y: 233, w: 116, h: 50, text: "예산도 따져 봅시다!",         chip: [1075, 403, "현실주의"] },
-  { x: 1155, y: 262, w: 94,  h: 46, text: "일단 해봅시다!",             chip: [1187, 415, "행동파"] }
+  { x: 1022, y: 233, w: 116, h: 50, text: "예산도 따져 봅시다!",         chip: [1060, 402, "현실주의"] },
+  { x: 1155, y: 262, w: 94,  h: 46, text: "일단 해봅시다!",             chip: [1186, 414, "행동파"] }
 ];
 function layoutScene() {
   const box = document.getElementById("hero-art");
@@ -1249,22 +1249,21 @@ function layoutScene() {
     scale = base;
     offsetX = Math.max(0, SCENE_W * scale - w) * (phone ? 1 : 0.5);
   } else {
-    // 데스크톱: 장관들이 있는 구간(x 600~1264)이 접수 카드 오른쪽 빈 공간을 채우도록 키운다.
-    // 단, 말풍선~관객 머리(DESK_ROWS행)는 항상 보이도록 확대 한도를 둔다. 그림은 오른쪽에 붙인다.
+    // 데스크톱: 장면은 원래 비율 그대로(전체가 보이게) 두고, 접수 칸(오른쪽) 바로 왼쪽에 그림의 오른쪽 끝을 붙인다.
+    // 화면이 좁으면 그림 왼쪽(돌담·나무)이 잘리고 장관들은 항상 접수 칸 옆에 붙어 있다.
     box.style.height = "";
     hero.style.minHeight = "";
     const h = box.clientHeight;
     const copy = hero.querySelector(".hero-copy");
-    const free = Math.max(200, w - (copy ? copy.getBoundingClientRect().right - box.getBoundingClientRect().left : w * 0.4) - 24);
-    scale = Math.max(h / VIEW_ROWS, Math.min(free / (SCENE_W - 600), h / DESK_ROWS));
-    const rows = h / scale;
-    yTop = Math.max(0, Math.min(SCENE_H - rows, DESK_TOP + (DESK_ROWS - rows) / 2 + (rows - DESK_ROWS) * 0.1));
-    offsetX = SCENE_W * scale - w; // 오른쪽 정렬(음수면 왼쪽이 비고 그라데이션으로 이어짐)
+    const boxLeft = box.getBoundingClientRect().left;
+    const avail = copy ? copy.getBoundingClientRect().left - boxLeft - 12 : w * 0.6;
+    scale = h / VIEW_ROWS;
+    offsetX = SCENE_W * scale - avail;
   }
   const imgW = SCENE_W * scale, imgH = SCENE_H * scale;
   img.style.width = imgW + "px"; img.style.height = imgH + "px";
   img.style.left = (-offsetX) + "px"; img.style.top = (-yTop * scale) + "px";
-  img.style.webkitMaskImage = img.style.maskImage = narrow ? "none" : "linear-gradient(90deg, transparent 0, rgba(0,0,0,.35) 22%, #000 42%)"; // 그림 왼쪽(돌담)은 글자 영역 쪽으로 서서히 사라짐
+  img.style.webkitMaskImage = img.style.maskImage = narrow ? "none" : "linear-gradient(90deg, transparent 0, #000 14%, #000 94%, transparent 100%)";
   box.querySelectorAll(".sbubble, .schip").forEach(el => el.remove());
   const fs = Math.max(phone ? 7 : 11, Math.round(10.5 * scale));
   SCENE_ITEMS.forEach(item => {
