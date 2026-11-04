@@ -1249,21 +1249,24 @@ function layoutScene() {
     scale = base;
     offsetX = Math.max(0, SCENE_W * scale - w) * (phone ? 1 : 0.5);
   } else {
-    // 데스크톱: 장면은 원래 비율 그대로(전체가 보이게) 두고, 접수 칸(오른쪽) 바로 왼쪽에 그림의 오른쪽 끝을 붙인다.
-    // 화면이 좁으면 그림 왼쪽(돌담·나무)이 잘리고 장관들은 항상 접수 칸 옆에 붙어 있다.
+    // 데스크톱: 글자·접수 칸은 왼쪽, 장면은 오른쪽에 붙인다. 장관들이 접수 칸 쪽으로 다가오도록 조금만 키우되,
+    // 말풍선~관객 머리(최소 380행)는 항상 보이게 확대 한도를 둔다.
     box.style.height = "";
     hero.style.minHeight = "";
     const h = box.clientHeight;
     const copy = hero.querySelector(".hero-copy");
     const boxLeft = box.getBoundingClientRect().left;
-    const avail = copy ? copy.getBoundingClientRect().left - boxLeft - 12 : w * 0.6;
-    scale = h / VIEW_ROWS;
-    offsetX = SCENE_W * scale - avail;
+    const copyRight = copy ? copy.getBoundingClientRect().right - boxLeft : w * 0.4;
+    const free = Math.max(200, w - copyRight - 30);
+    scale = Math.max(h / VIEW_ROWS, Math.min(free / (SCENE_W - 590), h / 380));
+    const rows = h / scale;
+    yTop = Math.max(0, Math.min(SCENE_H - rows, 138)); // 국무총리 말풍선이 잘리지 않게 위쪽 기준
+    offsetX = SCENE_W * scale - w; // 오른쪽 정렬
   }
   const imgW = SCENE_W * scale, imgH = SCENE_H * scale;
   img.style.width = imgW + "px"; img.style.height = imgH + "px";
   img.style.left = (-offsetX) + "px"; img.style.top = (-yTop * scale) + "px";
-  img.style.webkitMaskImage = img.style.maskImage = narrow ? "none" : "linear-gradient(90deg, transparent 0, #000 14%, #000 94%, transparent 100%)";
+  img.style.webkitMaskImage = img.style.maskImage = narrow ? "none" : "linear-gradient(90deg, transparent 0, rgba(0,0,0,.4) 22%, #000 40%)";
   box.querySelectorAll(".sbubble, .schip").forEach(el => el.remove());
   const fs = Math.max(phone ? 7 : 11, Math.round(10.5 * scale));
   SCENE_ITEMS.forEach(item => {
