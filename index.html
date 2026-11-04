@@ -469,6 +469,9 @@
     .more textarea { width: 100%; min-height: 82px; padding: 11px 12px; border: 2px solid #ddc7b2; border-radius: 11px; background: #fffaf5; color: var(--ink); resize: vertical; }
     .info-box { margin: 12px 0; padding: 12px 14px; border-radius: 12px; background: #e4edff; line-height: 1.6; }
     .err { margin: 8px 0 0; padding: 9px 12px; border-radius: 10px; background: #fde3dc; color: #9a2f1c; font-weight: 800; font-size: 14px; }
+    .ok { margin: 8px 0 0; padding: 9px 12px; border-radius: 10px; background: #dff1d8; color: #2f5a22; font-weight: 800; font-size: 14px; }
+    .link-btn { padding: 0; border: 0; background: none; color: #2f4c85; font-weight: 900; text-decoration: underline; }
+    .tabs { margin-bottom: 6px; }
     .err.small { padding: 4px 8px; font-size: 12.5px; }
     .field input[aria-invalid="true"] { border-color: #d0533c; background: #fff3f0; }
     .q-card { display: flex; align-items: flex-end; gap: 12px; margin: 4px 0 10px; }
@@ -675,6 +678,7 @@
 
   <div id="modal-root"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
   <script>
     const STORAGE_KEY = "decision-country-records";
     const sampleRecords = [
@@ -710,6 +714,175 @@
       catch { return false; }
     }
 
+    // ===== 로그인·서버 저장 (Supabase) =====
+    // 공개(publishable) 키만 둔다. 이 키로는 RLS 규칙이 허용한 일(로그인한 사람의 "자기 기록" 조회·추가·삭제)만 할 수 있다.
+    // service_role/secret 키는 RLS를 건너뛰므로 절대 이 파일이나 저장소에 넣지 않는다.
+    const SUPABASE_URL = "https://acujnijqjbwblqtuxatj.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_UxzsgGhTjOXjL8zlI9v5Nw_vtfGi5jO";
+    const db = window.supabase && window.supabase.createClient
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } })
+      : null;
+    let currentUser = null;
+    let profileAvatar = "";
+
+    function dbDate(iso) {
+      const d = new Date(iso);
+      return isNaN(d) ? "" : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+    }
+    function fromRow(row) {
+      return {
+        id: row.id, title: row.title, verdict: row.verdict, category: row.category,
+        date: dbDate(row.created_at), icon: categoryIcon(row.category), detail: row.detail,
+        tally: row.tally, label: row.label, retrial: row.retrial,
+        opinions: Array.isArray(row.opinions) ? row.opinions.filter(o => Array.isArray(o) && o.length === 2).map(([n, t]) => [String(n), String(t)]) : []
+      };
+    }
+
+    // 기록 불러오기: 로그인 → 서버(RLS로 내 것만), 비로그인 → 이 브라우저(체험 모드)
+    async function loadRecords() {
+      if (!currentUser) return { records: getRecords(), source: "local" };
+      const { data, error } = await db.from("decisions")
+        .select("id,title,category,detail,verdict,label,tally,opinions,retrial,created_at")
+        .order("created_at", { ascending: false }).limit(100);
+      if (error) return { records: [], source: "server", error };
+      return { records: data.map(fromRow), source: "server" };
+    }
+
+    async function addRecord(record, m) {
+      if (!currentUser) {
+        const list = getRecords(); list.unshift(record);
+        return { ok: saveRecords(list), source: "local" };
+      }
+      const shop = m.category === "쇼핑";
+      const { error } = await db.from("decisions").insert({
+        title: record.title, category: record.category, detail: record.detail || "",
+        options: m.options, priority: m.priority,
+        price: shop ? m.shop.priceValue : null, budget: shop ? m.shop.budgetValue : null,
+        verdict: record.verdict, label: record.label, tally: record.tally,
+        opinions: record.opinions, retrial: !!record.retrial
+      }); // user_id는 DB가 auth.uid()로 채운다(화면에서 보내지 않음)
+      return { ok: !error, source: "server", error };
+    }
+
+    async function removeRecord(item, index) {
+      if (!currentUser) {
+        const list = getRecords(); list.splice(index, 1);
+        return { ok: saveRecords(list) };
+      }
+      const { error } = await db.from("decisions").delete().eq("id", item.id);
+      return { ok: !error, error };
+    }
+
+    async function clearRecords() {
+      if (!currentUser) { try { localStorage.removeItem(STORAGE_KEY); } catch {} return { ok: true }; }
+      const { error } = await db.from("decisions").delete().eq("user_id", currentUser.id);
+      return { ok: !error, error };
+    }
+
+    function authMessage(error) {
+      const msg = String(error && (error.message || error.code) || "");
+      if (/invalid login credentials/i.test(msg)) return "이메일 또는 비밀번호가 맞지 않아요.";
+      if (/email not confirmed/i.test(msg)) return "이메일 인증을 먼저 완료해 주세요. 받은 메일함(스팸함 포함)을 확인해 주세요.";
+      if (/rate limit|too many/i.test(msg)) return "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.";
+      if (/password/i.test(msg)) return "비밀번호 조건을 확인해 주세요(8자 이상, 영문과 숫자를 섞어 주세요).";
+      if (/already registered|already exists/i.test(msg)) return "이미 가입된 이메일이에요. 로그인해 주세요.";
+      if (/fetch|network/i.test(msg)) return "서버에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.";
+      return "처리하지 못했어요. 잠시 후 다시 시도해 주세요.";
+    }
+    function dbMessage(error) {
+      if (!error) return "";
+      if (/jwt|auth|permission|policy|42501/i.test(String(error.message || error.code))) return "권한이 없어 처리하지 못했어요. 다시 로그인해 주세요.";
+      if (/check|23514|violates/i.test(String(error.message || error.code))) return "입력값이 허용 범위를 벗어나 저장하지 않았어요.";
+      return "서버에 저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
+    }
+
+    async function loadProfile() {
+      profileAvatar = "";
+      if (!currentUser) return;
+      const { data } = await db.from("profiles").select("avatar").eq("user_id", currentUser.id).maybeSingle();
+      if (data && AVATARS.some(a => a[0] === data.avatar)) profileAvatar = data.avatar;
+    }
+    async function setAvatar(id) {
+      if (!currentUser) { try { localStorage.setItem(AVATAR_KEY, id); } catch {} return { ok: true }; }
+      const { error } = await db.from("profiles").upsert({ user_id: currentUser.id, avatar: id, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      if (!error) profileAvatar = id;
+      return { ok: !error, error };
+    }
+
+    async function onAuthChanged(session) {
+      currentUser = session && session.user ? session.user : null;
+      await loadProfile();
+      applyAvatar();
+      showRecent();
+    }
+
+    function openLogin(mode = "login", notice = "") {
+      if (!db) {
+        openModal("👤 로그인", `<p class="err">로그인 서버에 연결하지 못했어요(네트워크 또는 차단 문제). 지금은 체험 모드로 이 브라우저에만 저장됩니다.</p>`);
+        return;
+      }
+      const signup = mode === "signup";
+      openModal("👤 " + (signup ? "회원가입" : "로그인"), `
+        <div class="chip-row tabs" role="tablist">
+          <button type="button" class="chip" role="tab" data-mode="login" aria-pressed="${!signup}">로그인</button>
+          <button type="button" class="chip" role="tab" data-mode="signup" aria-pressed="${signup}">회원가입</button>
+        </div>
+        <form id="auth-form" novalidate>
+          <div class="field"><label for="auth-email">이메일</label>
+            <input id="auth-email" type="email" autocomplete="email" maxlength="254" required /></div>
+          <div class="field"><label for="auth-pw">비밀번호</label>
+            <input id="auth-pw" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="8" maxlength="72" required />
+            ${signup ? `<div class="hint">8자 이상, 영문과 숫자를 섞어 주세요.</div>` : ""}</div>
+          <p class="err" id="auth-err" role="alert" hidden></p>
+          <p class="ok" id="auth-ok" role="status" ${notice ? "" : "hidden"}>${escapeHTML(notice)}</p>
+          <button class="primary" type="submit" id="auth-submit">${signup ? "가입하기" : "로그인"}</button>
+        </form>
+        <p class="hint">로그인하면 결정 기록이 계정에 저장되어 다른 기기에서도 볼 수 있고, 다른 사람은 내 기록을 볼 수 없습니다. 비밀번호는 인증 서버(Supabase)가 보관하며 결정국 화면 코드는 비밀번호를 저장하지 않습니다.</p>`, () => {
+          modalRoot.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => openLogin(b.dataset.mode));
+          document.getElementById("auth-email").focus();
+          document.getElementById("auth-form").onsubmit = async event => {
+            event.preventDefault();
+            const email = document.getElementById("auth-email").value.trim();
+            const password = document.getElementById("auth-pw").value;
+            showError("auth-err", "");
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showError("auth-err", "이메일 형식을 확인해 주세요.");
+            if (password.length < 8) return showError("auth-err", "비밀번호는 8자 이상이어야 해요.");
+            if (signup && !(/[A-Za-z]/.test(password) && /\d/.test(password))) return showError("auth-err", "비밀번호에 영문과 숫자를 함께 넣어 주세요.");
+            const btn = document.getElementById("auth-submit"); btn.disabled = true; btn.textContent = "처리 중…";
+            try {
+              if (signup) {
+                const { data, error } = await db.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
+                if (error) throw error;
+                if (data.session) { closeModal(); return; }
+                openLogin("login", "가입 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.");
+              } else {
+                const { error } = await db.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                closeModal();
+              }
+            } catch (error) {
+              showError("auth-err", authMessage(error));
+              btn.disabled = false; btn.textContent = signup ? "가입하기" : "로그인";
+            }
+          };
+        });
+    }
+
+    function openAccount() {
+      openModal("👤 내 계정", `
+        <p>로그인한 계정: <b>${escapeHTML(currentUser.email || "")}</b></p>
+        <p class="hint">결정 기록은 이 계정에만 저장되며, 행 단위 접근 제어(RLS)로 다른 사람은 볼 수도 지울 수도 없습니다.</p>
+        <p class="err" id="acct-err" role="alert" hidden></p>
+        <button class="primary secondary" id="logout-btn">로그아웃</button>`, () => {
+          document.getElementById("logout-btn").onclick = async () => {
+            const { error } = await db.auth.signOut();
+            if (error) return showError("acct-err", authMessage(error));
+            closeModal();
+          };
+        });
+    }
+
+
     function escapeHTML(value) {
       return String(value ?? "").replace(/[&<>"']/g, char => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -739,11 +912,17 @@
         : `<span class="avatar emoji">${minister.emoji}</span>`;
     }
 
-    function showRecent() {
-      const saved = getRecords();
+    async function showRecent() {
+      const list = document.getElementById("recent-list"), note = document.getElementById("recent-note");
+      const { records: saved, error } = await loadRecords();
+      if (currentUser && !saved.length) {
+        note.textContent = "";
+        list.innerHTML = `<div class="record-row"><span class="record-title">${error ? "기록을 불러오지 못했어요." : "아직 내 기록이 없어요. 첫 고민을 접수해 보세요!"}</span></div>`;
+        return;
+      }
       const records = (saved.length ? saved : sampleRecords).slice(0, 3);
-      document.getElementById("recent-note").textContent = saved.length ? "" : "(예시)";
-      document.getElementById("recent-list").innerHTML = records.map(item => `
+      note.textContent = saved.length ? "" : "(예시)";
+      list.innerHTML = records.map(item => `
         <div class="record-row">
           <span class="record-icon">${escapeHTML(item.icon || "📌")}</span>
           <span class="record-title" title="${escapeHTML(item.title)}">${escapeHTML(item.title)}</span>
@@ -1192,10 +1371,6 @@
         opinions: ops.map(o => [o.name, (o.pick ? `「${o.pick}」 — ` : "기권 — ") + o.text]),
         createdAt: Date.now()
       };
-      const records = getRecords();
-      records.unshift(record);
-      const saved = saveRecords(records);
-      showRecent();
 
       const total = r.count.reduce((a, b) => a + b, 0) || 1;
       const minority = ops.filter(o => o.pick && o.pick !== m.options[r.winner] && r.winner >= 0);
@@ -1236,13 +1411,20 @@
         ${minority.length ? `<div class="minority reveal" style="--d:1.7s"><b>소수 의견</b>
           ${minority.map(o => { const x = MINISTERS.find(y => y.name === o.name); return `<div>· ${x.name}: 「${escapeHTML(o.pick)}」 — ${PRIORITY_LABEL[x.priority]}을 더 중시한다면 이쪽도 좋은 선택입니다.</div>`; }).join("")}
         </div>` : ""}
-        <div class="clerk"><img class="owl" src="assets/owl.png" alt="" /><span>${saved ? "서기관 부엉이: 결정 기록실에 적어 두었습니다!" : "서기관 부엉이: 브라우저 설정 때문에 기록하지 못했어요."}</span></div>
+        <div class="clerk"><img class="owl" src="assets/owl.png" alt="" /><span id="clerk-msg" role="status">서기관 부엉이: 기록하는 중…</span></div>
         <div class="notice">이 결과는 입력한 답과 공개된 규칙으로 만든 참고 의견입니다. 중요한 결정은 관련 정보를 직접 확인해 주세요.</div>
         <div class="btn-row">
           <button class="primary secondary" id="result-reconsider">♟️ 재심 청구 (답 고치기)</button>
           <button class="primary" id="result-done">기록하고 닫기 ✓</button>
         </div>`, () => {
           document.getElementById("result-done").onclick = closeModal;
+          addRecord(record, m).then(res => {
+            const el = document.getElementById("clerk-msg");
+            if (el) el.textContent = res.ok
+              ? (res.source === "server" ? "서기관 부엉이: 내 계정의 결정 기록실에 적어 두었습니다!" : "서기관 부엉이: 이 브라우저의 기록실에 적어 두었습니다! (체험 모드 — 로그인하면 계정에 저장돼요)")
+              : "서기관 부엉이: 기록하지 못했어요. " + (res.source === "server" ? dbMessage(res.error) : "브라우저 저장소를 쓸 수 없어요.");
+            showRecent();
+          });
           document.getElementById("result-reconsider").onclick = () => {
             m.retrial = true; m.tiebreak = null; m.qIndex = 0;
             if (m.category === "쇼핑") renderShop(); else renderQuestion();
@@ -1250,13 +1432,19 @@
         });
     }
 
-    function showRecords() {
-      const records = getRecords();
+    async function showRecords() {
+      const { records, source, error } = await loadRecords();
+      const mode = source === "server"
+        ? `<p class="hint">🔒 ${escapeHTML(currentUser.email || "")} 계정의 기록입니다. 다른 사람은 볼 수 없어요.</p>`
+        : `<p class="hint">🧪 체험 모드: 이 브라우저에만 저장됩니다. <button type="button" class="link-btn" id="rec-login">로그인</button>하면 계정에 저장돼요.</p>`;
+      const wire = () => { const b = document.getElementById("rec-login"); if (b) b.onclick = () => openLogin(); };
+      if (error) { openModal("📜 결정 기록실", mode + `<p class="err">${escapeHTML(dbMessage(error))}</p>`, wire); return; }
       if (!records.length) {
-        openModal("📜 결정 기록실", `<div class="empty"><img class="owl" src="assets/owl.png" alt="서기관 부엉이" /><br>아직 저장된 결정이 없습니다.<br>고민을 접수하고 첫 결정을 만들어 보세요!</div>`);
+        openModal("📜 결정 기록실", mode + `<div class="empty"><img class="owl" src="assets/owl.png" alt="서기관 부엉이" /><br>아직 저장된 결정이 없습니다.<br>고민을 접수하고 첫 결정을 만들어 보세요!</div>`, wire);
         return;
       }
-      openModal("📜 결정 기록실", `
+      openModal("📜 결정 기록실", mode + `
+        <p class="err" id="rec-err" role="alert" hidden></p>
         <div id="all-records">
           ${records.map((item, index) => `
             <details class="record-detail">
@@ -1266,17 +1454,19 @@
                 <span class="verdict-pill">${escapeHTML(item.verdict)}</span>
               </summary>
               <div class="record-body">
-                <div class="hint">${escapeHTML(item.date || "")} · ${escapeHTML(item.category || "")}${item.tally ? " · " + escapeHTML(item.tally) : ""}</div>
+                <div class="hint">${escapeHTML(item.date || "")} · ${escapeHTML(item.category || "")}${item.label ? " · " + escapeHTML(item.label) : ""}${item.tally ? " · " + escapeHTML(item.tally) : ""}</div>
                 ${(item.opinions || []).map(([n, t]) => `<div class="opinion small"><strong>${escapeHTML(n)}</strong>${escapeHTML(t)}</div>`).join("")}
                 <button class="delete-btn" data-delete="${index}">이 기록 삭제</button>
               </div>
             </details>`).join("")}
         </div>`, () => {
+          wire();
           modalRoot.querySelectorAll("[data-delete]").forEach(button => {
-            button.onclick = () => {
-              const updated = getRecords();
-              updated.splice(Number(button.dataset.delete), 1);
-              saveRecords(updated);
+            button.onclick = async () => {
+              button.disabled = true;
+              const index = Number(button.dataset.delete);
+              const res = await removeRecord(records[index], index);
+              if (!res.ok) { button.disabled = false; return showError("rec-err", dbMessage(res.error) || "삭제하지 못했어요."); }
               showRecent();
               showRecords();
             };
@@ -1302,11 +1492,15 @@
       ["teen_girl", "카메라 소녀"], ["student", "학생"], ["skater", "스케이트"], ["woman40", "커피 한 잔"], ["man50", "골프"]
     ];
     const AVATAR_KEY = "decision-country-avatar";
-    function getAvatar() { try { const v = localStorage.getItem(AVATAR_KEY); return AVATARS.some(a => a[0] === v) ? v : ""; } catch { return ""; } }
+    function getAvatar() {
+      if (currentUser) return profileAvatar;
+      try { const v = localStorage.getItem(AVATAR_KEY); return AVATARS.some(a => a[0] === v) ? v : ""; } catch { return ""; }
+    }
     function applyAvatar() {
       const btn = document.querySelector(".login-btn"); const id = getAvatar();
       if (!btn) return;
-      btn.innerHTML = id ? `<img src="assets/people/person_${id}.png" alt="">로그인` : "👤 로그인";
+      const label = currentUser ? "내 계정" : "로그인";
+      btn.innerHTML = id ? `<img src="assets/people/person_${id}.png" alt="">${label}` : `👤 ${label}`;
     }
     applyAvatar();
     document.querySelectorAll("[data-action]").forEach(button => {
@@ -1317,28 +1511,28 @@
         if (action === "records") showRecords();
         if (action === "ranking") document.getElementById("ranking-panel").scrollIntoView({ behavior: "smooth" });
         if (action === "settings") openModal("⚙️ 설정", `
-          <div class="field"><label>기록 관리</label><p class="hint">결정 기록은 현재 브라우저의 로컬 저장소에만 보관되며 서버로 전송되지 않습니다.</p></div>
+          <div class="field"><label>기록 관리</label><p class="hint">${currentUser ? "결정 기록은 로그인한 계정에 저장되며, 본인만 보고 지울 수 있습니다." : "체험 모드: 결정 기록은 이 브라우저에만 보관되며 서버로 전송되지 않습니다. 로그인하면 계정에 저장됩니다."}</p></div>
           <div class="field"><label>내 캐릭터 고르기</label>
-            <p class="hint">지금은 이 브라우저에만 저장됩니다. 로그인 기능이 붙으면 계정에 저장됩니다.</p>
+            <p class="hint">${currentUser ? "선택한 캐릭터는 내 계정에 저장됩니다." : "체험 모드에서는 이 브라우저에만 저장됩니다."}</p>
+            <p class="err" id="set-err" role="alert" hidden></p>
             <div class="avatar-grid">${AVATARS.map(a => `<button type="button" class="avatar-opt" data-avatar="${a[0]}" aria-pressed="${getAvatar() === a[0]}" title="${a[1]}"><img src="assets/people/person_${a[0]}.png" alt="${a[1]}"></button>`).join("")}</div></div>
           <button class="delete-btn" id="clear-records">저장된 기록 모두 삭제</button>`, () => {
-            modalRoot.querySelectorAll("[data-avatar]").forEach(b => b.onclick = () => {
-              try { localStorage.setItem(AVATAR_KEY, b.dataset.avatar); } catch {}
+            modalRoot.querySelectorAll("[data-avatar]").forEach(b => b.onclick = async () => {
+              const res = await setAvatar(b.dataset.avatar);
+              if (!res.ok) return showError("set-err", dbMessage(res.error));
               modalRoot.querySelectorAll("[data-avatar]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
               applyAvatar();
             });
-            document.getElementById("clear-records").onclick = () => {
-              try { localStorage.removeItem(STORAGE_KEY); } catch {}
+            document.getElementById("clear-records").onclick = async () => {
+              const res = await clearRecords();
+              if (!res.ok) return showError("set-err", dbMessage(res.error));
               showRecent();
               closeModal();
             };
           });
-        if (action === "login") openModal("👤 로그인", `
-          <p>로그인 기능은 아직 연결되어 있지 않습니다.</p>
-          <p class="hint">지금은 로그인 없이 이 브라우저에만 결정 기록이 저장됩니다.</p>`);
+        if (action === "login") { if (currentUser) openAccount(); else openLogin(); }
         if (action === "reconsider") {
-          const latest = getRecords()[0];
-          startMeeting(latest ? latest.title : "");
+          loadRecords().then(({ records }) => startMeeting(records[0] ? records[0].title : ""));
         }
         if (action === "friends") openModal("👥 친구와 함께", `
           <p>친구와 고민을 함께 결정하는 기능입니다.</p>
@@ -1413,6 +1607,13 @@
     layoutScene();
 
     showRecent();
+    if (db) {
+      db.auth.getSession().then(({ data }) => onAuthChanged(data.session));
+      db.auth.onAuthStateChange((event, session) => {
+        if (event === "INITIAL_SESSION") return;
+        setTimeout(() => onAuthChanged(session), 0); // 콜백 안에서 바로 DB를 부르지 않도록 다음 틱에 처리
+      });
+    }
   </script>
 </body>
 </html>
