@@ -361,6 +361,14 @@
     .footer-brand { font-size: 17px; }
     .footer-cat { font-size: 45px; }
 
+
+    .avatar-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 8px 0 14px; }
+    .avatar-opt { display: grid; place-items: end center; height: 104px; padding: 6px 2px; border: 3px solid #d9bfa2; border-radius: 14px; background: #fff9f0; }
+    .avatar-opt img { max-height: 84px; max-width: 100%; width: auto; image-rendering: pixelated; }
+    .avatar-opt[aria-pressed="true"] { border-color: #2f4c85; background: #e4edff; box-shadow: 0 0 0 2px #2f4c85; }
+    .avatar-opt span { font-size: 12px; font-weight: 700; color: #3b4a6b; }
+    .login-btn img { height: 22px; width: auto; vertical-align: -5px; margin-right: 4px; image-rendering: pixelated; }
+    @media (max-width: 650px) { .avatar-grid { grid-template-columns: repeat(4, 1fr); } }
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -906,6 +914,18 @@
       startMeeting(document.getElementById("quick-title").value.trim());
     };
 
+    const AVATARS = [
+      ["grandpa", "할아버지"], ["grandma", "할머니"], ["man30", "직장인"], ["woman30", "직장인"], ["teen_boy", "음악 소년"],
+      ["teen_girl", "카메라 소녀"], ["student", "학생"], ["skater", "스케이트"], ["woman40", "커피 한 잔"], ["man50", "골프"]
+    ];
+    const AVATAR_KEY = "decision-country-avatar";
+    function getAvatar() { try { const v = localStorage.getItem(AVATAR_KEY); return AVATARS.some(a => a[0] === v) ? v : ""; } catch { return ""; } }
+    function applyAvatar() {
+      const btn = document.querySelector(".login-btn"); const id = getAvatar();
+      if (!btn) return;
+      btn.innerHTML = id ? `<img src="assets/people/person_${id}.png" alt="">로그인` : "👤 로그인";
+    }
+    applyAvatar();
     document.querySelectorAll("[data-action]").forEach(button => {
       button.addEventListener("click", () => {
         const action = button.dataset.action;
@@ -915,7 +935,15 @@
         if (action === "ranking") document.getElementById("ranking-panel").scrollIntoView({ behavior: "smooth" });
         if (action === "settings") openModal("⚙️ 설정", `
           <div class="field"><label>기록 관리</label><p class="hint">결정 기록은 현재 브라우저의 로컬 저장소에만 보관되며 서버로 전송되지 않습니다.</p></div>
+          <div class="field"><label>내 캐릭터 고르기</label>
+            <p class="hint">지금은 이 브라우저에만 저장됩니다. 로그인 기능이 붙으면 계정에 저장됩니다.</p>
+            <div class="avatar-grid">${AVATARS.map(a => `<button type="button" class="avatar-opt" data-avatar="${a[0]}" aria-pressed="${getAvatar() === a[0]}" title="${a[1]}"><img src="assets/people/person_${a[0]}.png" alt="${a[1]}"></button>`).join("")}</div></div>
           <button class="delete-btn" id="clear-records">저장된 기록 모두 삭제</button>`, () => {
+            modalRoot.querySelectorAll("[data-avatar]").forEach(b => b.onclick = () => {
+              try { localStorage.setItem(AVATAR_KEY, b.dataset.avatar); } catch {}
+              modalRoot.querySelectorAll("[data-avatar]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+              applyAvatar();
+            });
             document.getElementById("clear-records").onclick = () => {
               try { localStorage.removeItem(STORAGE_KEY); } catch {}
               showRecent();
@@ -941,13 +969,13 @@
 
     // 배경 이미지(1264x842) 위에 말풍선·이름표를 같은 자리에 덮어 그린다. (이미지 속 말풍선 글자 오타 대체)
     const SCENE_W = 1264, SCENE_H = 842;
-    const VIEW_TOP = 125, VIEW_ROWS = 295, CENTER_Y = 268; // 캐릭터 구간(말풍선~이름표)이 이 범위
+    const VIEW_TOP = 297, VIEW_ROWS = 335, CENTER_Y = 465; // 캐릭터 구간(말풍선~이름표)이 이 범위
     const SCENE_ITEMS = [
-      { x: 612,  y: 240, w: 118, h: 47, text: "신중하게 검토해야 합니다!", chip: [672, 376, "신중주의"] },
-      { x: 740,  y: 254, w: 118, h: 37, text: "재미도 중요합니다!",         chip: [798, 376, "낭만주의"] },
-      { x: 855,  y: 149, w: 163, h: 52, text: "지금부터 국무회의를 시작하겠습니다!", chip: [938, 326, "국무총리"] },
-      { x: 1022, y: 247, w: 122, h: 37, text: "예산도 따져 봅시다!",         chip: [1085, 376, "현실주의"] },
-      { x: 1155, y: 278, w: 96,  h: 35, text: "일단 해봅시다!",             chip: [1206, 376, "행동파"] }
+      { x: 548,  y: 352, w: 112, h: 52, text: "신중하게 검토해야 합니다!", chip: [604, 545, "신중주의"] },
+      { x: 678,  y: 360, w: 122, h: 42, text: "재미도 중요합니다!",         chip: [735, 548, "낭만주의"] },
+      { x: 806,  y: 318, w: 168, h: 50, text: "지금부터 국무회의를 시작하겠습니다!", chip: [890, 524, "국무총리"] },
+      { x: 980,  y: 362, w: 118, h: 40, text: "예산도 따져 봅시다!",         chip: [1040, 545, "현실주의"] },
+      { x: 1126, y: 392, w: 98,  h: 38, text: "일단 해봅시다!",             chip: [1175, 542, "행동파"] }
     ];
     function layoutScene() {
       const box = document.getElementById("hero-art");
@@ -957,7 +985,7 @@
       const phone = window.matchMedia("(max-width: 600px)").matches;
       const w = box.clientWidth;
       // 태블릿·폰: 캐릭터 구간만 보이도록 높이를 계산. 데스크톱: 히어로 전체가 배경이며 캐릭터 구간을 가운데로 맞춤
-      const base = phone ? w / (SCENE_W * 0.55) : w / SCENE_W;
+      const base = phone ? w / (SCENE_W * 0.62) : w / SCENE_W;
       box.style.height = narrow ? Math.round(VIEW_ROWS * base) + "px" : "";
       const hero = box.parentElement;
       hero.style.minHeight = narrow ? "" : Math.round(VIEW_ROWS * base) + "px";

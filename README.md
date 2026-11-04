@@ -24,5 +24,7 @@
 
 - `index.html` — 화면, 스타일, 로직(단일 파일)
 - `assets/court-scene.png` — 법정 배경(국회의사당·단상·관객). 말풍선과 장관 이름표는 화면에서 같은 자리에 겹쳐 그립니다(`layoutScene`)
-- `assets/rabbit.png`, `quokka.png`, `cat.png`, `bear.png`, `chick.png` — 장관 캐릭터(투명 배경)
+- `assets/*_desk.png`, `cat_podium.png` — 장관 캐릭터와 책상(투명 배경). 배경(`court-scene.png`)에 합성한 장면 파일입니다
+- `assets/people/` — 사용자가 고를 수 있는 사람 캐릭터 10종(설정 > 내 캐릭터 고르기)
+- `assets/owls/`, `owl.png` — 서기관 부엉이 포즈
 - `assets/owl.png` — 서기관 부엉이(기록실·결과 화면)
