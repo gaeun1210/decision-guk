@@ -707,7 +707,7 @@ function opinionsOf(m, r) {
 // ===== 결재: 실시간 대화처럼 장관들이 차례로 발언한다 =====
 const SPEAKERS = {
   pm:  { name: "국무총리", img: "assets/stand_cat.png", cls: "pm" },
-  owl: { name: "서기관 부엉이", img: "assets/stand_owl.png", cls: "owl" }
+  owl: { name: "서기관 부엉이", img: "assets/stand_owl.png", cls: "scribe" }
 };
 function userFace() {
   const id = getAvatar();
@@ -722,10 +722,10 @@ function reduceMotion() {
 
 function chatLine(who, html, extra = "") {
   if (who === "user") {
-    return `<div class="msg me ${extra}"><div class="bubble">${html}</div><div class="face">${userFace()}<small>${userName()}</small></div></div>`;
+    return `<div class="msg me ${extra}" data-who="user"><div class="bubble">${html}</div><div class="face">${userFace()}<small>${userName()}</small></div></div>`;
   }
   const sp = SPEAKERS[who] || (() => { const x = MINISTERS.find(y => y.name === who); return { name: `${x.name} 장관`, img: `assets/${x.stand}.png`, cls: x.priority }; })();
-  return `<div class="msg them ${sp.cls} ${extra}"><div class="face"><img src="${sp.img}" alt="" /><small>${escapeHTML(sp.name)}</small></div><div class="bubble">${html}</div></div>`;
+  return `<div class="msg them ${sp.cls} ${extra}" data-who="${escapeHTML(who)}"><div class="face"><img src="${sp.img}" alt="" /><small>${escapeHTML(sp.name)}</small></div><div class="bubble">${html}</div></div>`;
 }
 
 function buildRecord(m, r, ops) {
@@ -738,6 +738,15 @@ function buildRecord(m, r, ops) {
     opinions: ops.map(o => [o.name, (o.pick ? `「${o.pick}」 — ` : "기권 — ") + o.text]),
     createdAt: Date.now()
   };
+}
+
+// 같은 사람이 연달아 말하면 얼굴은 첫 말풍선에만 보여 준다(채팅 앱처럼)
+function groupChat(chat) {
+  let prev = null;
+  chat.querySelectorAll(".msg:not(.typing)").forEach(el => {
+    el.classList.toggle("cont", prev === el.dataset.who);
+    prev = el.dataset.who;
+  });
 }
 
 function showResult(m, r) {
@@ -813,7 +822,7 @@ function showResult(m, r) {
         while (i < script.length) chat.insertAdjacentHTML("beforeend", chatLine(...script[i++]));
         document.getElementById("chat-skip").parentElement.hidden = true;
         document.getElementById("chat-end").hidden = false;
-        paintClerk(); scrollDown();
+        groupChat(chat); paintClerk(); scrollDown();
       }
       function step() {
         if (done) return;
@@ -825,7 +834,7 @@ function showResult(m, r) {
         timer = setTimeout(() => {
           const t = chat.querySelector(".typing"); if (t) t.remove();
           chat.insertAdjacentHTML("beforeend", chatLine(...script[i++]));
-          paintClerk(); scrollDown();
+          groupChat(chat); paintClerk(); scrollDown();
           timer = setTimeout(step, who === "user" ? 350 : 550);
         }, who === "user" ? 150 : 700);
       }
