@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>결정국 — 고민은 접수하고, 결정은 즐겁게!</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri@latest/dist/galmuri.css" />
+  <style>
+    :root {
+      --navy: #19274d;
+      --navy-light: #304877;
+      --ink: #17264b;
+      --cream: #fff1df;
+      --cream-deep: #f5d8b9;
+      --gold: #ffc960;
+      --orange: #f2a02a;
+      --line: #d8b99a;
+      --shadow: 0 5px 0 rgba(35, 47, 77, .18), 0 9px 20px rgba(34, 45, 73, .15);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Galmuri11", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      background: #a9c9ed;
+    }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .topbar {
+      min-height: 88px;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      color: #fff;
+      background: linear-gradient(100deg, #172344, #29385f);
+      border-bottom: 4px solid #425b88;
+      position: relative;
+      z-index: 2;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      white-space: nowrap;
+      font-weight: 1000;
+      font-size: 34px;
+      letter-spacing: -2px;
+    }
+    .brand-icon { font-size: 47px; filter: drop-shadow(2px 3px 0 #101b36); }
+    .tagline {
+      padding-left: 20px;
+      border-left: 2px solid #56698f;
+      font-size: 17px;
+      white-space: nowrap;
+    }
+    .sparkle { color: var(--gold); }
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-left: auto;
+    }
+    nav button, .login-btn {
+      color: #fff;
+      border: 1px solid transparent;
+      background: transparent;
+      padding: 12px 15px;
+      border-radius: 22px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    nav button:hover, nav button.active, .login-btn:hover {
+      color: var(--ink);
+      background: #ffe4bf;
+    }
+    .login-btn { border-color: #617398; }
+
+    .hero {
+      min-height: 540px;
+      padding: 28px 24px 36px;
+      display: block;
+      position: relative;
+      overflow: hidden;
+      background: #8fc2f4;
+      border-bottom: 5px solid #465a7e;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 90px;
+      background: linear-gradient(180deg, transparent, rgba(27, 39, 72, .5));
+      pointer-events: none;
+    }
+    .hero-copy { position: relative; z-index: 1; }
+    .hero-copy { max-width: 640px; }
+    .hero h1 {
+      margin: 0 0 12px;
+      color: #fff9f0;
+      font-size: clamp(34px, 4.1vw, 58px);
+      line-height: 1.13;
+      letter-spacing: -3px;
+      text-shadow: 4px 5px 0 #213253, -1px -1px 0 #213253;
+    }
+    .hero h1 em { color: #ffd36e; font-style: normal; }
+    .hero-subtitle {
+      margin: 0 0 22px;
+      color: #fff;
+      font-weight: 900;
+      font-size: 18px;
+      text-shadow: 2px 2px #25385c;
+    }
+    .intake {
+      padding: 16px;
+      border: 3px solid #bd9b78;
+      border-radius: 20px;
+      background: rgba(255, 241, 223, .97);
+      box-shadow: var(--shadow);
+    }
+    .intake-label {
+      display: inline-block;
+      margin: -34px 0 12px;
+      padding: 7px 15px;
+      color: white;
+      background: var(--navy);
+      border-radius: 16px;
+      font-weight: 900;
+      font-size: 19px;
+    }
+    .intake input {
+      width: 100%;
+      padding: 15px 17px;
+      color: var(--ink);
+      border: 2px solid #ddc7b2;
+      border-radius: 16px;
+      background: #fffaf5;
+      outline: none;
+      font-size: 18px;
+    }
+    .intake input:focus, textarea:focus, select:focus {
+      border-color: #6989bd;
+      box-shadow: 0 0 0 3px rgba(105, 137, 189, .18);
+    }
+    .categories {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .category {
+      padding: 8px 14px;
+      color: var(--ink);
+      border: 2px solid #efd0b0;
+      border-radius: 24px;
+      background: #ffe6ce;
+      font-weight: 800;
+    }
+    .category.selected, .category:hover {
+      background: #ffd278;
+      border-color: #eab450;
+    }
+    .primary {
+      width: min(100%, 400px);
+      display: block;
+      margin: 8px auto 0;
+      padding: 12px 18px;
+      color: white;
+      border: 2px solid #657da9;
+      border-radius: 26px;
+      background: linear-gradient(#354e7e, #22365f);
+      box-shadow: 0 4px 0 #182848;
+      font-size: 18px;
+      font-weight: 900;
+    }
+    .primary:hover { transform: translateY(-1px); filter: brightness(1.08); }
+
+    .hero-art-box { position: absolute; inset: 0; overflow: hidden; z-index: 0; }
+    .hero-art-box img.scene { position: absolute; left: 0; top: 0; max-width: none; user-select: none; -webkit-user-drag: none; }
+    .sbubble {
+      position: absolute;
+      display: flex; flex-direction: column; justify-content: flex-start;
+      pointer-events: none;
+    }
+    .sbubble .body {
+      flex: 1;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 .4em;
+      color: var(--ink);
+      font-weight: 900; line-height: 1.25; text-align: center;
+      background: #fff8ee;
+      border: 2px solid var(--navy);
+      border-radius: 9px;
+      box-shadow: 2px 3px 0 rgba(24, 37, 68, .22);
+    }
+    .sbubble .tail { height: 0; position: relative; }
+    .sbubble .tail::after {
+      content: ""; position: absolute; left: 50%; top: -6px;
+      width: 9px; height: 9px; background: #fff8ee;
+      border: solid var(--navy); border-width: 0 2px 2px 0;
+      transform: translateX(-50%) rotate(45deg);
+    }
+    .schip {
+      position: absolute; transform: translate(-50%, -50%);
+      padding: .15em .7em; color: #fff8eb; font-weight: 900; white-space: nowrap;
+      background: #5b3b2a; border: 2px solid #3c2a20; border-radius: 6px;
+      pointer-events: none;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1.08fr 1fr .72fr;
+      gap: 14px;
+      padding: 14px 22px 18px;
+      background: #9ebbe1;
+    }
+    .panel {
+      min-width: 0;
+      padding: 14px;
+      border: 3px solid #c09a75;
+      border-radius: 17px;
+      background: linear-gradient(145deg, #fff1df, #ffe5cb);
+      box-shadow: var(--shadow);
+    }
+    .panel-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 10px;
+      font-size: 19px;
+      font-weight: 1000;
+    }
+    .panel-heading .more {
+      margin-left: auto;
+      padding: 4px;
+      color: #795f4c;
+      border: 0;
+      background: transparent;
+      font-weight: 800;
+    }
+    .records-list, .popular-list {
+      overflow: hidden;
+      border: 2px solid #ead2bc;
+      border-radius: 15px;
+      background: rgba(255,255,255,.48);
+    }
+    .record-row {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 1px solid #ead7c6;
+      font-size: 14px;
+    }
+    .record-row:last-child { border-bottom: 0; }
+    .record-icon { font-size: 25px; }
+    .record-title {
+      overflow: hidden;
+      color: var(--ink);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 800;
+    }
+    .verdict-pill {
+      padding: 5px 8px;
+      border-radius: 20px;
+      background: #ffe091;
+      color: #614b23;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .record-date { color: #776e6d; font-size: 12px; white-space: nowrap; }
+
+    .popular-item {
+      display: grid;
+      grid-template-columns: 40px 48px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 10px;
+      border-bottom: 1px solid #ead7c6;
+    }
+    .popular-item:last-child { border-bottom: 0; }
+    .rank {
+      width: 36px; height: 36px; display: grid; place-items: center;
+      border-radius: 50%; background: #ffb92e; color: white;
+      border: 2px solid #e59613; font-weight: 1000; font-size: 20px;
+    }
+    .popular-item:nth-child(2) .rank { background: #aeb5c8; border-color: #8c95ad; }
+    .popular-item:nth-child(3) .rank { background: #ce8140; border-color: #ae622b; }
+    .pop-icon { font-size: 30px; }
+    .pop-title { font-weight: 900; font-size: 14px; }
+    .pop-count { font-weight: 900; font-size: 12px; white-space: nowrap; }
+    .bar {
+      height: 7px; margin-top: 6px; background: #ead0b7;
+      border-radius: 8px; overflow: hidden;
+    }
+    .bar i { display: block; height: 100%; background: #f4a51f; border-radius: inherit; }
+
+    .special-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 9px;
+    }
+    .special {
+      min-height: 105px;
+      padding: 10px 5px;
+      color: var(--ink);
+      border: 2px solid #e5cdb8;
+      border-radius: 15px;
+      background: rgba(255,255,255,.38);
+      font-weight: 900;
+    }
+    .special:hover { background: #fff6e9; transform: translateY(-2px); }
+    .special b { display: block; margin-bottom: 4px; font-size: 31px; }
+    .special span { display: block; font-size: 14px; }
+    .special small { font-weight: 700; color: #5c5b66; }
+
+    .avatar { width: 38px; height: 44px; object-fit: contain; image-rendering: pixelated; flex: none; }
+    .avatar.emoji { font-size: 34px; line-height: 44px; text-align: center; }
+    .opinion { display: flex; gap: 10px; align-items: flex-start; }
+    .opinion.small { display: block; font-size: 14px; }
+    .verdict-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .verdict-line b { font-size: 22px; }
+    .stamp {
+      padding: 2px 10px; color: #c23a2e; border: 3px solid #c23a2e; border-radius: 6px;
+      font-weight: 900; transform: rotate(-8deg); animation: stampIn .5s .2s both cubic-bezier(.2, 1.6, .4, 1);
+    }
+    @keyframes stampIn { from { opacity: 0; transform: rotate(-8deg) scale(2.6); } to { opacity: 1; transform: rotate(-8deg) scale(1); } }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-row .primary { flex: 1 1 160px; margin-top: 8px; }
+    .primary.secondary { background: linear-gradient(#f4d9b8, #e8c39b); color: var(--ink); border-color: #c9a27a; box-shadow: 0 4px 0 #b38a62; }
+    .record-detail > summary { cursor: pointer; list-style: none; }
+    .record-detail > summary::-webkit-details-marker { display: none; }
+    .record-body { padding: 4px 6px 12px 34px; }
+    .owl { height: 64px; width: auto; image-rendering: pixelated; }
+    .empty .owl { height: 96px; margin-bottom: 6px; }
+    .clerk { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; font-weight: 800; font-size: 14px; }
+    .record-note { font-size: 13px; opacity: .75; }
+    .footer-cat img { height: 52px; image-rendering: pixelated; vertical-align: middle; }
+    footer {
+      min-height: 72px;
+      padding: 14px 26px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: white;
+      background: #1e2d53;
+      font-weight: 800;
+    }
+    .footer-brand { font-size: 17px; }
+    .footer-cat { font-size: 45px; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(15, 25, 48, .67);
+    }
+    .modal {
+      width: min(680px, 100%);
+      max-height: min(88vh, 850px);
+      overflow: auto;
+      padding: 22px;
+      border: 3px solid #c49b75;
+      border-radius: 20px;
+      background: #fff1df;
+      box-shadow: 0 16px 55px rgba(0,0,0,.3);
+    }
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .modal-head h2 { margin: 0; font-size: 24px; }
+    .close {
+      width: 38px; height: 38px; border: 0; border-radius: 50%;
+      color: var(--ink); background: #f2d7bd; font-size: 22px;
+    }
+    .field { margin: 12px 0; }
+    .field label { display: block; margin-bottom: 6px; font-weight: 900; }
+    .field input, .field textarea, .field select {
+      width: 100%; padding: 11px 12px;
+      border: 2px solid #ddc7b2; border-radius: 11px;
+      color: var(--ink); background: #fffaf5; outline: none;
+    }
+    .field textarea { min-height: 82px; resize: vertical; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .hint { color: #74685f; font-size: 13px; line-height: 1.6; }
+    .result-summary {
+      padding: 15px;
+      margin-bottom: 14px;
+      border-radius: 13px;
+      background: #ffe0a6;
+      font-weight: 900;
+      line-height: 1.6;
+    }
+    .opinion {
+      padding: 12px 14px;
+      margin: 9px 0;
+      border: 1px solid #e5ccb2;
+      border-radius: 12px;
+      background: rgba(255,255,255,.62);
+      line-height: 1.6;
+    }
+    .opinion strong { display: block; margin-bottom: 3px; }
+    .notice {
+      padding: 12px;
+      margin-top: 12px;
+      border-left: 4px solid #e19b34;
+      background: #fff7e9;
+      color: #665642;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .empty { padding: 20px; text-align: center; color: #766b62; }
+    .list-action {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 0; border-bottom: 1px solid #ead7c6;
+    }
+    .list-action:last-child { border-bottom: 0; }
+    .list-action .record-title { flex: 1; }
+    .delete-btn {
+      padding: 6px 9px; border: 0; border-radius: 9px;
+      background: #f4d0c2; color: #793a2a; font-weight: 800;
+    }
+
+    @media (max-width: 1000px) {
+      .topbar { flex-wrap: wrap; }
+      nav { width: 100%; justify-content: flex-start; overflow-x: auto; }
+      .tagline { margin-left: auto; }
+      .hero { min-height: 0; padding-bottom: 0; }
+      .hero-copy { max-width: none; }
+      .hero-art-box { position: relative; inset: auto; height: 250px; margin: 18px -24px 0; }
+      .dashboard { grid-template-columns: 1fr 1fr; }
+      .special-panel { grid-column: 1 / -1; }
+      .special-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 650px) {
+      .topbar { padding: 10px 14px; gap: 10px; }
+      .brand { font-size: 27px; }
+      .brand-icon { font-size: 38px; }
+      .tagline { width: 100%; padding-left: 0; border: 0; font-size: 14px; }
+      nav button { padding: 9px 11px; font-size: 13px; }
+      .hero { padding: 24px 14px 16px; }
+      .hero h1 { font-size: 38px; }
+      .hero-subtitle { font-size: 15px; }
+      .dashboard { grid-template-columns: 1fr; padding: 12px; }
+      .special-panel { grid-column: auto; }
+      .special-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero-art-box { height: 215px; margin: 16px -14px 0; }
+      .field-row { grid-template-columns: 1fr; gap: 0; }
+      footer { padding: 12px 15px; font-size: 13px; }
+      .footer-cat { font-size: 34px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-icon">🏛️</span><span>결정국</span></div>
+    <div class="tagline">고민은 접수하고, 결정은 즐겁게! <span class="sparkle">✨</span></div>
+    <nav aria-label="주 메뉴">
+      <button class="active" data-action="home">🏠 홈</button>
+      <button data-action="meeting">🏛️ 국무회의</button>
+      <button data-action="records">📜 결정 기록실</button>
+      <button data-action="ranking">🏆 랭킹</button>
+      <button data-action="settings">⚙️ 설정</button>
+      <button class="login-btn" data-action="login">👤 로그인</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <h1>지금, 당신의 고민이<br><em>결정될 차례</em>입니다!</h1>
+        <p class="hero-subtitle">장관들과 함께하는 고민 해결 국무회의!</p>
+        <form class="intake" id="quick-form">
+          <div class="intake-label">📣 오늘의 고민을 접수하세요!</div>
+          <input id="quick-title" maxlength="100" placeholder="예) 오늘 저녁 뭐 먹지?, 이 옷 사도 될까?" aria-label="고민 제목" />
+          <div class="categories" aria-label="고민 유형">
+            <button class="category" type="button" data-category="여행">✈️ 여행</button>
+            <button class="category" type="button" data-category="맛집">🍴 맛집</button>
+            <button class="category" type="button" data-category="쇼핑">🛍️ 쇼핑</button>
+            <button class="category" type="button" data-category="연애">❤️ 연애</button>
+            <button class="category" type="button" data-category="게임">🎮 게임</button>
+          </div>
+          <button class="primary" type="submit">⚒️ 국무회의 시작하기 ▸</button>
+        </form>
+      </div>
+
+      <div class="hero-art-box" id="hero-art" aria-hidden="true">
+        <img class="scene" id="scene-img" src="assets/court-scene.png" alt="" />
+      </div>
+    </section>
+
+    <section class="dashboard">
+      <article class="panel">
+        <h2 class="panel-heading">🕒 최근 결정 기록 <span id="recent-note" class="record-note"></span>
+          <button class="more" data-action="records">더보기 ›</button>
+        </h2>
+        <div class="records-list" id="recent-list"></div>
+      </article>
+
+      <article class="panel" id="ranking-panel">
+        <h2 class="panel-heading">🔥 인기 고민 TOP 3 <span class="record-note">(예시)</span>
+          <button class="more" data-action="ranking">더보기 ›</button>
+        </h2>
+        <div class="popular-list">
+          <div class="popular-item">
+            <span class="rank">1</span><span class="pop-icon">✈️</span>
+            <div><div class="pop-title">이번 휴가, 어디로 갈까?</div><div class="bar"><i style="width:88%"></i></div></div>
+            <span class="pop-count">예시</span>
+          </div>
+          <div class="popular-item">
+            <span class="rank">2</span><span class="pop-icon">🛍️</span>
+            <div><div class="pop-title">이 옷 사도 될까?</div><div class="bar"><i style="width:72%"></i></div></div>
+            <span class="pop-count">예시</span>
+          </div>
+          <div class="popular-item">
+            <span class="rank">3</span><span class="pop-icon">🍴</span>
+            <div><div class="pop-title">오늘 저녁 메뉴 추천!</div><div class="bar"><i style="width:58%"></i></div></div>
+            <span class="pop-count">예시</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel special-panel">
+        <h2 class="panel-heading">⭐ 결정국 특별 제도</h2>
+        <div class="special-grid">
+          <button class="special" data-action="reconsider"><b>♟️</b><span>재심 청구</span><small>(다시 생각하기)</small></button>
+          <button class="special" data-action="records"><b>📜</b><span>결정 기록실</span><small>(내 기록 보기)</small></button>
+          <button class="special" data-action="friends"><b>👥</b><span>친구와 함께</span><small>(공동 결정)</small></button>
+          <button class="special" data-action="ranking"><b>🏆</b><span>결정왕 랭킹</span><small>(주간 순위)</small></button>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-brand">🏛️ 결정국은 여러분의 현명한 결정을 응원합니다! 🧡</div>
+    <div class="footer-cat"><img src="assets/cat.png" alt="" />✨</div>
+  </footer>
+
+  <div id="modal-root"></div>
+
+  <script>
+    const STORAGE_KEY = "decision-country-records";
+    const sampleRecords = [
+      { title: "오늘 저녁은 배달 vs 직접 요리?", verdict: "배달 승!", category: "맛집", date: "예시", icon: "🍴" },
+      { title: "이번 주말 어디로 갈까?", verdict: "제주도!", category: "여행", date: "예시", icon: "✈️" },
+      { title: "새 핸드폰을 살까 말까?", verdict: "보류!", category: "쇼핑", date: "예시", icon: "🛍️" },
+      { title: "다이어트 시작할까?", verdict: "시작하자!", category: "일상", date: "예시", icon: "📖" },
+      { title: "넷플릭스 볼까? 디즈니+ 볼까?", verdict: "디즈니+!", category: "일상", date: "예시", icon: "🎬" }
+    ];
+
+    // 장관 정보: 판단 기준(priority)과 표를 던지는 규칙(keywords)을 화면에도 공개한다.
+    const MINISTERS = [
+      { name: "현실주의", priority: "cost", img: "bear", emoji: "🐻",
+        keywords: ["집", "쉬", "무료", "직접", "산책", "저렴", "절약", "아끼", "참"], fallback: n => 0 },
+      { name: "낭만주의", priority: "fun", img: "quokka", emoji: "🐹",
+        keywords: ["여행", "영화", "새로운", "외식", "맛집", "공연", "전시", "카페", "파티", "도전", "즐기", "놀러", "나가", "떠나"], fallback: n => n - 1 },
+      { name: "신중주의", priority: "safe", img: "rabbit", emoji: "🐰",
+        keywords: ["보류", "기다", "알아보", "비교", "확인", "나중", "내일", "다음", "검토"], fallback: n => 0 },
+      { name: "행동파", priority: "easy", img: "chick", emoji: "🐤",
+        keywords: ["바로", "지금", "오늘", "일단", "시작", "당장", "해보"], fallback: n => Math.min(1, n - 1) }
+    ];
+    const PRIORITY_LABEL = { cost: "비용·시간", fun: "즐거움", safe: "후회 없음", easy: "실행 쉬움" };
+
+    const CATEGORIES = ["여행", "맛집", "쇼핑", "연애", "게임", "일상"];
+    let selectedCategory = "일상";
+    const modalRoot = document.getElementById("modal-root");
+
+    function getRecords() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        return Array.isArray(saved) ? saved : [];
+      } catch { return []; }
+    }
+    function saveRecords(records) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, 100))); return true; }
+      catch { return false; }
+    }
+
+    function escapeHTML(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[char]);
+    }
+    function clampNumber(value, max = 1e9) {
+      const n = Number(value);
+      return Number.isFinite(n) ? Math.min(Math.max(n, 0), max) : 0;
+    }
+    function today() {
+      const d = new Date();
+      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+    }
+    function categoryIcon(category) {
+      return ({ 여행: "✈️", 맛집: "🍴", 쇼핑: "🛍️", 연애: "❤️", 게임: "🎮" })[category] || "📌";
+    }
+    function avatar(minister) {
+      return minister.img
+        ? `<img class="avatar" src="assets/${minister.img}.png" alt="" />`
+        : `<span class="avatar emoji">${minister.emoji}</span>`;
+    }
+
+    function showRecent() {
+      const saved = getRecords();
+      const records = saved.length ? saved.slice(0, 5) : sampleRecords;
+      document.getElementById("recent-note").textContent = saved.length ? "" : "(예시)";
+      document.getElementById("recent-list").innerHTML = records.map(item => `
+        <div class="record-row">
+          <span class="record-icon">${escapeHTML(item.icon || "📌")}</span>
+          <span class="record-title" title="${escapeHTML(item.title)}">${escapeHTML(item.title)}</span>
+          <span class="verdict-pill">${escapeHTML(item.verdict)}</span>
+          <span class="record-date">${escapeHTML(item.date || "")}</span>
+        </div>`).join("");
+    }
+
+    function openModal(title, body, onReady) {
+      modalRoot.innerHTML = `
+        <div class="modal-backdrop" role="presentation">
+          <section class="modal" role="dialog" aria-modal="true" aria-label="${escapeHTML(title)}">
+            <div class="modal-head">
+              <h2>${escapeHTML(title)}</h2>
+              <button class="close" aria-label="닫기">×</button>
+            </div>
+            <div class="modal-body">${body}</div>
+          </section>
+        </div>`;
+      modalRoot.querySelector(".close").onclick = closeModal;
+      modalRoot.querySelector(".modal-backdrop").addEventListener("click", event => {
+        if (event.target.classList.contains("modal-backdrop")) closeModal();
+      });
+      if (onReady) onReady();
+    }
+    function closeModal() { modalRoot.innerHTML = ""; }
+    document.addEventListener("keydown", event => { if (event.key === "Escape") closeModal(); });
+
+    function startMeeting(prefill = "") {
+      openModal("🏛️ 안건 접수", `
+        <form id="meeting-form">
+          <div class="field">
+            <label for="meeting-title">고민 제목</label>
+            <input id="meeting-title" required maxlength="100" value="${escapeHTML(prefill)}" placeholder="예) 오늘 저녁 뭐 먹지?" />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="meeting-category">고민 유형</label>
+              <select id="meeting-category">
+                ${CATEGORIES.map(c => `<option value="${c}" ${c === selectedCategory ? "selected" : ""}>${categoryIcon(c)} ${c}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label for="meeting-priority">가장 중요한 기준</label>
+              <select id="meeting-priority">
+                <option value="cost">비용·시간 (현실주의가 결정권)</option>
+                <option value="fun">즐거움 (낭만주의가 결정권)</option>
+                <option value="safe">후회 없음 (신중주의가 결정권)</option>
+                <option value="easy">실행 쉬움 (행동파가 결정권)</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="meeting-reversible">되돌릴 수 있나요?</label>
+              <select id="meeting-reversible"><option value="yes">쉽게 되돌릴 수 있어요</option><option value="no">되돌리기 어려워요</option></select>
+            </div>
+            <div class="field">
+              <label for="meeting-urgent">언제까지 정해야 하나요?</label>
+              <select id="meeting-urgent"><option value="no">여유가 있어요</option><option value="yes">오늘 안에 정해야 해요</option></select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="meeting-detail">고민 내용 (선택 사항)</label>
+            <textarea id="meeting-detail" maxlength="1000" placeholder="상황이나 중요하게 생각하는 점을 적어주세요."></textarea>
+          </div>
+          <div class="field">
+            <label for="meeting-options">선택지 (선택 사항, 2개 이상이면 장관들이 투표합니다)</label>
+            <input id="meeting-options" maxlength="200" placeholder="예) 집에서 쉬기, 영화 보기, 산책하기" />
+            <div class="hint">여러 선택지는 쉼표로 구분해 주세요.</div>
+          </div>
+          <div id="shop-fields" hidden>
+            <div class="field-row">
+              <div class="field"><label for="price">상품 가격(원)</label><input id="price" type="number" min="0" max="1000000000" placeholder="예) 50000" /></div>
+              <div class="field"><label for="budget">예산(원)</label><input id="budget" type="number" min="0" max="1000000000" placeholder="예) 80000" /></div>
+            </div>
+            <div class="field">
+              <label for="owned">비슷한 제품을 이미 가지고 있나요?</label>
+              <select id="owned"><option value="no">아니요</option><option value="yes">예</option></select>
+            </div>
+          </div>
+          <div class="notice">일상 선택을 돕는 서비스입니다. 법률·금융·의료 등 전문 판단이나 위기 상황을 대신하지 않습니다.</div>
+          <button class="primary" type="submit">⚒️ 안건 제출하기</button>
+        </form>`, () => {
+          const categorySelect = document.getElementById("meeting-category");
+          const shop = document.getElementById("shop-fields");
+          const syncShop = () => { shop.hidden = categorySelect.value !== "쇼핑"; };
+          categorySelect.onchange = syncShop; syncShop();
+          document.getElementById("meeting-form").onsubmit = event => {
+            event.preventDefault();
+            const val = id => document.getElementById(id)?.value ?? "";
+            selectedCategory = val("meeting-category");
+            showResult({
+              title: val("meeting-title").trim(),
+              detail: val("meeting-detail").trim(),
+              options: val("meeting-options").split(",").map(s => s.trim()).filter(Boolean).slice(0, 6),
+              priority: val("meeting-priority"),
+              reversible: val("meeting-reversible") === "yes",
+              urgent: val("meeting-urgent") === "yes",
+              price: clampNumber(val("price")),
+              budget: clampNumber(val("budget")),
+              owned: val("owned") === "yes",
+              category: selectedCategory
+            });
+          };
+        });
+    }
+
+    // 장관별로 선택지에 투표한다: 키워드가 있으면 키워드 점수, 없으면 정해진 기본 자리.
+    function castVote(minister, options) {
+      let best = -1, bestScore = 0;
+      options.forEach((text, index) => {
+        const score = minister.keywords.filter(k => text.includes(k)).length;
+        if (score > bestScore) { bestScore = score; best = index; }
+      });
+      return best >= 0 ? best : minister.fallback(options.length);
+    }
+
+    function buildOpinion(minister, ctx) {
+      const pick = ctx.votes ? `제 표는 「${ctx.options[ctx.votes[minister.name]]}」입니다. ` : "";
+      const pct = ctx.budget > 0 ? Math.round(ctx.price / ctx.budget * 100) : 0;
+      switch (minister.name) {
+        case "현실주의":
+          if (ctx.category === "쇼핑") {
+            if (ctx.budget > 0 && ctx.price > ctx.budget) return `가격이 예산보다 ${pct - 100}% 높습니다. 보류를 권합니다.`;
+            if (ctx.budget > 0 && pct >= 70) return `예산의 ${pct}%를 쓰게 됩니다. 이번 달 다른 지출을 먼저 확인하세요.`;
+            if (ctx.budget > 0) return `예산의 ${pct}% 수준이라 부담은 크지 않습니다.`;
+            return "예산을 먼저 정해 두면 판단이 쉬워집니다.";
+          }
+          return pick + (ctx.urgent ? "오늘 안에 정해야 하니 비용과 이동 시간이 적은 쪽이 안전합니다." : "시간 여유가 있으니 비용과 준비 부담을 비교한 뒤 정해도 늦지 않습니다.");
+        case "낭만주의":
+          return pick + (ctx.reversible ? "되돌릴 수 있는 선택이니 마음이 끌리는 쪽에 힘을 실어 보세요." : "오래 남을 선택일수록 설레는 마음이 큰 쪽이 후회가 적습니다.")
+            + (ctx.category === "쇼핑" && ctx.owned ? " 비슷한 물건이 있어도 이번에 정말 설레는지가 기준입니다." : "");
+        case "신중주의":
+          return pick + (ctx.reversible ? "되돌릴 수 있어 위험은 낮지만, 놓친 정보가 없는지 한 번만 확인하세요." : "되돌리기 어려운 선택입니다. 하루 더 생각하고 대안부터 확인하세요.")
+            + (ctx.category === "쇼핑" && ctx.owned ? " 비슷한 제품이 있으니 필요한 이유를 적어 보세요." : "");
+        default:
+          return pick + (ctx.urgent ? "오늘 정해야 하니 가장 작게 시작할 수 있는 방법부터 실행하세요." : "작게 시험해 보고 이틀 뒤 다시 판단하는 방법도 있습니다.");
+      }
+    }
+
+    function decide(data) {
+      const ctx = { ...data };
+      let verdict, tally = "";
+      if (data.category === "쇼핑") {
+        const over = data.budget > 0 && data.price > data.budget;
+        const heavy = data.budget > 0 && data.price / data.budget >= 0.7;
+        verdict = over ? "보류!" : (data.owned || (data.priority === "cost" && heavy)) ? "하루 더 생각하기!" : "조건부 승인!";
+      } else if (data.options.length >= 2) {
+        const votes = {}; const count = data.options.map(() => 0);
+        MINISTERS.forEach(m => {
+          votes[m.name] = castVote(m, data.options);
+          count[votes[m.name]] += m.priority === data.priority ? 1.5 : 1; // 중요 기준 장관은 결정권(가중치 1.5)
+        });
+        ctx.votes = votes;
+        const winner = count.indexOf(Math.max(...count));
+        verdict = `${data.options[winner]}!`;
+        tally = data.options.map((o, i) => `${o} ${count[i]}표`).join(" · ");
+      } else {
+        const score = (data.reversible ? 1 : 0) + (data.urgent ? 1 : 0) + (["fun", "easy"].includes(data.priority) ? 1 : 0);
+        verdict = score >= 2 ? "해 보자!" : score === 1 ? "하루 더 생각하기!" : "보류!";
+      }
+      const opinions = MINISTERS.map(m => [m.name, buildOpinion(m, ctx)]);
+      return { verdict, tally, opinions };
+    }
+
+    function showResult(data) {
+      const { verdict, tally, opinions } = decide(data);
+      const record = {
+        title: data.title, verdict, category: data.category, date: today(),
+        icon: categoryIcon(data.category), detail: data.detail, opinions,
+        priority: data.priority, tally, createdAt: Date.now()
+      };
+      const records = getRecords();
+      records.unshift(record);
+      const saved = saveRecords(records);
+      showRecent();
+
+      const decider = MINISTERS.find(m => m.priority === data.priority);
+      openModal("📜 국무회의 최종 결재", `
+        <div class="result-summary">
+          <div>안건: ${escapeHTML(data.title)}</div>
+          <div class="verdict-line">판결: <b>${escapeHTML(verdict)}</b><span class="stamp" aria-hidden="true">결재</span></div>
+          ${tally ? `<div class="hint">장관 투표 · ${escapeHTML(tally)}</div>` : ""}
+          <div class="hint">가장 중요한 기준은 「${PRIORITY_LABEL[data.priority]}」이라 ${decider.name} 장관의 표를 더 무겁게 봤습니다.</div>
+          ${data.detail ? `<div class="hint">접수 내용: “${escapeHTML(data.detail)}”</div>` : ""}
+        </div>
+        ${opinions.map(([name, text]) => {
+          const m = MINISTERS.find(x => x.name === name);
+          return `<div class="opinion">${avatar(m)}<div><strong>${escapeHTML(name)}</strong>${escapeHTML(text)}</div></div>`;
+        }).join("")}
+        <div class="clerk"><img class="owl" src="assets/owl.png" alt="" /><span>${saved ? "서기관 부엉이: 결정 기록실에 적어 두었습니다!" : "서기관 부엉이: 브라우저 설정 때문에 기록하지 못했어요."}</span></div>
+        <div class="notice">이 결과는 입력한 내용과 공개된 규칙으로 만든 참고 의견입니다. 중요한 결정은 관련 정보를 직접 확인해 주세요.</div>
+        <div class="btn-row">
+          <button class="primary secondary" id="result-reconsider">♟️ 재심 청구</button>
+          <button class="primary" id="result-done">도장 확인 ✓</button>
+        </div>`, () => {
+          document.getElementById("result-done").onclick = closeModal;
+          document.getElementById("result-reconsider").onclick = () => startMeeting(data.title);
+        });
+    }
+
+    function showRecords() {
+      const records = getRecords();
+      if (!records.length) {
+        openModal("📜 결정 기록실", `<div class="empty"><img class="owl" src="assets/owl.png" alt="서기관 부엉이" /><br>아직 저장된 결정이 없습니다.<br>고민을 접수하고 첫 결정을 만들어 보세요!</div>`);
+        return;
+      }
+      openModal("📜 결정 기록실", `
+        <div id="all-records">
+          ${records.map((item, index) => `
+            <details class="record-detail">
+              <summary class="list-action">
+                <span>${escapeHTML(item.icon || "📌")}</span>
+                <span class="record-title">${escapeHTML(item.title)}</span>
+                <span class="verdict-pill">${escapeHTML(item.verdict)}</span>
+              </summary>
+              <div class="record-body">
+                <div class="hint">${escapeHTML(item.date || "")} · ${escapeHTML(item.category || "")}${item.tally ? " · " + escapeHTML(item.tally) : ""}</div>
+                ${(item.opinions || []).map(([n, t]) => `<div class="opinion small"><strong>${escapeHTML(n)}</strong>${escapeHTML(t)}</div>`).join("")}
+                <button class="delete-btn" data-delete="${index}">이 기록 삭제</button>
+              </div>
+            </details>`).join("")}
+        </div>`, () => {
+          modalRoot.querySelectorAll("[data-delete]").forEach(button => {
+            button.onclick = () => {
+              const updated = getRecords();
+              updated.splice(Number(button.dataset.delete), 1);
+              saveRecords(updated);
+              showRecent();
+              showRecords();
+            };
+          });
+        });
+    }
+
+    document.querySelectorAll(".category").forEach(button => {
+      button.onclick = () => {
+        document.querySelectorAll(".category").forEach(item => item.classList.remove("selected"));
+        button.classList.add("selected");
+        selectedCategory = button.dataset.category;
+      };
+    });
+
+    document.getElementById("quick-form").onsubmit = event => {
+      event.preventDefault();
+      startMeeting(document.getElementById("quick-title").value.trim());
+    };
+
+    document.querySelectorAll("[data-action]").forEach(button => {
+      button.addEventListener("click", () => {
+        const action = button.dataset.action;
+        if (action === "home") window.scrollTo({ top: 0, behavior: "smooth" });
+        if (action === "meeting") startMeeting();
+        if (action === "records") showRecords();
+        if (action === "ranking") document.getElementById("ranking-panel").scrollIntoView({ behavior: "smooth" });
+        if (action === "settings") openModal("⚙️ 설정", `
+          <div class="field"><label>기록 관리</label><p class="hint">결정 기록은 현재 브라우저의 로컬 저장소에만 보관되며 서버로 전송되지 않습니다.</p></div>
+          <button class="delete-btn" id="clear-records">저장된 기록 모두 삭제</button>`, () => {
+            document.getElementById("clear-records").onclick = () => {
+              try { localStorage.removeItem(STORAGE_KEY); } catch {}
+              showRecent();
+              closeModal();
+            };
+          });
+        if (action === "login") openModal("👤 로그인", `
+          <p>로그인 기능은 아직 연결되어 있지 않습니다.</p>
+          <p class="hint">지금은 로그인 없이 이 브라우저에만 결정 기록이 저장됩니다.</p>`);
+        if (action === "reconsider") {
+          const latest = getRecords()[0];
+          startMeeting(latest ? latest.title : "");
+        }
+        if (action === "friends") openModal("👥 친구와 함께", `
+          <p>친구와 고민을 함께 결정하는 기능입니다.</p>
+          <p class="hint">공동 참여 기능은 준비 중입니다. 지금은 각자 고민을 접수해 의견을 확인해 보세요.</p>
+          <button class="primary" id="friends-start">고민 접수하기</button>`, () => {
+            document.getElementById("friends-start").onclick = () => startMeeting();
+          });
+      });
+    });
+
+
+    // 배경 이미지(1024x682) 위에 말풍선·이름표를 같은 자리에 덮어 그린다. (이미지 속 말풍선 글자 오타 대체)
+    const SCENE_W = 1024, SCENE_H = 682;
+    const SCENE_ITEMS = [
+      { x: 496, y: 195, w: 98,  h: 42, text: "신중하게 검토해야 합니다!", chip: [545, 300, "신중주의"] },
+      { x: 600, y: 206, w: 95,  h: 32, text: "재미도 중요합니다!",         chip: [648, 300, "낭만주의"] },
+      { x: 694, y: 122, w: 132, h: 40, text: "지금부터 국무회의를 시작하겠습니다!", chip: [760, 266, "국무총리"] },
+      { x: 828, y: 201, w: 98,  h: 32, text: "예산도 따져 봅시다!",         chip: [878, 300, "현실주의"] },
+      { x: 936, y: 225, w: 76,  h: 30, text: "일단 해봅시다!",             chip: [975, 300, "행동파"] }
+    ];
+    function layoutScene() {
+      const box = document.getElementById("hero-art");
+      const img = document.getElementById("scene-img");
+      if (!box || !img) return;
+      const narrow = window.matchMedia("(max-width: 1000px)").matches;
+      const phone = window.matchMedia("(max-width: 600px)").matches;
+      const w = box.clientWidth;
+      // 데스크톱: 히어로 전체가 배경. 태블릿: 가로 전체. 폰: 오른쪽 단상 부분만 크게 (이미지 윗 335px 행이 보이도록 높이 계산)
+      const base = phone ? w / (SCENE_W * 0.58) : w / SCENE_W;
+      box.style.height = narrow ? Math.round(335 * base) + "px" : "";
+      const h = box.clientHeight;
+      const mobile = phone;
+      const scale = phone ? Math.max(base, h / SCENE_H) : Math.max(w / SCENE_W, h / SCENE_H);
+      const imgW = SCENE_W * scale, imgH = SCENE_H * scale;
+      const offsetX = Math.max(0, imgW - w) * (mobile ? 1 : 0.5);
+      img.style.width = imgW + "px"; img.style.height = imgH + "px";
+      img.style.left = (-offsetX) + "px"; img.style.top = "0px";
+      box.querySelectorAll(".sbubble, .schip").forEach(el => el.remove());
+      const fs = Math.max(8, Math.round(9.5 * scale));
+      SCENE_ITEMS.forEach(item => {
+        const b = document.createElement("div");
+        b.className = "sbubble";
+        b.style.cssText = `left:${item.x * scale - offsetX}px;top:${item.y * scale}px;width:${item.w * scale}px;height:${(item.h - 6) * scale}px;font-size:${fs}px`;
+        b.innerHTML = `<div class="body"></div><div class="tail"></div>`;
+        b.firstChild.textContent = item.text;
+        box.appendChild(b);
+        const [cx, cy, name] = item.chip;
+        const c = document.createElement("div");
+        c.className = "schip";
+        c.style.cssText = `left:${cx * scale - offsetX}px;top:${cy * scale}px;font-size:${Math.max(8, Math.round(8.5 * scale))}px`;
+        c.textContent = name;
+        box.appendChild(c);
+      });
+    }
+    window.addEventListener("resize", layoutScene);
+    window.addEventListener("load", layoutScene);
+    layoutScene();
+
+    showRecent();
+  </script>
+</body>
+</html>
