@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>결정국 — 고민은 접수하고, 결정은 즐겁게!</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri@latest/dist/galmuri.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
   <style>
     :root {
       --navy: #19274d;
@@ -19,10 +20,11 @@
     }
 
     * { box-sizing: border-box; }
+    .brand, .hero h1 { font-family: "Galmuri11", "Pretendard", sans-serif; }
     body {
       margin: 0;
       color: var(--ink);
-      font-family: "Galmuri11", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
       background: #a9c9ed;
     }
     button, input, textarea, select { font: inherit; }
@@ -96,7 +98,11 @@
       background: linear-gradient(180deg, transparent, rgba(27, 39, 72, .5));
       pointer-events: none;
     }
-    .hero-copy { position: relative; z-index: 1; }
+    @media (min-width: 1001px) {
+      .hero::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+        background: linear-gradient(90deg, rgba(18, 28, 56, .88) 0%, rgba(18, 28, 56, .78) 28%, rgba(18, 28, 56, .35) 40%, rgba(18, 28, 56, 0) 46%); }
+    }
+    .hero-copy { position: relative; z-index: 2; }
     .hero-copy { max-width: 640px; }
     .hero h1 {
       margin: 0 0 12px;
