@@ -40,14 +40,46 @@ function validDate(d) {
   return diff >= 0 && diff <= 15;
 }
 
-// 지역 이름 → 좌표: Kakao 키가 있으면 Kakao(국내 지명에 강함), 없으면 Open-Meteo 지오코딩
+// Open-Meteo 지오코딩은 한글 지명("서울")을 찾지 못하므로, 키 없이도 되도록 주요 국내 지역 좌표를 내장한다.
+// 시·군 중심 좌표(날씨 예보용으로 충분한 정밀도).
+const KR_PLACES = {
+  "서울": [37.5665, 126.9780], "부산": [35.1796, 129.0756], "대구": [35.8714, 128.6014], "인천": [37.4563, 126.7052],
+  "광주": [35.1595, 126.8526], "대전": [36.3504, 127.3845], "울산": [35.5384, 129.3114], "세종": [36.4800, 127.2890],
+  "경기": [37.2636, 127.0286], "수원": [37.2636, 127.0286], "성남": [37.4201, 127.1265], "용인": [37.2411, 127.1776],
+  "고양": [37.6584, 126.8320], "일산": [37.6584, 126.7700], "파주": [37.7600, 126.7800], "가평": [37.8315, 127.5105],
+  "양평": [37.4917, 127.4876], "강원": [37.8813, 127.7298], "춘천": [37.8813, 127.7298], "강릉": [37.7519, 128.8761],
+  "속초": [38.2070, 128.5918], "양양": [38.0754, 128.6190], "평창": [37.3705, 128.3903], "충북": [36.6424, 127.4890],
+  "청주": [36.6424, 127.4890], "단양": [36.9845, 128.3655], "충남": [36.8151, 127.1139], "천안": [36.8151, 127.1139],
+  "태안": [36.7456, 126.2979], "공주": [36.4465, 127.1190], "전북": [35.8242, 127.1480], "전주": [35.8242, 127.1480],
+  "군산": [35.9676, 126.7366], "전남": [34.8118, 126.3922], "목포": [34.8118, 126.3922], "여수": [34.7604, 127.6622],
+  "순천": [34.9506, 127.4872], "경북": [36.0190, 129.3435], "포항": [36.0190, 129.3435], "경주": [35.8562, 129.2247],
+  "안동": [36.5684, 128.7294], "경남": [35.2280, 128.6811], "창원": [35.2280, 128.6811], "통영": [34.8544, 128.4331],
+  "거제": [34.8806, 128.6211], "남해": [34.8376, 127.8924], "진주": [35.1800, 128.1076], "제주": [33.4996, 126.5312],
+  "서귀포": [33.2541, 126.5600], "울릉": [37.4844, 130.9058]
+};
+function lookupKorean(place) {
+  const p = place.replace(/\s/g, "");
+  let best = null;
+  for (const name of Object.keys(KR_PLACES)) {
+    if (p.includes(name) && (!best || name.length > best.length)) best = name; // 더 긴 이름 우선("서귀포" > "제주")
+  }
+  if (!best) return null;
+  const [lat, lon] = KR_PLACES[best];
+  return { name: best, lat, lon, via: "결정국 내장 지역표" };
+}
+
+// 지역 이름 → 좌표: Kakao(키가 있을 때) → 내장 지역표 → Open-Meteo 지오코딩(영문 지명 등) 순서
 async function geocode(place) {
   const key = process.env.KAKAO_REST_KEY;
   if (key) {
-    const j = await getJSON(`https://dapi.kakao.com/v2/local/search/keyword.json?size=1&query=${encodeURIComponent(place)}`, { Authorization: `KakaoAK ${key}` });
-    const d = j.documents && j.documents[0];
-    if (d) return { name: d.place_name || place, lat: +d.y, lon: +d.x, via: "Kakao Local" };
+    try {
+      const j = await getJSON(`https://dapi.kakao.com/v2/local/search/keyword.json?size=1&query=${encodeURIComponent(place)}`, { Authorization: `KakaoAK ${key}` });
+      const d = j.documents && j.documents[0];
+      if (d) return { name: d.place_name || place, lat: +d.y, lon: +d.x, via: "Kakao Local" };
+    } catch { /* Kakao 키 오류·장애 시 내장 지역표로 넘어간다 */ }
   }
+  const local = lookupKorean(place);
+  if (local) return local;
   const j = await getJSON(`https://geocoding-api.open-meteo.com/v1/search?count=1&language=ko&name=${encodeURIComponent(place)}`);
   const d = j.results && j.results[0];
   if (!d) return null;
