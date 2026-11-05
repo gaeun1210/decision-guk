@@ -1058,6 +1058,7 @@ function showResult(m, r) {
         <button class="primary secondary" id="result-share">📤 판결문 공유</button>
         <button class="primary" id="result-done">닫기 ✓</button>
       </div>
+      <button type="button" class="link-btn poll-ask" id="result-poll">📮 장관 판결이 아쉽다면? 국민 여론에도 물어보기</button>
     </div>`, () => {
       const chat = document.getElementById("chat");
       const modalBox = modalRoot.querySelector(".modal");
@@ -1096,6 +1097,10 @@ function showResult(m, r) {
       if (reduceMotion()) finish(); else step();
       document.getElementById("chat-skip").onclick = finish;
       document.getElementById("result-done").onclick = closeModal;
+      document.getElementById("result-poll").onclick = () => openPollForm({
+        title: m.title, category: m.category,
+        options: shop ? ["산다", "안 산다"] : m.options
+      });
       document.getElementById("result-share").onclick = () => save.then(() => openShare(record));
       document.getElementById("result-reconsider").onclick = () => {
         m.retrial = true; m.tiebreak = null; m.qIndex = 0;
@@ -1442,6 +1447,155 @@ function applyAvatar() {
   btn.innerHTML = id ? `<img src="assets/people/person_${id}.png" alt="">${label}` : `👤 ${label}`;
 }
 applyAvatar();
+// ===== 📮 국민 여론 광장 =====
+// 보기: 누구나(합계만 공개하는 poll_board 함수). 글쓰기·투표·신고: 로그인 사용자만.
+// 1인 1표·마감·선택지 범위·하루 5개 제한·신고 3건 숨김은 모두 DB(제약·트리거·RLS)가 강제한다.
+const POLL_DURATIONS = [[1, "1시간"], [24, "하루"], [72, "3일"], [168, "7일"]];
+let pollFilter = "open";
+function pollLeft(iso) {
+  const ms = new Date(iso) - Date.now();
+  if (ms <= 0) return "마감";
+  const h = Math.floor(ms / 3600e3), m = Math.floor(ms % 3600e3 / 60e3);
+  return h >= 24 ? `${Math.floor(h / 24)}일 ${h % 24}시간 남음` : h ? `${h}시간 ${m}분 남음` : `${Math.max(m, 1)}분 남음`;
+}
+function pollError(error) {
+  const msg = String((error && (error.message || error.code)) || "");
+  const known = ["로그인이 필요해요", "하루에 5개", "마감된 여론조사", "없는 선택지", "투표할 수 없는", "내 글은 신고할 수 없어요"].find(k => msg.includes(k));
+  if (known) return msg.replace(/^.*?(여론조사는|로그인|마감|없는|투표할|내 글)/, "$1");
+  if (/duplicate|23505/.test(msg)) return "이미 참여했어요.";
+  return dbMessage(error);
+}
+async function loadPolls() {
+  if (!db) return { polls: [], error: { message: "서버가 연결되지 않았어요" } };
+  const { data, error } = await db.rpc("poll_board", { p_limit: 60 });
+  return { polls: Array.isArray(data) ? data : [], error };
+}
+function pollCard(p) {
+  const opts = Array.isArray(p.options) ? p.options.map(String) : [];
+  const counts = Array.isArray(p.counts) ? p.counts.map(Number) : opts.map(() => 0);
+  const total = Number(p.total) || 0;
+  const voted = p.my_vote !== null && p.my_vote !== undefined;
+  const showResult = voted || !p.is_open || p.mine || !currentUser;
+  const max = Math.max(...counts, 0);
+  const body = showResult
+    ? `<div class="tally">${opts.map((o, i) => {
+        const pct = total ? Math.round(counts[i] / total * 100) : 0;
+        return `<div class="tally-row ${total && counts[i] === max && !p.is_open ? "win" : ""}">
+          <span class="tally-name">${voted && Number(p.my_vote) === i ? "✔ " : ""}${escapeHTML(o)}</span>
+          <span class="bar"><span style="width:${pct}%"></span></span><span>${counts[i]}표 · ${pct}%</span></div>`;
+      }).join("")}</div>`
+    : `<div class="chip-row poll-vote" role="group" aria-label="선택지">${opts.map((o, i) =>
+        `<button type="button" class="chip" data-vote="${escapeHTML(p.id)}" data-opt="${i}">${escapeHTML(o)}</button>`).join("")}</div>
+       <div class="hint">투표하면 결과가 보여요. 한 번 투표하면 바꿀 수 없어요.</div>`;
+  return `<article class="poll-card ${p.is_open ? "" : "closed"}">
+    <div class="poll-head">
+      <span class="poll-cat">${categoryIcon(p.category)}</span>
+      <b class="poll-title">${escapeHTML(p.title)}</b>
+      <span class="poll-left ${p.is_open ? "" : "done"}">${p.is_open ? "⏳ " + pollLeft(p.closes_at) : "🔒 마감"}</span>
+    </div>
+    ${body}
+    <div class="poll-foot">
+      <span>참여 ${total}명${p.mine ? " · ✍️ 내가 올린 글" : ""}${voted ? " · 투표 완료" : ""}</span>
+      ${p.mine ? `<button type="button" class="link-btn" data-pdel="${escapeHTML(p.id)}">삭제</button>`
+        : currentUser && !p.reported ? `<button type="button" class="link-btn" data-preport="${escapeHTML(p.id)}">🚩 신고</button>`
+        : p.reported ? `<span class="hint">신고함</span>` : ""}
+    </div>
+  </article>`;
+}
+async function openPolls() {
+  openModal("📮 국민 여론 광장", `<div class="empty">여론을 모으는 중…</div>`);
+  const { polls, error } = await loadPolls();
+  if (!modalRoot.querySelector(".modal")) return;
+  const open = polls.filter(p => p.is_open), closed = polls.filter(p => !p.is_open);
+  const list = pollFilter === "open" ? open : closed;
+  const body = modalRoot.querySelector(".modal-body");
+  body.innerHTML = `
+    <p class="poll-intro">고민을 올리면 다른 시민들이 투표해 줘요. 장관 판결과 국민 여론을 비교해 보세요!</p>
+    <div class="poll-top">
+      <div class="chip-row" role="group" aria-label="보기">
+        <button type="button" class="chip" data-pf="open" aria-pressed="${pollFilter === "open"}">⏳ 진행 중 ${open.length}</button>
+        <button type="button" class="chip" data-pf="closed" aria-pressed="${pollFilter === "closed"}">🔒 마감 ${closed.length}</button>
+      </div>
+      <button type="button" class="primary" id="poll-new">✍️ 여론조사 올리기</button>
+    </div>
+    ${currentUser ? "" : `<div class="info-box">👀 지금은 결과만 볼 수 있어요. <b>투표·글쓰기</b>는 로그인한 시민만 할 수 있어요. <button type="button" class="link-btn" id="poll-login">로그인하기</button></div>`}
+    ${error ? `<div class="form-error">여론을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</div>` : ""}
+    <div id="poll-msg" class="form-error" role="alert"></div>
+    <div class="poll-list">${list.length ? list.map(pollCard).join("") : `<div class="empty">${pollFilter === "open" ? "진행 중인 여론조사가 없어요. 첫 고민을 올려 보세요!" : "마감된 여론조사가 없어요."}</div>`}</div>
+    <div class="notice">공개 게시판입니다. 이름·연락처·주소 같은 개인정보는 적지 마세요. 작성자와 투표자는 공개되지 않고 표 합계만 보여요. 신고가 3건 쌓이면 자동으로 숨겨져요.</div>`;
+  const msg = text => { const el = document.getElementById("poll-msg"); if (el) el.textContent = text; };
+  body.querySelectorAll("[data-pf]").forEach(b => b.onclick = () => { pollFilter = b.dataset.pf; openPolls(); });
+  document.getElementById("poll-new").onclick = () => openPollForm();
+  const lg = document.getElementById("poll-login"); if (lg) lg.onclick = () => openLogin();
+  body.querySelectorAll("[data-vote]").forEach(b => b.onclick = async () => {
+    body.querySelectorAll(`[data-vote="${CSS.escape(b.dataset.vote)}"]`).forEach(x => x.disabled = true);
+    const { error: e } = await db.from("poll_votes").insert({ poll_id: b.dataset.vote, option_index: Number(b.dataset.opt) });
+    if (e) { msg("투표하지 못했어요. " + pollError(e)); body.querySelectorAll(`[data-vote="${CSS.escape(b.dataset.vote)}"]`).forEach(x => x.disabled = false); return; }
+    openPolls();
+  });
+  body.querySelectorAll("[data-preport]").forEach(b => b.onclick = async () => {
+    if (!confirm("이 여론조사를 신고할까요? 욕설·개인정보·광고처럼 부적절한 글만 신고해 주세요.")) return;
+    const { error: e } = await db.from("poll_reports").insert({ poll_id: b.dataset.preport });
+    if (e) return msg("신고하지 못했어요. " + pollError(e));
+    openPolls();
+  });
+  body.querySelectorAll("[data-pdel]").forEach(b => b.onclick = async () => {
+    if (!confirm("내 여론조사를 삭제할까요? 받은 표도 함께 지워져요.")) return;
+    const { data, error: e } = await db.from("polls").delete().eq("id", b.dataset.pdel).select("id");
+    if (e || !data || !data.length) return msg("삭제하지 못했어요. " + pollError(e));
+    openPolls();
+  });
+}
+function openPollForm(prefill = {}) {
+  if (!db) return openModal("✍️ 여론조사 올리기", `<p>서버가 연결되지 않았어요.</p>`);
+  if (!currentUser) return openLogin("login", "여론조사를 올리려면 로그인해 주세요.");
+  const opts = (prefill.options && prefill.options.length >= 2 ? prefill.options : ["", ""]).slice(0, LIMITS.optionsMax);
+  const cat = CATEGORIES.includes(prefill.category) ? prefill.category : "일상";
+  openModal("✍️ 여론조사 올리기", `
+    <form id="poll-form" novalidate>
+      <div class="field"><label for="poll-title">고민 제목</label>
+        <input id="poll-title" maxlength="100" autocomplete="off" value="${escapeHTML(prefill.title || "")}" placeholder="예) 오늘 저녁 뭐 먹지?" /></div>
+      <div class="field"><label>고민 유형</label>
+        <div class="chip-row" role="group" aria-label="고민 유형">${CATEGORIES.map(c => `<button type="button" class="chip" data-pcat="${c}" aria-pressed="${c === cat}">${categoryIcon(c)} ${c}</button>`).join("")}</div></div>
+      <div class="field"><label>선택지 <small>(2~6개, 각 40자 이내)</small></label>
+        <div id="poll-opts">${opts.map((o, i) => `<input class="opt-input poll-opt" maxlength="40" autocomplete="off" value="${escapeHTML(o)}" placeholder="선택지 ${i + 1}" aria-label="선택지 ${i + 1}" />`).join("")}</div>
+        <button type="button" class="link-btn" id="poll-add">＋ 선택지 추가</button></div>
+      <div class="field"><label>투표 기간</label>
+        <div class="chip-row" role="group" aria-label="투표 기간">${POLL_DURATIONS.map(([h, t]) => `<button type="button" class="chip" data-pdur="${h}" aria-pressed="${h === 24}">${t}</button>`).join("")}</div></div>
+      <div class="notice">누구나 볼 수 있는 공개 글이에요. 이름·연락처·주소 같은 개인정보는 적지 마세요. 올린 뒤에는 수정할 수 없고 삭제만 할 수 있어요.</div>
+      <div id="poll-form-err" class="form-error" role="alert"></div>
+      <div class="btn-row"><button type="button" class="primary secondary" id="poll-back">◀ 목록</button><button type="submit" class="primary">📮 여론조사 올리기</button></div>
+    </form>`, () => {
+      let category = cat, hours = 24;
+      const form = document.getElementById("poll-form"), err = document.getElementById("poll-form-err");
+      form.querySelectorAll("[data-pcat]").forEach(b => b.onclick = () => { category = b.dataset.pcat; form.querySelectorAll("[data-pcat]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
+      form.querySelectorAll("[data-pdur]").forEach(b => b.onclick = () => { hours = Number(b.dataset.pdur); form.querySelectorAll("[data-pdur]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
+      document.getElementById("poll-add").onclick = () => {
+        const box = document.getElementById("poll-opts");
+        if (box.children.length >= LIMITS.optionsMax) { err.textContent = `선택지는 최대 ${LIMITS.optionsMax}개예요.`; return; }
+        box.insertAdjacentHTML("beforeend", `<input class="opt-input poll-opt" maxlength="40" autocomplete="off" placeholder="선택지 ${box.children.length + 1}" aria-label="선택지 ${box.children.length + 1}" />`);
+      };
+      document.getElementById("poll-back").onclick = openPolls;
+      form.onsubmit = async event => {
+        event.preventDefault();
+        const title = document.getElementById("poll-title").value.trim();
+        const options = [...form.querySelectorAll(".poll-opt")].map(i => i.value.trim()).filter(Boolean);
+        if (!title) return (err.textContent = "고민 제목을 적어 주세요.");
+        if (title.length > 100) return (err.textContent = "제목은 100자 이내로 적어 주세요.");
+        if (options.length < 2) return (err.textContent = "선택지를 2개 이상 적어 주세요.");
+        if (options.some(o => o.length > 40)) return (err.textContent = "선택지는 40자 이내로 적어 주세요.");
+        if (new Set(options).size !== options.length) return (err.textContent = "같은 선택지가 두 번 있어요.");
+        err.textContent = "올리는 중…";
+        form.querySelector('button[type="submit"]').disabled = true;
+        // 작성자·작성 시각·마감 시각은 보내지 않는다. DB가 로그인 정보와 서버 시각으로 정한다.
+        const { error } = await db.from("polls").insert({ title, category, options, duration_hours: hours });
+        if (error) { err.textContent = "올리지 못했어요. " + pollError(error); form.querySelector('button[type="submit"]').disabled = false; return; }
+        pollFilter = "open";
+        openPolls();
+      };
+    });
+}
+
 document.querySelectorAll("[data-action]").forEach(button => {
   button.addEventListener("click", () => {
     const action = button.dataset.action;
@@ -1449,6 +1603,7 @@ document.querySelectorAll("[data-action]").forEach(button => {
     if (action === "meeting") startMeeting();
     if (action === "records") showRecords();
     if (action === "stats") openStats();
+    if (action === "polls") openPolls();
     if (action === "share") loadRecords().then(({ records }) => records[0] ? openShare(records[0])
       : openModal("📤 판결문 공유", `<p>아직 공유할 판결이 없어요. 먼저 고민을 접수해 보세요!</p><button class="primary" id="share-start">고민 접수하기</button>`, () => { document.getElementById("share-start").onclick = () => startMeeting(); }));
     if (action === "settings") openModal("⚙️ 설정", `
