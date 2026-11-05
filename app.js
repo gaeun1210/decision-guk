@@ -47,6 +47,8 @@ function fromRow(row) {
     date: dbDate(row.created_at), icon: categoryIcon(row.category), detail: row.detail,
     tally: row.tally, label: row.label, retrial: row.retrial, priority: row.priority,
     options: Array.isArray(row.options) ? row.options.map(String) : [],
+    evidence: row.evidence && Array.isArray(row.evidence.items) ? row.evidence.items.slice(0, 6).map(e => ({ label: String(e.label || ""), ok: !!e.ok, summary: String(e.summary || ""), source: String(e.source || ""), fetchedAt: e.fetchedAt || null })) : [],
+    moves: row.evidence && Array.isArray(row.evidence.moves) ? row.evidence.moves.slice(0, 4).map(v => ({ name: String(v.name || ""), from: String(v.from || ""), to: String(v.to || "") })) : [],
     opinions: Array.isArray(row.opinions) ? row.opinions.filter(o => Array.isArray(o) && o.length === 2).map(([n, t]) => [String(n), String(t)]) : []
   };
 }
@@ -54,9 +56,9 @@ function fromRow(row) {
 // 기록 불러오기: 로그인 → 서버(RLS로 내 것만), 비로그인 → 이 브라우저(체험 모드)
 async function loadRecords() {
   if (!currentUser) return { records: getRecords(), source: "local" };
-  const { data, error } = await db.from("decisions")
-    .select("id,title,category,detail,options,priority,verdict,label,tally,opinions,retrial,created_at")
-    .order("created_at", { ascending: false }).limit(100);
+  const cols = "id,title,category,detail,options,priority,verdict,label,tally,opinions,retrial,created_at";
+  let { data, error } = await db.from("decisions").select(cols + ",evidence").order("created_at", { ascending: false }).limit(100);
+  if (error && /evidence/.test(String(error.message))) ({ data, error } = await db.from("decisions").select(cols).order("created_at", { ascending: false }).limit(100));
   if (error) return { records: [], source: "server", error };
   return { records: data.map(fromRow), source: "server" };
 }
@@ -67,13 +69,15 @@ async function addRecord(record, m) {
     return { ok: saveRecords(list), source: "local" };
   }
   const shop = m.category === "쇼핑";
-  const { error } = await db.from("decisions").insert({
+  const row = {
     title: record.title, category: record.category, detail: record.detail || "",
     options: m.options, priority: m.priority,
     price: shop ? m.shop.priceValue : null, budget: shop ? m.shop.budgetValue : null,
     verdict: record.verdict, label: record.label, tally: record.tally,
-    opinions: record.opinions, retrial: !!record.retrial
-  }); // user_id는 DB가 auth.uid()로 채운다(화면에서 보내지 않음)
+    opinions: record.opinions, retrial: !!record.retrial, evidence: { items: record.evidence || [], moves: record.moves || [] }
+  }; // user_id는 DB가 auth.uid()로 채운다(화면에서 보내지 않음)
+  let { error } = await db.from("decisions").insert(row);
+  if (error && /evidence/.test(String(error.message))) { delete row.evidence; ({ error } = await db.from("decisions").insert(row)); } // 근거 칸이 아직 없는 DB
   return { ok: !error, source: "server", error };
 }
 
@@ -221,6 +225,17 @@ function parseMoney(raw) {
   if (n > LIMITS.moneyMax) return { error: "1억 원(100,000,000원) 이하로 입력해 주세요." };
   return { value: n };
 }
+// 해외 가격: 소수 둘째 자리까지, 0보다 크고 100만 이하
+function parseForeign(raw) {
+  const text = String(raw ?? "").replace(/[,\s]/g, "");
+  if (!text) return { error: "금액을 입력해 주세요." };
+  if (/^-/.test(text)) return { error: "음수는 입력할 수 없어요." };
+  if (!/^\d+(\.\d{1,2})?$/.test(text)) return { error: "숫자(소수 둘째 자리까지)만 입력해 주세요." };
+  const n = Number(text);
+  if (n <= 0) return { error: "0보다 큰 금액을 입력해 주세요." };
+  if (n > 1000000) return { error: "너무 큰 금액이에요." };
+  return { value: n };
+}
 function today() {
   const d = new Date();
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
@@ -279,9 +294,10 @@ let meeting = null;
 function newMeeting(prefill) {
   return {
     title: prefill || "", category: selectedCategory, detail: "",
-    rawOptions: ["", ""], options: [], yesNo: false,
+    rawOptions: ["", ""], options: [], yesNo: false, rawTags: [null, null], optTags: [], activityTag: null,
+    place: "", date: kstToday(), weatherOn: false, evidence: null,
     answers: {}, qIndex: 0,
-    shop: { price: "", budget: "", owned: null, use: null, need: null },
+    shop: { price: "", budget: "", owned: null, use: null, need: null, currency: "KRW", fx: null },
     priority: null, reversible: null, urgent: null, tiebreak: null, retrial: false
   };
 }
@@ -322,6 +338,15 @@ function renderAgenda() {
           ${CATEGORIES.map(c => `<button type="button" class="chip" data-cat="${c}" aria-pressed="${c === m.category}">${categoryIcon(c)} ${c}</button>`).join("")}
         </div>
       </div>
+      ${WEATHER_CATS.includes(m.category) ? `
+      <div class="field-row ctx-row">
+        <div class="field"><label for="meeting-place">${m.category === "맛집" ? "📍 출발 동네" : "📍 지역"} <small>(선택)</small></label>
+          <input id="meeting-place" maxlength="30" autocomplete="off" value="${escapeHTML(m.place)}" placeholder="${m.category === "맛집" ? "예) 대구 동성로" : m.category === "여행" ? "예) 강릉, 제주" : "예) 대구 수성구"}" /></div>
+        <div class="field"><label for="meeting-date">📅 날짜</label>
+          <input id="meeting-date" type="date" min="${kstToday()}" max="${addDays(kstToday(), 15)}" value="${escapeHTML(m.date)}" /></div>
+      </div>
+      ${m.category === "연애" ? `<label class="check"><input type="checkbox" id="meeting-weather" ${m.weatherOn ? "checked" : ""} /> 날씨 정보 반영하기 <small>(선택 · 지역 이름만 외부로 보내고 고민 내용은 보내지 않아요)</small></label>` : ""}
+      <div class="hint">${m.category === "맛집" ? "출발 동네를 적으면 선택지(가게 이름·메뉴)를 근처에서 찾아 거리를 비교하고, 날씨도 반영해요." : "지역을 적으면 그날의 날씨·미세먼지" + (m.category === "여행" ? "·공휴일" : "") + "을 조회해 장관 판단에 반영해요."}</div>` : ""}
       ${shop ? `
       <div class="info-box">🛍️ <b>구매 재판</b>으로 진행합니다. 다음 단계에서 가격·예산과 필요성을 물어볼게요.</div>` : `
       <div class="field">
@@ -331,11 +356,16 @@ function renderAgenda() {
             <div class="opt-row">
               <span class="opt-no">${i + 1}</span>
               <input class="opt-input" maxlength="${LIMITS.option}" value="${escapeHTML(o)}" placeholder="${i === 0 ? "예) 마라탕" : i === 1 ? "예) 탕수육" : "선택지"}" aria-label="선택지 ${i + 1}" autocomplete="off" />
+              ${TAG_CATS.includes(m.category) ? `<span class="tag-pick" role="group" aria-label="선택지 ${i + 1} 장소">
+                <button type="button" class="tag" data-tag="${i}" data-v="in" aria-pressed="${m.rawTags[i] === "in"}" title="실내">🏠</button>
+                <button type="button" class="tag" data-tag="${i}" data-v="out" aria-pressed="${m.rawTags[i] === "out"}" title="야외">🌳</button></span>` : ""}
               ${m.rawOptions.length > 2 ? `<button type="button" class="opt-del" data-del="${i}" aria-label="선택지 ${i + 1} 삭제">✕</button>` : ""}
             </div>`).join("")}
         </div>
         ${m.rawOptions.length < LIMITS.optionsMax ? `<button type="button" class="add-opt" id="add-opt">＋ 선택지 추가</button>` : ""}
-        <div class="hint">선택지를 하나만 적거나 비워 두면 「한다 / 안 한다」로 회의합니다.</div>
+        <div class="hint">선택지를 하나만 적거나 비워 두면 「한다 / 안 한다」로 회의합니다.${TAG_CATS.includes(m.category) ? " 🏠실내 / 🌳야외를 표시하면 날씨가 판단에 반영돼요." : ""}</div>
+        ${TAG_CATS.includes(m.category) && m.rawOptions.every(o => !o.trim()) ? `<div class="chip-row slim-row"><span class="hint">할까 말까 고민이라면, 이 활동은</span>
+          <button type="button" class="chip" data-act="in" aria-pressed="${m.activityTag === "in"}">🏠 실내</button><button type="button" class="chip" data-act="out" aria-pressed="${m.activityTag === "out"}">🌳 야외</button></div>` : ""}
       </div>`}
       <details class="field more" ${m.detail ? "open" : ""}>
         <summary>고민 내용 더 적기 (선택)</summary>
@@ -349,11 +379,15 @@ function renderAgenda() {
         m.title = document.getElementById("meeting-title").value;
         m.detail = document.getElementById("meeting-detail").value;
         document.querySelectorAll(".opt-input").forEach((el, i) => { m.rawOptions[i] = el.value; });
+        const pl = document.getElementById("meeting-place"), dt = document.getElementById("meeting-date"), wo = document.getElementById("meeting-weather");
+        if (pl) m.place = pl.value; if (dt) m.date = dt.value || kstToday(); if (wo) m.weatherOn = wo.checked;
       };
+      modalRoot.querySelectorAll("[data-tag]").forEach(b => b.onclick = () => { keep(); const i = Number(b.dataset.tag); m.rawTags[i] = m.rawTags[i] === b.dataset.v ? null : b.dataset.v; renderAgenda(); });
+      modalRoot.querySelectorAll("[data-act]").forEach(b => b.onclick = () => { keep(); m.activityTag = m.activityTag === b.dataset.act ? null : b.dataset.act; renderAgenda(); });
       modalRoot.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { keep(); m.category = b.dataset.cat; renderAgenda(); });
       const add = document.getElementById("add-opt");
-      if (add) add.onclick = () => { keep(); m.rawOptions.push(""); renderAgenda(); modalRoot.querySelectorAll(".opt-input")[m.rawOptions.length - 1].focus(); };
-      modalRoot.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { keep(); m.rawOptions.splice(Number(b.dataset.del), 1); renderAgenda(); });
+      if (add) add.onclick = () => { keep(); m.rawOptions.push(""); m.rawTags.push(null); renderAgenda(); modalRoot.querySelectorAll(".opt-input")[m.rawOptions.length - 1].focus(); };
+      modalRoot.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { keep(); m.rawOptions.splice(Number(b.dataset.del), 1); m.rawTags.splice(Number(b.dataset.del), 1); renderAgenda(); });
       document.getElementById("meeting-title").focus();
       document.getElementById("agenda-form").onsubmit = event => {
         event.preventDefault();
@@ -363,11 +397,14 @@ function renderAgenda() {
         if (title.length > LIMITS.title) return showError("agenda-err", `고민 제목은 ${LIMITS.title}자 이하로 적어 주세요.`);
         if (m.detail.length > LIMITS.detail) return showError("agenda-err", `고민 내용은 ${LIMITS.detail}자 이하로 적어 주세요.`);
         m.title = title;
+        m.place = m.place.trim().slice(0, 30);
+        if (m.place && !(m.date >= kstToday() && m.date <= addDays(kstToday(), 15))) return showError("agenda-err", "날짜는 오늘부터 15일 이내로 골라 주세요(날씨 예보 범위).");
         if (m.category === "쇼핑") {
           m.options = ["구매 승인", "하루 더 생각하기", "보류"];
           return renderShop();
         }
-        const opts = m.rawOptions.map(o => o.trim()).filter(Boolean);
+        const pairs = m.rawOptions.map((o, i) => [o.trim(), m.rawTags[i] || null]).filter(([o]) => o);
+        const opts = pairs.map(p => p[0]);
         if (opts.some(o => o.length > LIMITS.option)) return showError("agenda-err", `선택지는 각각 ${LIMITS.option}자 이하로 적어 주세요.`);
         const seen = new Set();
         for (const o of opts) {
@@ -378,6 +415,7 @@ function renderAgenda() {
         const next = m.yesNo ? (opts.length === 1 ? [opts[0], "하지 않기"] : ["한다", "안 한다"]) : opts.slice(0, LIMITS.optionsMax);
         if (next.join("\u0000") !== m.options.join("\u0000")) m.answers = {}; // 선택지가 바뀌면 이전 답은 버린다
         m.options = next;
+        m.optTags = !TAG_CATS.includes(m.category) ? [] : m.yesNo ? [opts.length === 1 ? pairs[0][1] : m.activityTag, "in"] : pairs.slice(0, LIMITS.optionsMax).map(p => p[1]);
         m.qIndex = 0;
         renderQuestion();
       };
@@ -443,8 +481,12 @@ function renderShop() {
     <form id="shop-form" novalidate>
       <div class="field-row">
         <div class="field">
-          <label for="price">상품 가격 (원)</label>
-          <input id="price" inputmode="numeric" autocomplete="off" value="${escapeHTML(s.price)}" placeholder="예) 59000" aria-describedby="price-err" />
+          <label for="price">상품 가격</label>
+          <div class="price-row">
+            <input id="price" inputmode="decimal" autocomplete="off" value="${escapeHTML(s.price)}" placeholder="${s.currency === "KRW" ? "예) 59000" : "예) 49.99"}" aria-describedby="price-err" />
+            <select id="currency" aria-label="통화">${FX_CURRENCIES.map(([c, n]) => `<option value="${c}" ${c === s.currency ? "selected" : ""}>${c === "KRW" ? "원" : c + " " + n}</option>`).join("")}</select>
+          </div>
+          ${s.currency !== "KRW" ? `<div class="hint">해외 가격은 오늘 기준환율로 원화로 바꿔 판단해요.</div>` : ""}
           <p class="err small" id="price-err" hidden></p>
         </div>
         <div class="field">
@@ -462,7 +504,8 @@ function renderShop() {
         <button type="submit" class="primary">다음 ▶</button>
       </div>
     </form>`, () => {
-      const keep = () => { s.price = document.getElementById("price").value; s.budget = document.getElementById("budget").value; };
+      const keep = () => { s.price = document.getElementById("price").value; s.budget = document.getElementById("budget").value; s.currency = document.getElementById("currency").value; };
+      document.getElementById("currency").onchange = () => { keep(); renderShop(); };
       modalRoot.querySelectorAll("[data-shop]").forEach(b => b.onclick = () => {
         keep();
         const v = b.dataset.val;
@@ -470,16 +513,24 @@ function renderShop() {
         renderShop();
       });
       document.getElementById("shop-back").onclick = () => { keep(); renderAgenda(); };
-      document.getElementById("shop-form").onsubmit = event => {
+      document.getElementById("shop-form").onsubmit = async event => {
         event.preventDefault();
         keep();
-        const p = parseMoney(s.price), b = parseMoney(s.budget);
+        const p = s.currency === "KRW" ? parseMoney(s.price) : parseForeign(s.price), b = parseMoney(s.budget);
         showError("price-err", p.error || ""); showError("budget-err", b.error || "");
         document.getElementById("price").setAttribute("aria-invalid", String(!!p.error));
         document.getElementById("budget").setAttribute("aria-invalid", String(!!b.error));
         if (p.error || b.error) return showError("shop-err", "가격과 예산을 다시 확인해 주세요.");
         if (s.owned === null || s.use === null || s.need === null) return showError("shop-err", "세 가지 질문에 모두 답해 주세요.");
-        s.priceValue = p.value; s.budgetValue = b.value;
+        s.budgetValue = b.value; s.fx = null;
+        if (s.currency === "KRW") { s.priceValue = p.value; return renderPriority(); }
+        const btn = event.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "환율 확인 중…";
+        const f = await infoGet({ type: "fx", from: s.currency });
+        btn.disabled = false; btn.textContent = "다음 ▶";
+        if (!f.ok) return showError("shop-err", `환율을 가져오지 못했어요(${f.reason}). 원화로 바꿔 입력해 주세요.`);
+        const krw = Math.round(p.value * f.rate);
+        if (krw < LIMITS.moneyMin || krw > LIMITS.moneyMax) return showError("shop-err", "원화로 바꾼 가격이 1원~1억 원 범위를 벗어나요.");
+        s.foreignAmount = p.value; s.priceValue = krw; s.fx = f;
         renderPriority();
       };
     });
@@ -524,8 +575,11 @@ function renderPriority() {
       document.getElementById("prio-go").onclick = () => {
         if (!m.priority) return showError("prio-err", "가장 중요한 기준을 하나 골라 주세요.");
         m.tiebreak = null;
-        const result = decide(m);
-        if (result.tie) renderTiebreak(result); else showResult(m, result);
+        const needs = (WEATHER_CATS.includes(m.category) && m.place) || (m.category === "쇼핑" && m.shop.fx);
+        const run = () => { const result = decide(m); if (result.tie) renderTiebreak(result); else showResult(m, result); };
+        if (!needs) { m.evidence = null; return run(); }
+        openModal("🏛️ 국무회의", `${stepBar(3)}<div class="empty"><img class="owl" src="assets/stand_owl.png" alt="" /><br><b>서기관 부엉이가 근거를 수집하는 중…</b><br><span class="hint">날씨·장소 정보를 확인하고 있어요</span></div>`);
+        collectEvidence(m).then(run);
       };
     });
 }
@@ -559,6 +613,166 @@ function j(word, particle) {
   return has ? pairs[particle][0] : pairs[particle][1];
 }
 
+// ===== 근거 수집: 실시간 정보를 서버 함수(/api/info)로 받아 판결 근거로 쓴다 =====
+const WEATHER_CATS = ["여행", "일상", "맛집", "연애"];
+const TAG_CATS = ["여행", "일상", "연애"];
+const FX_CURRENCIES = [["KRW", "원"], ["USD", "달러"], ["JPY", "엔"], ["EUR", "유로"], ["CNY", "위안"], ["GBP", "파운드"], ["THB", "바트"]];
+
+function kstToday() { return new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10); }
+function addDays(d, n) { return new Date(Date.parse(d) + n * 86400e3).toISOString().slice(0, 10); }
+function hhmm(iso) { const d = new Date(iso); return isNaN(d) ? "" : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; }
+function ago(iso) {
+  const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+  return m < 1 ? "방금" : m < 60 ? `${m}분 전` : `${Math.round(m / 60)}시간 전`;
+}
+function mmdd(d) { return d ? `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}` : ""; }
+
+async function infoGet(params) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => [].concat(v).forEach(x => q.append(k, x)));
+    const r = await fetch("/api/info?" + q.toString(), { signal: ctrl.signal });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) return { ok: false, reason: j.reason || "정보 서버에 연결하지 못했어요" };
+    return j;
+  } catch (e) {
+    return { ok: false, reason: e.name === "AbortError" ? "응답이 늦어 기다리지 않았어요" : "정보 서버에 연결하지 못했어요" };
+  } finally { clearTimeout(t); }
+}
+
+function evidenceKey(m) {
+  return JSON.stringify([m.category, m.place, m.date, m.weatherOn, m.options, m.shop && m.shop.fx && m.shop.fx.rate]);
+}
+
+// 카테고리별로 필요한 정보만 조회한다. 연애는 사용자가 켰을 때만 날씨를 조회한다.
+async function collectEvidence(m) {
+  if (m.evidence && m.evidence.key === evidenceKey(m)) return m.evidence;
+  const ev = { key: evidenceKey(m), items: [] };
+  const jobs = [];
+  const place = (m.place || "").trim();
+  const wantWeather = WEATHER_CATS.includes(m.category) && place && (m.category !== "연애" || m.weatherOn);
+  if (wantWeather) {
+    const date = m.date || kstToday();
+    if (date < kstToday() || date > addDays(kstToday(), 15)) {
+      ev.items.push({ kind: "weather", ok: false, label: "🌦️ 날씨", reason: "예보는 오늘부터 15일 이내만 볼 수 있어 반영하지 않았어요" });
+    } else jobs.push(infoGet({ type: "weather", place, date }).then(w => { ev.weather = w.ok ? w : null; ev.items.push(weatherItem(w, place, date)); }));
+  }
+  if (m.category === "여행" && m.date) {
+    jobs.push(infoGet({ type: "holiday", date: m.date }).then(h => { ev.holiday = h.ok ? h : null; ev.items.push(holidayItem(h)); }));
+  }
+  if (m.category === "맛집" && place && !m.yesNo) {
+    jobs.push(infoGet({ type: "places", near: place, q: m.options }).then(p => { ev.places = p.ok ? p : null; ev.items.push(placesItem(p)); }));
+  }
+  if (m.category === "쇼핑" && m.shop.fx) ev.items.push(fxItem(m.shop));
+  await Promise.all(jobs);
+  const order = ["weather", "holiday", "places", "fx"];
+  ev.items.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+  m.evidence = ev;
+  return ev;
+}
+
+function weatherFlags(w) {
+  if (!w) return { bad: [], good: false };
+  const bad = [];
+  if (w.rain != null && w.rain >= 60) bad.push(`비 예보(강수확률 ${w.rain}%)`);
+  if ((w.pm10 != null && w.pm10 > 80) || (w.pm25 != null && w.pm25 > 35)) bad.push(`미세먼지 나쁨(PM10 ${w.pm10 ?? "-"}, PM2.5 ${w.pm25 ?? "-"})`);
+  if (w.tmax != null && w.tmax >= 33) bad.push(`폭염(최고 ${Math.round(w.tmax)}℃)`);
+  if (w.tmax != null && w.tmax <= -5) bad.push(`한파(최고 ${Math.round(w.tmax)}℃)`);
+  const good = !bad.length && w.rain != null && w.rain <= 20 && w.tmax != null && w.tmax >= 5 && w.tmax <= 30;
+  return { bad, good };
+}
+function pmGrade(v, cut) { return v == null ? "-" : v <= cut[0] ? "좋음" : v <= cut[1] ? "보통" : v <= cut[2] ? "나쁨" : "매우 나쁨"; }
+
+function weatherItem(w, place, date) {
+  if (!w.ok) return { kind: "weather", ok: false, label: `🌦️ 날씨 · ${place}`, reason: w.reason };
+  const lines = [];
+  if (w.rain != null) lines.push(`강수확률 ${w.rain}%`);
+  if (w.tmax != null) lines.push(`기온 ${Math.round(w.tmin)}~${Math.round(w.tmax)}℃`);
+  if (w.pm10 != null) lines.push(`미세먼지 ${pmGrade(w.pm10, [30, 80, 150])}(PM10 ${w.pm10}) · 초미세 ${pmGrade(w.pm25, [15, 35, 75])}(PM2.5 ${w.pm25})`);
+  if (w.uv != null) lines.push(`자외선 지수 ${Math.round(w.uv)}`);
+  if (w.sunset) lines.push(`일몰 ${w.sunset}`);
+  return { kind: "weather", ok: true, label: `🌦️ 날씨 · ${w.place} ${mmdd(date)}`, lines, source: w.source, fetchedAt: w.fetchedAt,
+    fresh: `${mmdd(date)} 예보 · 조회 ${hhmm(w.fetchedAt)}(${ago(w.fetchedAt)})${w.pm10 != null ? " · 대기질은 예측 모델 값" : ""}` };
+}
+function holidayItem(h) {
+  if (!h.ok) return { kind: "holiday", ok: false, label: "📅 공휴일", reason: h.reason };
+  const lines = [h.holiday ? `${h.holiday} (공휴일)` : "공휴일 아님", h.longWeekend ? `${h.offDays}일 연휴 기간` : h.offDays ? "주말·휴일" : "평일"];
+  return { kind: "holiday", ok: true, label: `📅 공휴일 · ${mmdd(h.date)}`, lines, source: h.source, fetchedAt: h.fetchedAt, fresh: `조회 ${hhmm(h.fetchedAt)}` };
+}
+function placesItem(p) {
+  if (!p.ok) return { kind: "places", ok: false, label: "📍 장소 거리", reason: p.reason };
+  const lines = p.places.map(x => x.name ? `${x.option} → ${x.name} · ${x.distance != null ? (x.distance >= 1000 ? (x.distance / 1000).toFixed(1) + "km" : x.distance + "m") : "거리 모름"}` : `${x.option} → 근처에서 찾지 못함`);
+  return { kind: "places", ok: true, label: `📍 ${p.near}에서 거리`, lines, source: p.source, fetchedAt: p.fetchedAt, fresh: `조회 ${hhmm(p.fetchedAt)}(${ago(p.fetchedAt)}) · 직선거리 기준` };
+}
+function fxItem(s) {
+  const f = s.fx;
+  return { kind: "fx", ok: true, label: `💱 환율 · ${f.from}`, lines: [`1 ${f.from} = ${f.rate.toLocaleString(undefined, { maximumFractionDigits: 2 })}원`, `${s.foreignAmount.toLocaleString()} ${f.from} ≈ ${s.priceValue.toLocaleString()}원`],
+    source: f.source, fetchedAt: f.fetchedAt, fresh: `${f.rateDate} 기준환율(영업일 하루 1회 갱신)` };
+}
+
+// 근거에 따라 장관의 표를 조정한다(공개 규칙). 반환: { votes, moves[], notes{} }
+function adjustVotes(m, base) {
+  const votes = { ...base }, moves = [], notes = {};
+  const ev = m.evidence;
+  if (!ev) return { votes, moves, notes };
+  const n = m.options.length;
+  const note = (name, t) => { notes[name] = (notes[name] ? notes[name] + " " : "") + t; };
+  const move = (name, to, why) => { if (votes[name] === to) return; moves.push({ name, from: votes[name], to, why }); votes[name] = to; };
+
+  // 날씨 × 실내/야외
+  const w = ev.weather, f = weatherFlags(w);
+  const tags = m.optTags || [];
+  const outdoor = m.options.map((_, i) => i).filter(i => tags[i] === "out");
+  const shelter = m.options.map((_, i) => i).filter(i => tags[i] !== "out" && (tags[i] === "in" || (m.yesNo && i === 1)));
+  if (w && outdoor.length) {
+    if (f.bad.length && shelter.length) {
+      const why = f.bad.join(", ");
+      const target = shelter.slice().sort((a, b) => MINISTERS.filter(x => votes[x.name] === b).length - MINISTERS.filter(x => votes[x.name] === a).length)[0];
+      if (outdoor.includes(votes["신중주의"])) move("신중주의", target, `${why} 소식 때문에 야외인 「${m.options[votes["신중주의"]]}」 대신 「${m.options[target]}」${j(m.options[target], "로")} 표를 옮깁니다.`);
+      else note("신중주의", `${why} 소식이 있어 야외 선택지는 피하는 게 안전합니다.`);
+      if (outdoor.includes(votes["낭만주의"])) note("낭만주의", `${why} 소식이 있어 야외 만족도는 떨어지겠지만, 마음이 끌리는 쪽이라 표는 그대로 둡니다.`);
+      note("행동파", `${why} 소식이 있으니 날짜를 바꾸거나 실내 대안을 준비해 두세요.`);
+    } else if (f.good) {
+      if (votes["낭만주의"] < 0) move("낭만주의", outdoor[0], `날씨가 좋아서(강수확률 ${w.rain}%) 기권 대신 야외인 「${m.options[outdoor[0]]}」에 한 표 드립니다.`);
+      else note("낭만주의", `날씨도 좋아요(강수확률 ${w.rain}%).`);
+    }
+  } else if (w && f.bad.length) note("신중주의", `참고로 ${f.bad.join(", ")} 소식이 있습니다.`);
+
+  // 공휴일(여행)
+  const h = ev.holiday;
+  if (h && h.longWeekend) {
+    note("현실주의", `${h.offDays}일 연휴라 숙소·교통비가 오르고 붐빌 수 있습니다.`);
+    if (m.yesNo && votes["행동파"] < 0) move("행동파", 0, `${h.offDays}일 연휴라 떠나기 좋은 때입니다. 기권 대신 「${m.options[0]}」에 한 표!`);
+    else note("행동파", `${h.offDays}일 연휴라 시간은 충분합니다.`);
+  }
+
+  // 장소 거리(맛집)
+  const p = ev.places;
+  if (p) {
+    const dist = m.options.map((o, i) => { const x = p.places[i]; return x && x.name && x.distance != null ? x.distance : null; });
+    const known = dist.map((d, i) => [d, i]).filter(([d]) => d != null).sort((a, b) => a[0] - b[0]);
+    if (known.length >= 2) {
+      const [dc, c] = known[0];
+      const km = d => (d >= 1000 ? (d / 1000).toFixed(1) + "km" : d + "m");
+      const vB = votes["행동파"];
+      if (vB < 0 || (dist[vB] != null && dist[vB] - dc >= 1000)) move("행동파", c, `가장 가까운 「${m.options[c]}」(${km(dc)})${j(m.options[c], "로")} 갑시다. 가까워야 바로 실행할 수 있습니다.`);
+      if (w && w.rain != null && w.rain >= 60) {
+        const vS = votes["신중주의"];
+        if (vS >= 0 && dist[vS] != null && dist[vS] - dc >= 500) move("신중주의", c, `비 예보(강수확률 ${w.rain}%)가 있어 가까운 「${m.options[c]}」(${km(dc)})${j(m.options[c], "로")} 표를 옮깁니다.`);
+      }
+      note("현실주의", `이동 거리는 ${known.map(([d, i]) => `${m.options[i]} ${km(d)}`).join(", ")}입니다.`);
+    }
+  }
+  return { votes, moves, notes };
+}
+
+function evidenceCard(it) {
+  if (!it.ok) return `<div class="ev fail"><b>${escapeHTML(it.label)}</b><div>⚠️ ${escapeHTML(it.reason)} — 이 정보는 반영하지 않고 판단합니다.</div></div>`;
+  return `<div class="ev"><b>${escapeHTML(it.label)}</b><ul>${it.lines.map(l => `<li>${escapeHTML(l)}</li>`).join("")}</ul><small>출처: ${escapeHTML(it.source)} · ${escapeHTML(it.fresh || "")}</small></div>`;
+}
+
 // ===== 판결 규칙 (AI 미사용, 같은 입력이면 항상 같은 결과) =====
 function variant(seed, list) {
   let h = 0;
@@ -583,18 +797,27 @@ function isNegative(m, i) {
   return (m.yesNo && i === 1) || /(하지\s?않|않는다|않기|않을래|안\s?(한|함|해|할|하|가|사|먹|볼|봐)|말기|말자|그만|포기)/.test(o);
 }
 
-function decideGeneral(m) {
+function tallyOf(m, votes) {
   const count = m.options.map(() => 0);
-  const votes = {};
+  MINISTERS.forEach(x => { if (votes[x.name] >= 0) count[votes[x.name]] += x.priority === m.priority ? 1.5 : 1; }); // 중요 기준 장관은 1.5표
+  return count;
+}
+function topOf(count) { const max = Math.max(...count); return count.map((c, i) => (c === max && max > 0 ? i : -1)).filter(i => i >= 0); }
+
+function decideGeneral(m) {
+  const base = {};
   MINISTERS.forEach(x => {
     const a = Number.isInteger(m.answers[x.name]) ? m.answers[x.name] : -1;
-    votes[x.name] = a >= 0 && a < m.options.length ? a : -1;
-    if (votes[x.name] >= 0) count[votes[x.name]] += x.priority === m.priority ? 1.5 : 1; // 중요 기준 장관은 1.5표
+    base[x.name] = a >= 0 && a < m.options.length ? a : -1;
   });
+  const { votes, moves, notes } = adjustVotes(m, base); // 실시간 근거로 표 조정(공개 규칙)
+  const count = tallyOf(m, votes);
+  const baseTop = topOf(tallyOf(m, base));
+  const adj = { moves, notes, base, baseCount: tallyOf(m, base), baseWinner: baseTop.length === 1 ? baseTop[0] : -1 };
   const voters = MINISTERS.filter(x => votes[x.name] >= 0);
   const abstain = MINISTERS.length - voters.length;
   if (!voters.length) {
-    return { votes, count, abstain, winner: -1, verdict: "판단 보류!", label: "전원 기권",
+    return { ...adj, votes, count, abstain, winner: -1, verdict: "판단 보류!", label: "전원 기권",
       pmLine: "장관 전원이 기권했습니다. 선택지끼리 차이가 거의 없다는 뜻이에요. 정보를 조금 더 모은 뒤 재심을 청구해 주세요.",
       nextLine: "각 선택지의 가격·거리·소요 시간 중 하나만이라도 찾아본 뒤 다시 회의해 보세요." };
   }
@@ -602,7 +825,7 @@ function decideGeneral(m) {
   const top = count.map((c, i) => (c === max ? i : -1)).filter(i => i >= 0);
   let winner, label, pmExtra = "";
   if (top.length > 1) {
-    if (m.tiebreak === null || !top.includes(m.tiebreak)) return { tie: top, votes, count, abstain };
+    if (m.tiebreak === null || !top.includes(m.tiebreak)) return { ...adj, tie: top, votes, count, abstain };
     winner = m.tiebreak; label = "박빙 · 총리 결선";
     pmExtra = " 동점이라 국무총리 결선 질문으로 정했습니다.";
   } else {
@@ -614,8 +837,10 @@ function decideGeneral(m) {
   const deciderNote = votes[decider.name] >= 0
     ? ` 가장 중요한 기준(${PRIORITY_LABEL[m.priority]})을 맡은 ${decider.name} 장관의 표는 1.5표로 계산했습니다.`
     : ` 가장 중요한 기준(${PRIORITY_LABEL[m.priority]})을 맡은 ${decider.name} 장관은 기권했습니다.`;
+  const changed = adj.baseWinner >= 0 && adj.baseWinner !== winner;
+  if (changed) pmExtra += ` 근거에 따라 표가 조정되어, 조정 전 1위였던 「${m.options[adj.baseWinner]}」 대신 「${win}」${j(win, "가")} 1위가 되었습니다.`;
   return {
-    votes, count, abstain, winner, label, verdict: `${win}!`,
+    ...adj, changed, votes, count, abstain, winner, label, verdict: `${win}!`,
     pmLine: `「${win}」${j(win,"로")} 결정합니다.${pmExtra}${deciderNote}`,
     nextLine: isNegative(m, winner)
       ? "이번에는 하지 않기로 했어요. 마음이 바뀌면 재심 청구로 다시 회의해 보세요."
@@ -624,6 +849,12 @@ function decideGeneral(m) {
 }
 
 function generalOpinion(x, m, r) {
+  const mv = (r.moves || []).find(v => v.name === x.name);
+  const extra = r.notes && r.notes[x.name] ? " " + r.notes[x.name] : "";
+  if (mv) return mv.why + extra;
+  return baseOpinion(x, m, r) + extra;
+}
+function baseOpinion(x, m, r) {
   const a = r.votes[x.name];
   const opt = a >= 0 ? m.options[a] : "";
   const seed = m.title + x.name;
@@ -673,6 +904,7 @@ function decideShop(m) {
           : s.use === "month" ? [1, "한 달 안에 쓸 거라면 할인과 후기를 확인할 시간이 있습니다."]
           : [2, "언제 쓸지 모르면 지금 살 필요는 없습니다."]
   };
+  if (s.fx) rule.현실주의[1] = `${s.foreignAmount.toLocaleString()} ${s.fx.from}는 기준환율로 약 ${s.priceValue.toLocaleString()}원입니다. ` + rule.현실주의[1];
   const votes = {}, reasons = {}, count = [0, 0, 0];
   MINISTERS.forEach(x => {
     const [v, why] = rule[x.name];
@@ -721,6 +953,7 @@ function reduceMotion() {
 }
 
 function chatLine(who, html, extra = "") {
+  if (who === "stage") return `<div class="stage" data-who="stage">${html}</div>`;
   if (who === "user") {
     return `<div class="msg me ${extra}" data-who="user"><div class="bubble">${html}</div><div class="face">${userFace()}<small>${userName()}</small></div></div>`;
   }
@@ -736,6 +969,8 @@ function buildRecord(m, r, ops) {
     icon: categoryIcon(m.category), detail: m.detail.trim(), priority: m.priority, tally,
     label: r.label, retrial: m.retrial, options: m.options.slice(), counts: r.count.slice(), winner: r.winner,
     opinions: ops.map(o => [o.name, (o.pick ? `「${o.pick}」 — ` : "기권 — ") + o.text]),
+    evidence: (m.evidence ? m.evidence.items : []).map(it => ({ label: it.label, ok: it.ok, summary: it.ok ? it.lines.join(" · ") : it.reason, source: it.source || "", fetchedAt: it.fetchedAt || null })),
+    moves: (r.moves || []).map(v => ({ name: v.name, from: v.from >= 0 ? m.options[v.from] : "기권", to: m.options[v.to] })),
     createdAt: Date.now()
   };
 }
@@ -759,16 +994,33 @@ function showResult(m, r) {
 
   // 대화 대본: [말하는 사람, 내용(HTML, 사용자 입력은 모두 escape), 추가 클래스]
   const script = [];
+  script.push(["stage", "① 안건 정리"]);
   script.push(["user", `<b>안건 접수합니다!</b><br>「${escapeHTML(m.title)}」${shop
     ? `<div class="sub">가격 ${m.shop.priceValue.toLocaleString()}원 · 예산 ${m.shop.budgetValue.toLocaleString()}원</div>`
     : `<div class="sub">${m.options.map(o => `<span class="opt-tag">${escapeHTML(o)}</span>`).join("")}</div>`}`]);
   script.push(["pm", `${m.retrial ? "재심 청구가 접수되었습니다. " : ""}지금부터 국무회의를 시작하겠습니다! 가장 중요한 기준은 <b>${PRIORITY_LABEL[m.priority]}</b>입니다. 장관들은 차례로 의견을 말해 주세요.`]);
+  const ev = m.evidence;
+  script.push(["stage", "② 근거 수집"]);
+  if (ev && ev.items.length) {
+    script.push(["owl", `수집한 근거입니다.${ev.items.map(evidenceCard).join("")}`, "wide"]);
+  } else {
+    script.push(["owl", m.category === "연애"
+      ? "연애·관계 고민은 개인정보 보호를 위해 외부 정보를 조회하지 않고, 입력한 답만으로 판단합니다."
+      : WEATHER_CATS.includes(m.category) ? "지역을 적지 않아 외부 정보 없이 입력한 답만으로 판단합니다. (지역을 적으면 날씨 등을 반영해요)"
+      : "이 유형은 외부 정보 없이 입력한 답만으로 판단합니다."]);
+  }
+  script.push(["stage", "③ 장관별 검토"]);
   ops.forEach(o => {
     const x = MINISTERS.find(y => y.name === o.name);
     const pick = o.pick ? `<span class="pick-chip">${escapeHTML(o.pick)}</span>` : `<span class="pick-chip none">기권</span>`;
     const weight = x.priority === m.priority ? `<span class="badge">결정권 1.5표</span>` : "";
     script.push([o.name, `<div class="m-head">${pick}${weight}</div>${escapeHTML(o.text)}`]);
   });
+  script.push(["stage", "④ 표결 및 이견 조정"]);
+  if (r.moves && r.moves.length) {
+    script.push(["pm", `근거에 따라 표가 조정되었습니다.<div class="moves">${r.moves.map(v => `<div>🔁 ${escapeHTML(v.name)}: ${v.from >= 0 ? `「${escapeHTML(m.options[v.from])}」` : "기권"} → 「${escapeHTML(m.options[v.to])}」</div>`).join("")}</div>${
+      r.changed ? `<div class="hint">조정 전 1위는 「${escapeHTML(m.options[r.baseWinner])}」${j(m.options[r.baseWinner], "가") === "이" ? "이었" : "였"}습니다.</div>` : `<div class="hint">조정 후에도 1위는 바뀌지 않았습니다.</div>`}`]);
+  }
   script.push(["pm", `개표 결과를 발표합니다.
     <div class="tally" aria-label="개표 결과">
       ${m.options.map((o, i) => `
@@ -779,9 +1031,12 @@ function showResult(m, r) {
         </div>`).join("")}
       ${r.abstain ? `<div class="hint">기권 ${r.abstain}명</div>` : ""}
     </div>`, "wide"]);
+  script.push(["stage", "⑤ 최종 판결문"]);
+  const okEv = ev ? ev.items.filter(it => it.ok) : [];
   script.push(["pm", `<div class="label-chip">${escapeHTML(r.label)}</div>
     <div class="verdict-line">판결: <b>${escapeHTML(r.verdict)}</b><span class="stamp" aria-hidden="true">결재</span></div>
-    <div class="pm-line">${escapeHTML(r.pmLine)}</div>`, "verdict-msg"]);
+    <div class="pm-line">${escapeHTML(r.pmLine)}</div>
+    ${okEv.length ? `<div class="ev-foot">근거: ${okEv.map(it => `${escapeHTML(it.label)} (${escapeHTML(it.source)}, ${escapeHTML(it.fresh || "")})`).join(" / ")}</div>` : ""}`, "verdict-msg"]);
   const minority = r.winner >= 0 ? ops.filter(o => o.pick && o.pick !== winName) : [];
   if (minority.length) {
     script.push(["pm", `<b>소수 의견</b>도 기록합니다.<br>${minority.map(o => {
@@ -828,7 +1083,7 @@ function showResult(m, r) {
         if (done) return;
         if (i >= script.length) return finish();
         const [who] = script[i];
-        const typing = who === "user" ? "" : chatLine(who, `<span class="dots"><i></i><i></i><i></i></span>`, "typing");
+        const typing = who === "user" || who === "stage" ? "" : chatLine(who, `<span class="dots"><i></i><i></i><i></i></span>`, "typing");
         if (typing) chat.insertAdjacentHTML("beforeend", typing);
         scrollDown();
         timer = setTimeout(() => {
@@ -836,7 +1091,7 @@ function showResult(m, r) {
           chat.insertAdjacentHTML("beforeend", chatLine(...script[i++]));
           groupChat(chat); paintClerk(); scrollDown();
           timer = setTimeout(step, who === "user" ? 350 : 550);
-        }, who === "user" ? 150 : 700);
+        }, who === "user" || who === "stage" ? 120 : 700);
       }
       if (reduceMotion()) finish(); else step();
       document.getElementById("chat-skip").onclick = finish;
@@ -968,6 +1223,8 @@ async function showRecords() {
           </summary>
           <div class="record-body">
             <div class="hint">${escapeHTML(item.category || "")}${item.label ? " · " + escapeHTML(item.label) : ""}${item.tally ? " · " + escapeHTML(item.tally) : ""}${item.retrial ? " · 재심" : ""}</div>
+            ${(item.evidence || []).length ? `<div class="ev-rec">${item.evidence.map(e => `<div>${e.ok ? "📎" : "⚠️"} <b>${escapeHTML(e.label)}</b> ${escapeHTML(e.summary)}${e.source ? ` <small>(${escapeHTML(e.source)}${e.fetchedAt ? ", " + escapeHTML(hhmm(e.fetchedAt)) + " 조회" : ""})</small>` : ""}</div>`).join("")}</div>` : ""}
+            ${(item.moves || []).length ? `<div class="ev-rec">${item.moves.map(v => `<div>🔁 ${escapeHTML(v.name)}: ${escapeHTML(v.from)} → ${escapeHTML(v.to)}</div>`).join("")}</div>` : ""}
             ${(item.opinions || []).map(([n, t]) => `<div class="opinion small"><strong>${escapeHTML(n)}</strong>${escapeHTML(t)}</div>`).join("")}
             <div class="btn-row slim">
               <button class="chip" data-share="${index}">📤 판결문 공유</button>
@@ -1031,7 +1288,7 @@ document.getElementById("quick-form").onsubmit = event => {
 // ===== 이런 고민도 접수해 보세요 (누르면 내용이 채워진 채 국무회의 시작) =====
 const EXAMPLES = [
   { icon: "🍴", title: "오늘 저녁 뭐 먹지?", category: "맛집", options: ["마라탕", "김치찌개", "샐러드"] },
-  { icon: "✈️", title: "이번 주말 어디 갈까?", category: "여행", options: ["근교 카페", "집에서 쉬기", "전시회"] },
+  { icon: "✈️", title: "이번 주말 어디 갈까?", category: "여행", options: ["한강 피크닉", "전시회", "집에서 쉬기"], tags: ["out", "in", "in"] },
   { icon: "🛍️", title: "새 이어폰 살까?", category: "쇼핑", options: [] },
   { icon: "🎮", title: "오늘 밤 게임 할까, 일찍 잘까?", category: "게임", options: ["게임 한 판", "일찍 자기"] },
   { icon: "📌", title: "운동 시작할까?", category: "일상", options: [] }
@@ -1049,7 +1306,7 @@ function renderExamples() {
     const e = EXAMPLES[Number(b.dataset.example)];
     meeting = newMeeting(e.title);
     meeting.category = e.category;
-    if (e.options.length) meeting.rawOptions = e.options.slice();
+    if (e.options.length) { meeting.rawOptions = e.options.slice(); meeting.rawTags = (e.tags || e.options.map(() => null)).slice(); }
     renderAgenda();
   });
 }
