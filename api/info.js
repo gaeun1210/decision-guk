@@ -76,6 +76,7 @@ function regionWords(place) {
   return Object.keys(KR_PLACES).filter(name => p.includes(name));
 }
 const areaOf = d => (d.address_name || d.road_address_name || "").split(" ").slice(0, 2).join(" "); // "대구 중구"
+const labelOf = d => (d.place_name || "").startsWith(areaOf(d)) ? d.place_name : `${d.place_name} (${areaOf(d)})`;
 
 // Kakao로 사용자가 적은 '지역'을 찾는다(주소 검색 → 장소 검색). 전국에서 가장 비슷한 이름 하나를 고르면
 // "동성로" → 부산의 '○○ 동성로점'처럼 엉뚱한 도시가 잡히므로, 다음 규칙을 따른다.
@@ -95,7 +96,7 @@ async function kakaoLocate(place, key) {
     for (const d of docs) { const pr = (d.address_name || "").split(" ")[0]; if (pr) counts[pr] = (counts[pr] || 0) + 1; }
     const provinces = Object.keys(counts).sort((a, b) => counts[b] - counts[a]); // 많이 나온 지역부터
     if (provinces.length > 1) {
-      return { ambiguous: `"${place}"이(가) 여러 지역에 있어요(${provinces.slice(0, 3).join("·")} 등). 앞에 도시 이름을 붙여 주세요. 예) ${provinces[0]} ${place}` };
+      return { ambiguous: `"${place}"이(가) 여러 지역에 있어요(${provinces.slice(0, 4).join("·")} 등). 앞에 도시 이름을 붙여 주세요. 예) ${provinces[0]} ${place}` };
     }
     return { doc: docs[0] };
   };
@@ -118,7 +119,7 @@ async function geocode(place) {
         const local = lookupKorean(place);
         if (!local) return { ambiguous: r.ambiguous };
       } else if (r && r.doc) {
-        return { name: `${r.doc.place_name} (${areaOf(r.doc)})`, lat: +r.doc.y, lon: +r.doc.x, via: "Kakao Local" };
+        return { name: labelOf(r.doc), lat: +r.doc.y, lon: +r.doc.x, via: "Kakao Local" };
       }
     } catch { /* Kakao 키 오류·장애 시 내장 지역표로 넘어간다 */ }
   }
@@ -194,7 +195,7 @@ async function places(near, names) {
     const d = j.documents && j.documents[0];
     out.push(d ? { option: n, name: d.place_name, address: d.road_address_name || d.address_name, distance: Number(d.distance) || null, category: d.category_name, url: d.place_url } : { option: n, name: null });
   }
-  return { ok: true, near: `${c.place_name} (${areaOf(c)})`, places: out, source: "Kakao Local 장소 검색" };
+  return { ok: true, near: labelOf(c), places: out, source: "Kakao Local 장소 검색" };
 }
 
 module.exports = async (req, res) => {
