@@ -392,7 +392,7 @@ function renderAgenda() {
       if (add) add.onclick = () => { keep(); m.rawOptions.push(""); m.rawTags.push(null); renderAgenda(); modalRoot.querySelectorAll(".opt-input")[m.rawOptions.length - 1].focus(); };
       modalRoot.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { keep(); m.rawOptions.splice(Number(b.dataset.del), 1); m.rawTags.splice(Number(b.dataset.del), 1); renderAgenda(); });
       document.getElementById("meeting-title").focus();
-      document.getElementById("agenda-form").onsubmit = event => {
+      document.getElementById("agenda-form").onsubmit = async event => {
         event.preventDefault();
         keep();
         const title = m.title.trim();
@@ -402,6 +402,20 @@ function renderAgenda() {
         m.title = title;
         m.place = m.place.trim().slice(0, 30);
         if (m.place && !(m.date >= kstToday() && m.date <= addDays(kstToday(), 15))) return showError("agenda-err", "날짜는 오늘부터 15일 이내로 골라 주세요(날씨 예보 범위).");
+        // 지역 이름은 지금 확인한다. 여러 지역에 있는 이름("동성로")이나 못 찾는 이름이면 판결 전에 바로 고치게 한다.
+        if (m.place && WEATHER_CATS.includes(m.category) && m.placeChecked !== m.place) {
+          const btn = event.target.querySelector('button[type="submit"]');
+          if (btn) btn.disabled = true;
+          showError("agenda-err", "");
+          const loc = await infoGet({ type: "locate", place: m.place });
+          if (btn) btn.disabled = false;
+          if (!loc.ok && (loc.code === "ambiguous" || loc.code === "notfound")) {
+            showError("agenda-err", "📍 " + loc.reason);
+            const pl = document.getElementById("meeting-place"); if (pl) pl.focus();
+            return;
+          }
+          m.placeChecked = m.place; // 서버 연결 문제면 막지 않고 진행(근거 수집 단계에서 다시 안내)
+        }
         if (m.category === "쇼핑") {
           m.options = ["구매 승인", "하루 더 생각하기", "보류"];
           return renderShop();
@@ -638,7 +652,7 @@ async function infoGet(params) {
     Object.entries(params).forEach(([k, v]) => [].concat(v).forEach(x => q.append(k, x)));
     const r = await fetch("/api/info?" + q.toString(), { signal: ctrl.signal });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) return { ok: false, reason: j.reason || "정보 서버에 연결하지 못했어요" };
+    if (!r.ok || !j.ok) return { ok: false, reason: j.reason || "정보 서버에 연결하지 못했어요", code: j.code || null };
     return j;
   } catch (e) {
     return { ok: false, reason: e.name === "AbortError" ? "응답이 늦어 기다리지 않았어요" : "정보 서버에 연결하지 못했어요" };

@@ -96,7 +96,7 @@ async function kakaoLocate(place, key) {
     for (const d of docs) { const pr = (d.address_name || "").split(" ")[0]; if (pr) counts[pr] = (counts[pr] || 0) + 1; }
     const provinces = Object.keys(counts).sort((a, b) => counts[b] - counts[a]); // 많이 나온 지역부터
     if (provinces.length > 1) {
-      return { ambiguous: `"${place}"이(가) 여러 지역에 있어요(${provinces.slice(0, 4).join("·")} 등). 앞에 도시 이름을 붙여 주세요. 예) 대구 동성로, 서울 강남역` };
+      return { ambiguous: `"${place}"은(는) 여러 지역에 있는 이름이에요. 앞에 도시 이름을 붙여 주세요. 예) 대구 동성로, 서울 강남역` };
     }
     return { doc: docs[0] };
   };
@@ -212,6 +212,16 @@ module.exports = async (req, res) => {
       const place = clean(u.searchParams.get("place"), 30), date = clean(u.searchParams.get("date"), 10);
       if (!place || !validDate(date)) { res.statusCode = 400; return res.end(JSON.stringify({ ok: false, reason: "지역과 오늘부터 15일 이내 날짜가 필요해요" })); }
       ttl = 30 * 60e3; data = await cached(`w|${place}|${date}`, ttl, () => weather(place, date));
+    } else if (type === "locate") {
+      // 안건 접수 단계에서 지역 이름을 미리 확인한다(여러 지역에 있는 이름이면 바로 다시 묻기 위해)
+      const place = clean(u.searchParams.get("place"), 30);
+      if (!place) { res.statusCode = 400; return res.end(JSON.stringify({ ok: false, reason: "지역 이름이 필요해요" })); }
+      ttl = 6 * 3600e3; data = await cached(`l|${place}`, ttl, async () => {
+        const g = await geocode(place);
+        if (!g) return { ok: false, code: "notfound", reason: `"${place}"을(를) 찾지 못했어요. 도시 이름부터 적어 주세요. 예) 대구 동성로, 강릉` };
+        if (g.ambiguous) return { ok: false, code: "ambiguous", reason: g.ambiguous };
+        return { ok: true, label: g.name, source: `위치: ${g.via}` };
+      });
     } else if (type === "holiday") {
       const date = clean(u.searchParams.get("date"), 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { res.statusCode = 400; return res.end(JSON.stringify({ ok: false, reason: "날짜 형식 오류" })); }
