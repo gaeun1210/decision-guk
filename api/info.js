@@ -77,26 +77,35 @@ function regionWords(place) {
 }
 const areaOf = d => (d.address_name || d.road_address_name || "").split(" ").slice(0, 2).join(" "); // "대구 중구"
 
-// Kakao 키워드 검색으로 '지역'을 찾는다. 전국에서 가장 비슷한 이름 하나를 고르면
+// Kakao로 사용자가 적은 '지역'을 찾는다(주소 검색 → 장소 검색). 전국에서 가장 비슷한 이름 하나를 고르면
 // "동성로" → 부산의 '○○ 동성로점'처럼 엉뚱한 도시가 잡히므로, 다음 규칙을 따른다.
 //  1) 입력에 도시 이름이 있으면 그 도시 주소의 결과만 쓴다.
 //  2) 도시 이름이 없고 상위 결과가 여러 시·도에 흩어져 있으면, 추측하지 않고 도시 이름을 붙여 달라고 안내한다.
 async function kakaoLocate(place, key) {
-  const j = await getJSON(`https://dapi.kakao.com/v2/local/search/keyword.json?size=10&query=${encodeURIComponent(place)}`, { Authorization: `KakaoAK ${key}` });
-  const docs = (j.documents || []).filter(d => d.x && d.y);
-  if (!docs.length) return null;
+  const H = { Authorization: `KakaoAK ${key}` };
   const words = regionWords(place);
-  if (words.length) {
-    const hit = docs.find(d => words.some(w => `${d.address_name} ${d.road_address_name}`.includes(w)));
-    return hit ? { doc: hit } : null; // 그 도시 결과가 없으면 Kakao 결과는 버리고 내장 지역표로
-  }
-  const counts = {};
-  for (const d of docs.slice(0, 5)) { const pr = (d.address_name || "").split(" ")[0]; if (pr) counts[pr] = (counts[pr] || 0) + 1; }
-  const provinces = Object.keys(counts).sort((a, b) => counts[b] - counts[a]); // 많이 나온 지역부터
-  if (provinces.length > 1) {
-    return { ambiguous: `"${place}"이(가) 여러 지역에 있어요(${provinces.slice(0, 3).join("·")} 등). 앞에 도시 이름을 붙여 주세요. 예) ${provinces[0]} ${place}` };
-  }
-  return { doc: docs[0] };
+  const pick = docs => {
+    docs = docs.filter(d => d.x && d.y);
+    if (!docs.length) return null;
+    if (words.length) {
+      const hit = docs.find(d => words.some(w => `${d.address_name || ""} ${d.road_address_name || ""}`.includes(w)));
+      return hit ? { doc: hit } : null; // 그 도시 결과가 없으면 버린다(내장 지역표로)
+    }
+    const counts = {};
+    for (const d of docs) { const pr = (d.address_name || "").split(" ")[0]; if (pr) counts[pr] = (counts[pr] || 0) + 1; }
+    const provinces = Object.keys(counts).sort((a, b) => counts[b] - counts[a]); // 많이 나온 지역부터
+    if (provinces.length > 1) {
+      return { ambiguous: `"${place}"이(가) 여러 지역에 있어요(${provinces.slice(0, 3).join("·")} 등). 앞에 도시 이름을 붙여 주세요. 예) ${provinces[0]} ${place}` };
+    }
+    return { doc: docs[0] };
+  };
+  // ① 주소 검색: "동성로", "수성구"처럼 길·동네 이름은 주소로 찾는 것이 정확하다
+  const a = await getJSON(`https://dapi.kakao.com/v2/local/search/address.json?size=10&query=${encodeURIComponent(place)}`, H);
+  const byAddress = pick((a.documents || []).map(d => ({ ...d, place_name: d.address_name })));
+  if (byAddress) return byAddress;
+  // ② 키워드 검색: "강남역", "경포대"처럼 장소 이름
+  const k = await getJSON(`https://dapi.kakao.com/v2/local/search/keyword.json?size=15&query=${encodeURIComponent(place)}`, H);
+  return pick(k.documents || []);
 }
 
 // 지역 이름 → 좌표: Kakao(키가 있을 때) → 내장 지역표 → Open-Meteo 지오코딩(영문 지명 등) 순서
