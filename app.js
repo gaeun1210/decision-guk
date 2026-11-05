@@ -134,6 +134,7 @@ async function onAuthChanged(session) {
   await loadProfile();
   applyAvatar();
   showRecent();
+  renderPollPanel();
 }
 
 function openLogin(mode = "login", notice = "") {
@@ -1487,7 +1488,7 @@ function pollCard(p) {
     : `<div class="chip-row poll-vote" role="group" aria-label="선택지">${opts.map((o, i) =>
         `<button type="button" class="chip" data-vote="${escapeHTML(p.id)}" data-opt="${i}">${escapeHTML(o)}</button>`).join("")}</div>
        <div class="hint">투표하면 결과가 보여요. 한 번 투표하면 바꿀 수 없어요.</div>`;
-  return `<article class="poll-card ${p.is_open ? "" : "closed"}">
+  return `<article class="poll-card ${p.is_open ? "" : "closed"}" data-poll-id="${escapeHTML(p.id)}">
     <div class="poll-head">
       <span class="poll-cat">${categoryIcon(p.category)}</span>
       <b class="poll-title">${escapeHTML(p.title)}</b>
@@ -1502,9 +1503,29 @@ function pollCard(p) {
     </div>
   </article>`;
 }
-async function openPolls() {
+// 홈 화면의 '국민 여론' 패널: 진행 중인 여론조사를 마감 임박 순으로 최대 4개
+async function renderPollPanel(polls) {
+  const box = document.getElementById("poll-home");
+  if (!box) return;
+  if (!polls) {
+    if (!box.children.length) box.innerHTML = `<div class="record-row"><span class="record-title record-empty">여론을 모으는 중…</span></div>`;
+    ({ polls } = await loadPolls());
+  }
+  const open = polls.filter(p => p.is_open).slice(0, 4);
+  box.innerHTML = open.length ? open.map(p => {
+    const done = p.mine || (p.my_vote !== null && p.my_vote !== undefined);
+    return `<button type="button" class="example-item" data-poll-go="${escapeHTML(p.id)}">
+      <span class="pop-icon">${categoryIcon(p.category)}</span>
+      <span><span class="pop-title">${escapeHTML(p.title)}</span><span class="pop-sub">⏳ ${escapeHTML(pollLeft(p.closes_at))} · 참여 ${Number(p.total) || 0}명</span></span>
+      <span class="pop-go">${done ? "결과 ›" : "투표 ›"}</span>
+    </button>`;
+  }).join("") : `<div class="record-row"><span class="record-title record-empty">진행 중인 여론조사가 없어요. 첫 고민을 올려 보세요!</span></div>`;
+  box.querySelectorAll("[data-poll-go]").forEach(b => b.onclick = () => { pollFilter = "open"; openPolls(b.dataset.pollGo); });
+}
+async function openPolls(focusId) {
   openModal("📮 국민 여론 광장", `<div class="empty">여론을 모으는 중…</div>`);
   const { polls, error } = await loadPolls();
+  if (!error) renderPollPanel(polls); // 홈 패널도 최신 상태로
   if (!modalRoot.querySelector(".modal")) return;
   const open = polls.filter(p => p.is_open), closed = polls.filter(p => !p.is_open);
   const list = pollFilter === "open" ? open : closed;
@@ -1523,6 +1544,10 @@ async function openPolls() {
     <div id="poll-msg" class="form-error" role="alert"></div>
     <div class="poll-list">${list.length ? list.map(pollCard).join("") : `<div class="empty">${pollFilter === "open" ? "진행 중인 여론조사가 없어요. 첫 고민을 올려 보세요!" : "마감된 여론조사가 없어요."}</div>`}</div>
     <div class="notice">공개 게시판입니다. 이름·연락처·주소 같은 개인정보는 적지 마세요. 작성자와 투표자는 공개되지 않고 표 합계만 보여요. 신고가 3건 쌓이면 자동으로 숨겨져요.</div>`;
+  if (focusId) {
+    const card = [...body.querySelectorAll("[data-poll-id]")].find(c => c.dataset.pollId === focusId);
+    if (card) { card.classList.add("focus"); card.scrollIntoView({ block: "center" }); }
+  }
   const msg = text => { const el = document.getElementById("poll-msg"); if (el) el.textContent = text; };
   body.querySelectorAll("[data-pf]").forEach(b => b.onclick = () => { pollFilter = b.dataset.pf; openPolls(); });
   document.getElementById("poll-new").onclick = () => openPollForm();
@@ -1703,6 +1728,8 @@ if (window.ResizeObserver) new ResizeObserver(layoutScene).observe(document.quer
 layoutScene();
 
 renderExamples();
+renderPollPanel();
+{ const b = document.getElementById("poll-home-new"); if (b) b.onclick = () => openPollForm(); }
 showRecent();
 if (db) {
   db.auth.getSession().then(({ data }) => onAuthChanged(data.session));

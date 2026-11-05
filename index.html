@@ -743,6 +743,9 @@
     .poll-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #6f6156; font-weight: 700; }
     .poll-ask { display: block; margin: 10px auto 0; }
     @media (max-width: 650px) { .poll-top .primary { width: 100%; } }
+    .poll-panel .example-item .pop-go { color: #c2571a; }
+    .poll-home-new { display: block; margin: 8px auto 0; }
+    .poll-card.focus { box-shadow: 0 0 0 3px #f0a52a; }
   </style>
 </head>
 <body>
@@ -796,14 +799,12 @@
         <div class="popular-list" id="example-list"></div>
       </article>
 
-      <article class="panel special-panel">
-        <h2 class="panel-heading">⭐ 결정국 특별 제도</h2>
-        <div class="special-grid">
-          <button class="special" data-action="reconsider"><b>♟️</b><span>재심 청구</span><small>(다시 생각하기)</small></button>
-          <button class="special" data-action="records"><b>📜</b><span>결정 기록실</span><small>(내 기록 보기)</small></button>
-          <button class="special" data-action="stats"><b>📊</b><span>내 결정 통계</span><small>(장관별 적중률)</small></button>
-          <button class="special" data-action="share"><b>📤</b><span>판결문 공유</span><small>(최근 판결)</small></button>
-        </div>
+      <article class="panel poll-panel">
+        <h2 class="panel-heading">📮 국민 여론 <span class="record-note">진행 중</span>
+          <button class="more" data-action="polls">더보기 ›</button>
+        </h2>
+        <div class="popular-list" id="poll-home"></div>
+        <button type="button" class="link-btn poll-home-new" id="poll-home-new">✍️ 내 고민도 여론에 올리기</button>
       </article>
     </section>
   </main>
