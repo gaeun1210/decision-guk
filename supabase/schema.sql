@@ -6,7 +6,7 @@ create table if not exists public.decisions (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
   title       text not null check (char_length(title) between 1 and 100),
-  category    text not null check (category in ('여행', '맛집', '쇼핑', '연애', '게임', '일상')),
+  category    text not null check (category in ('나들이', '맛집', '쇼핑', '일상', '여행', '연애', '게임')), -- 여행·연애·게임은 예전 기록용,
   detail      text not null default '' check (char_length(detail) <= 1000),
   options     jsonb not null check (jsonb_typeof(options) = 'array'
                                     and jsonb_array_length(options) between 2 and 6

@@ -11,7 +11,10 @@ const MINISTERS = [
 const LIMITS = { title: 100, detail: 1000, option: 40, optionsMax: 6, moneyMin: 1, moneyMax: 100000000 };
 const PRIORITY_LABEL = { cost: "비용·시간", fun: "즐거움", safe: "후회 없음", easy: "실행 쉬움" };
 
-const CATEGORIES = ["여행", "맛집", "쇼핑", "연애", "게임", "일상"];
+const CATEGORIES = ["나들이", "맛집", "쇼핑", "일상"];
+// 예전 유형(여행·연애·게임) 기록은 그대로 보여 주고, 다시 회의할 때는 새 유형으로 옮긴다.
+const LEGACY_CATEGORY = { 여행: "나들이", 연애: "일상", 게임: "일상" };
+const currentCategory = c => CATEGORIES.includes(c) ? c : (LEGACY_CATEGORY[c] || "일상");
 let selectedCategory = "일상";
 const modalRoot = document.getElementById("modal-root");
 
@@ -241,7 +244,7 @@ function today() {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 function categoryIcon(category) {
-  return ({ 여행: "✈️", 맛집: "🍴", 쇼핑: "🛍️", 연애: "❤️", 게임: "🎮" })[category] || "📌";
+  return ({ 나들이: "✈️", 여행: "✈️", 맛집: "🍴", 쇼핑: "🛍️", 연애: "❤️", 게임: "🎮" })[category] || "📌";
 }
 function avatar(minister) {
   return minister.img
@@ -341,12 +344,11 @@ function renderAgenda() {
       ${WEATHER_CATS.includes(m.category) ? `
       <div class="field-row ctx-row">
         <div class="field"><label for="meeting-place">${m.category === "맛집" ? "📍 출발 동네" : "📍 지역"} <small>(선택)</small></label>
-          <input id="meeting-place" maxlength="30" autocomplete="off" value="${escapeHTML(m.place)}" placeholder="${m.category === "맛집" ? "예) 대구 동성로" : m.category === "여행" ? "예) 강릉, 제주" : "예) 대구 수성구"}" /></div>
+          <input id="meeting-place" maxlength="30" autocomplete="off" value="${escapeHTML(m.place)}" placeholder="${m.category === "맛집" ? "예) 대구 동성로" : "예) 강릉, 대구 수성구"}" /></div>
         <div class="field"><label for="meeting-date">📅 날짜</label>
           <input id="meeting-date" type="date" min="${kstToday()}" max="${addDays(kstToday(), 15)}" value="${escapeHTML(m.date)}" /></div>
       </div>
-      ${m.category === "연애" ? `<label class="check"><input type="checkbox" id="meeting-weather" ${m.weatherOn ? "checked" : ""} /> 날씨 정보 반영하기 <small>(선택 · 지역 이름만 외부로 보내고 고민 내용은 보내지 않아요)</small></label>` : ""}
-      <div class="hint">${m.category === "맛집" ? "출발 동네를 도시 이름부터 적으면(예: 대구 동성로) 선택지(가게 이름·메뉴)를 근처에서 찾아 거리를 비교하고, 날씨도 반영해요." : "지역을 도시 이름부터 적으면 그날의 날씨·미세먼지" + (m.category === "여행" ? "·공휴일" : "") + "을 조회해 장관 판단에 반영해요."}</div>` : ""}
+      <div class="hint">${m.category === "맛집" ? "출발 동네를 도시 이름부터 적으면(예: 대구 동성로) 선택지(가게 이름·메뉴)를 근처에서 찾아 거리를 비교하고, 날씨도 반영해요." : "지역을 도시 이름부터 적으면 그날의 날씨·미세먼지·공휴일을 조회해 장관 판단에 반영해요."}</div>` : `<div class="hint">📌 일상 고민은 외부 정보 없이 입력한 답만으로 판단해요. 장소·날짜가 있는 고민이면 ✈️ 나들이를 고르면 날씨를 반영해요.</div>`}
       ${shop ? `
       <div class="info-box">🛍️ <b>구매 재판</b>으로 진행합니다. 다음 단계에서 가격·예산과 필요성을 물어볼게요.</div>` : `
       <div class="field">
@@ -614,8 +616,8 @@ function j(word, particle) {
 }
 
 // ===== 근거 수집: 실시간 정보를 서버 함수(/api/info)로 받아 판결 근거로 쓴다 =====
-const WEATHER_CATS = ["여행", "일상", "맛집", "연애"];
-const TAG_CATS = ["여행", "일상", "연애"];
+const WEATHER_CATS = ["나들이", "맛집"];
+const TAG_CATS = ["나들이"];
 const FX_CURRENCIES = [["KRW", "원"], ["USD", "달러"], ["JPY", "엔"], ["EUR", "유로"], ["CNY", "위안"], ["GBP", "파운드"], ["THB", "바트"]];
 
 function kstToday() { return new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10); }
@@ -646,20 +648,20 @@ function evidenceKey(m) {
   return JSON.stringify([m.category, m.place, m.date, m.weatherOn, m.options, m.shop && m.shop.fx && m.shop.fx.rate]);
 }
 
-// 카테고리별로 필요한 정보만 조회한다. 연애는 사용자가 켰을 때만 날씨를 조회한다.
+// 유형별로 필요한 정보만 조회한다. 일상(연애·게임 등 포함)은 외부 정보를 조회하지 않는다.
 async function collectEvidence(m) {
   if (m.evidence && m.evidence.key === evidenceKey(m)) return m.evidence;
   const ev = { key: evidenceKey(m), items: [] };
   const jobs = [];
   const place = (m.place || "").trim();
-  const wantWeather = WEATHER_CATS.includes(m.category) && place && (m.category !== "연애" || m.weatherOn);
+  const wantWeather = WEATHER_CATS.includes(m.category) && place;
   if (wantWeather) {
     const date = m.date || kstToday();
     if (date < kstToday() || date > addDays(kstToday(), 15)) {
       ev.items.push({ kind: "weather", ok: false, label: "🌦️ 날씨", reason: "예보는 오늘부터 15일 이내만 볼 수 있어 반영하지 않았어요" });
     } else jobs.push(infoGet({ type: "weather", place, date }).then(w => { ev.weather = w.ok ? w : null; ev.items.push(weatherItem(w, place, date)); }));
   }
-  if (m.category === "여행" && m.date) {
+  if (m.category === "나들이" && m.date) {
     jobs.push(infoGet({ type: "holiday", date: m.date }).then(h => { ev.holiday = h.ok ? h : null; ev.items.push(holidayItem(h)); }));
   }
   if (m.category === "맛집" && place && !m.yesNo) {
@@ -740,7 +742,7 @@ function adjustVotes(m, base) {
     }
   } else if (w && f.bad.length) note("신중주의", `참고로 ${f.bad.join(", ")} 소식이 있습니다.`);
 
-  // 공휴일(여행)
+  // 공휴일(나들이)
   const h = ev.holiday;
   if (h && h.longWeekend) {
     note("현실주의", `${h.offDays}일 연휴라 숙소·교통비가 오르고 붐빌 수 있습니다.`);
@@ -1004,10 +1006,8 @@ function showResult(m, r) {
   if (ev && ev.items.length) {
     script.push(["owl", `수집한 근거입니다.${ev.items.map(evidenceCard).join("")}`, "wide"]);
   } else {
-    script.push(["owl", m.category === "연애"
-      ? "연애·관계 고민은 개인정보 보호를 위해 외부 정보를 조회하지 않고, 입력한 답만으로 판단합니다."
-      : WEATHER_CATS.includes(m.category) ? "지역을 적지 않아 외부 정보 없이 입력한 답만으로 판단합니다. (지역을 적으면 날씨 등을 반영해요)"
-      : "이 유형은 외부 정보 없이 입력한 답만으로 판단합니다."]);
+    script.push(["owl", WEATHER_CATS.includes(m.category) ? "지역을 적지 않아 외부 정보 없이 입력한 답만으로 판단합니다. (지역을 적으면 날씨 등을 반영해요)"
+      : "일상 고민은 개인정보 보호를 위해 외부 정보를 조회하지 않고, 입력한 답만으로 판단합니다."]);
   }
   script.push(["stage", "③ 장관별 검토"]);
   ops.forEach(o => {
@@ -1203,7 +1203,7 @@ async function showRecords() {
     openModal("📜 결정 기록실", mode + `<div class="empty"><div class="empty-faces"><img class="owl" src="assets/owl.png" alt="서기관 부엉이" />${userFace()}</div>아직 저장된 결정이 없습니다.<br>고민을 접수하고 첫 결정을 만들어 보세요!<br><button class="primary" id="rec-start">고민 접수하기</button></div>`, () => { wire(); document.getElementById("rec-start").onclick = () => startMeeting(); });
     return;
   }
-  const cats = ["전체", ...CATEGORIES.filter(c => records.some(r => r.category === c))];
+  const cats = ["전체", ...[...CATEGORIES, ...Object.keys(LEGACY_CATEGORY)].filter(c => records.some(r => r.category === c))];
   if (!cats.includes(recordFilter.cat)) recordFilter.cat = "전체";
   openModal("📜 결정 기록실", mode + `
     <div class="rec-tools">
@@ -1254,7 +1254,7 @@ async function showRecords() {
       modalRoot.querySelectorAll("[data-share]").forEach(b => b.onclick = () => openShare(records[Number(b.dataset.share)]));
       modalRoot.querySelectorAll("[data-again]").forEach(b => b.onclick = () => {
         const r = records[Number(b.dataset.again)];
-        meeting = newMeeting(r.title); meeting.category = r.category || "일상";
+        meeting = newMeeting(r.title); meeting.category = currentCategory(r.category);
         const real = (r.options || []).filter(o => !["한다", "안 한다", "하지 않기", "구매 승인", "하루 더 생각하기", "보류"].includes(o));
         if (real.length >= 2) meeting.rawOptions = real.slice(0, LIMITS.optionsMax);
         renderAgenda();
@@ -1288,9 +1288,9 @@ document.getElementById("quick-form").onsubmit = event => {
 // ===== 이런 고민도 접수해 보세요 (누르면 내용이 채워진 채 국무회의 시작) =====
 const EXAMPLES = [
   { icon: "🍴", title: "오늘 저녁 뭐 먹지?", category: "맛집", options: ["마라탕", "김치찌개", "샐러드"] },
-  { icon: "✈️", title: "이번 주말 어디 갈까?", category: "여행", options: ["한강 피크닉", "전시회", "집에서 쉬기"], tags: ["out", "in", "in"] },
+  { icon: "✈️", title: "이번 주말 어디 갈까?", category: "나들이", options: ["한강 피크닉", "전시회", "집에서 쉬기"], tags: ["out", "in", "in"] },
   { icon: "🛍️", title: "새 이어폰 살까?", category: "쇼핑", options: [] },
-  { icon: "🎮", title: "오늘 밤 게임 할까, 일찍 잘까?", category: "게임", options: ["게임 한 판", "일찍 자기"] },
+  { icon: "🎮", title: "오늘 밤 게임 할까, 일찍 잘까?", category: "일상", options: ["게임 한 판", "일찍 자기"] },
   { icon: "📌", title: "운동 시작할까?", category: "일상", options: [] }
 ];
 function renderExamples() {
