@@ -96,7 +96,7 @@ async function kakaoLocate(place, key) {
     for (const d of docs) { const pr = (d.address_name || "").split(" ")[0]; if (pr) counts[pr] = (counts[pr] || 0) + 1; }
     const provinces = Object.keys(counts).sort((a, b) => counts[b] - counts[a]); // 많이 나온 지역부터
     if (provinces.length > 1) {
-      return { ambiguous: `"${place}"이(가) 여러 지역에 있어요(${provinces.slice(0, 4).join("·")} 등). 앞에 도시 이름을 붙여 주세요. 예) ${provinces[0]} ${place}` };
+      return { ambiguous: `"${place}"이(가) 여러 지역에 있어요(${provinces.slice(0, 4).join("·")} 등). 앞에 도시 이름을 붙여 주세요. 예) 대구 동성로, 서울 강남역` };
     }
     return { doc: docs[0] };
   };
