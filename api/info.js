@@ -68,14 +68,49 @@ function lookupKorean(place) {
   return { name: best, lat, lon, via: "결정국 내장 지역표" };
 }
 
+// 입력에 들어 있는 시·도/시·군 이름(예: "대구 동성로" → ["대구"])
+const PROVINCE_ALIASES = { "경상북도": "경북", "경상남도": "경남", "전라북도": "전북", "전라남도": "전남", "충청북도": "충북", "충청남도": "충남", "강원도": "강원", "경기도": "경기", "제주도": "제주" };
+function regionWords(place) {
+  let p = place.replace(/\s/g, "");
+  for (const [full, short] of Object.entries(PROVINCE_ALIASES)) p = p.replace(full, short);
+  return Object.keys(KR_PLACES).filter(name => p.includes(name));
+}
+const areaOf = d => (d.address_name || d.road_address_name || "").split(" ").slice(0, 2).join(" "); // "대구 중구"
+
+// Kakao 키워드 검색으로 '지역'을 찾는다. 전국에서 가장 비슷한 이름 하나를 고르면
+// "동성로" → 부산의 '○○ 동성로점'처럼 엉뚱한 도시가 잡히므로, 다음 규칙을 따른다.
+//  1) 입력에 도시 이름이 있으면 그 도시 주소의 결과만 쓴다.
+//  2) 도시 이름이 없고 상위 결과가 여러 시·도에 흩어져 있으면, 추측하지 않고 도시 이름을 붙여 달라고 안내한다.
+async function kakaoLocate(place, key) {
+  const j = await getJSON(`https://dapi.kakao.com/v2/local/search/keyword.json?size=10&query=${encodeURIComponent(place)}`, { Authorization: `KakaoAK ${key}` });
+  const docs = (j.documents || []).filter(d => d.x && d.y);
+  if (!docs.length) return null;
+  const words = regionWords(place);
+  if (words.length) {
+    const hit = docs.find(d => words.some(w => `${d.address_name} ${d.road_address_name}`.includes(w)));
+    return hit ? { doc: hit } : null; // 그 도시 결과가 없으면 Kakao 결과는 버리고 내장 지역표로
+  }
+  const counts = {};
+  for (const d of docs.slice(0, 5)) { const pr = (d.address_name || "").split(" ")[0]; if (pr) counts[pr] = (counts[pr] || 0) + 1; }
+  const provinces = Object.keys(counts).sort((a, b) => counts[b] - counts[a]); // 많이 나온 지역부터
+  if (provinces.length > 1) {
+    return { ambiguous: `"${place}"이(가) 여러 지역에 있어요(${provinces.slice(0, 3).join("·")} 등). 앞에 도시 이름을 붙여 주세요. 예) ${provinces[0]} ${place}` };
+  }
+  return { doc: docs[0] };
+}
+
 // 지역 이름 → 좌표: Kakao(키가 있을 때) → 내장 지역표 → Open-Meteo 지오코딩(영문 지명 등) 순서
 async function geocode(place) {
   const key = process.env.KAKAO_REST_KEY;
   if (key) {
     try {
-      const j = await getJSON(`https://dapi.kakao.com/v2/local/search/keyword.json?size=1&query=${encodeURIComponent(place)}`, { Authorization: `KakaoAK ${key}` });
-      const d = j.documents && j.documents[0];
-      if (d) return { name: d.place_name || place, lat: +d.y, lon: +d.x, via: "Kakao Local" };
+      const r = await kakaoLocate(place, key);
+      if (r && r.ambiguous) {
+        const local = lookupKorean(place);
+        if (!local) return { ambiguous: r.ambiguous };
+      } else if (r && r.doc) {
+        return { name: `${r.doc.place_name} (${areaOf(r.doc)})`, lat: +r.doc.y, lon: +r.doc.x, via: "Kakao Local" };
+      }
     } catch { /* Kakao 키 오류·장애 시 내장 지역표로 넘어간다 */ }
   }
   const local = lookupKorean(place);
@@ -89,6 +124,7 @@ async function geocode(place) {
 async function weather(place, date) {
   const g = await geocode(place);
   if (!g) return { ok: false, reason: "지역을 찾지 못했어요" };
+  if (g.ambiguous) return { ok: false, reason: g.ambiguous };
   const q = `latitude=${g.lat}&longitude=${g.lon}&timezone=Asia%2FSeoul&start_date=${date}&end_date=${date}`;
   const f = await getJSON(`https://api.open-meteo.com/v1/forecast?${q}&daily=weather_code,precipitation_probability_max,temperature_2m_max,temperature_2m_min,uv_index_max,sunset`);
   const d = f.daily || {};
@@ -139,8 +175,9 @@ async function places(near, names) {
   const key = process.env.KAKAO_REST_KEY;
   if (!key) return { ok: false, reason: "장소 검색이 아직 설정되지 않았어요" };
   const H = { Authorization: `KakaoAK ${key}` };
-  const g = await getJSON(`https://dapi.kakao.com/v2/local/search/keyword.json?size=1&query=${encodeURIComponent(near)}`, H);
-  const c = g.documents && g.documents[0];
+  const loc = await kakaoLocate(near, key);
+  if (loc && loc.ambiguous) return { ok: false, reason: loc.ambiguous };
+  const c = loc && loc.doc;
   if (!c) return { ok: false, reason: "출발지를 찾지 못했어요" };
   const out = [];
   for (const n of names) {
@@ -148,7 +185,7 @@ async function places(near, names) {
     const d = j.documents && j.documents[0];
     out.push(d ? { option: n, name: d.place_name, address: d.road_address_name || d.address_name, distance: Number(d.distance) || null, category: d.category_name, url: d.place_url } : { option: n, name: null });
   }
-  return { ok: true, near: c.place_name, places: out, source: "Kakao Local 장소 검색" };
+  return { ok: true, near: `${c.place_name} (${areaOf(c)})`, places: out, source: "Kakao Local 장소 검색" };
 }
 
 module.exports = async (req, res) => {

@@ -346,7 +346,7 @@ function renderAgenda() {
           <input id="meeting-date" type="date" min="${kstToday()}" max="${addDays(kstToday(), 15)}" value="${escapeHTML(m.date)}" /></div>
       </div>
       ${m.category === "연애" ? `<label class="check"><input type="checkbox" id="meeting-weather" ${m.weatherOn ? "checked" : ""} /> 날씨 정보 반영하기 <small>(선택 · 지역 이름만 외부로 보내고 고민 내용은 보내지 않아요)</small></label>` : ""}
-      <div class="hint">${m.category === "맛집" ? "출발 동네를 적으면 선택지(가게 이름·메뉴)를 근처에서 찾아 거리를 비교하고, 날씨도 반영해요." : "지역을 적으면 그날의 날씨·미세먼지" + (m.category === "여행" ? "·공휴일" : "") + "을 조회해 장관 판단에 반영해요."}</div>` : ""}
+      <div class="hint">${m.category === "맛집" ? "출발 동네를 도시 이름부터 적으면(예: 대구 동성로) 선택지(가게 이름·메뉴)를 근처에서 찾아 거리를 비교하고, 날씨도 반영해요." : "지역을 도시 이름부터 적으면 그날의 날씨·미세먼지" + (m.category === "여행" ? "·공휴일" : "") + "을 조회해 장관 판단에 반영해요."}</div>` : ""}
       ${shop ? `
       <div class="info-box">🛍️ <b>구매 재판</b>으로 진행합니다. 다음 단계에서 가격·예산과 필요성을 물어볼게요.</div>` : `
       <div class="field">
