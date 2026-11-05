@@ -952,6 +952,84 @@ function opinionsOf(m, r) {
   });
 }
 
+// ===== 판결 근거 요약 (지인 피드백: "선택 이유와 구체적인 설명이 더 있으면") =====
+// 내 답 → 장관 표 → 가중치 → 근거 조정 → 합계를 한 상자에 보여 주고, "결과가 바뀌려면?"을 계산해 알려 준다.
+function fmtVote(n) { return Number.isInteger(n) ? String(n) : n.toFixed(1); }
+function summaryBox(m, r) {
+  const shop = m.category === "쇼핑";
+  const rows = MINISTERS.map(x => {
+    const v = r.votes[x.name];
+    const w = x.priority === m.priority ? 1.5 : 1;
+    const mv = (r.moves || []).find(t => t.name === x.name);
+    const why = shop
+      ? escapeHTML(r.reasons[x.name])
+      : mv ? `내 답 ${mv.from >= 0 ? `「${escapeHTML(m.options[mv.from])}」` : "기권"} → 근거로 조정`
+      : `“${escapeHTML(x.question)}” → ${v >= 0 ? `「${escapeHTML(m.options[v])}」` : "비슷해요(기권)"}`;
+    return `<tr><th>${x.emoji} ${x.name}<small>${PRIORITY_LABEL[x.priority]}</small></th>
+      <td><span class="sum-chip">${v >= 0 ? escapeHTML(m.options[v]) : "기권"} · ${v >= 0 ? (w === 1.5 ? "1.5표" : "1표") : "-"}</span>${why}</td></tr>`;
+  }).join("");
+  const totals = m.options.map((o, i) => `${i === r.winner ? "👑 " : ""}${escapeHTML(o)} <b>${fmtVote(r.count[i])}</b>`).join(" · ");
+  const rules = shop
+    ? "규칙: 장관마다 입력값(가격÷예산, 보유·필요성, 사용 시기)으로 표를 정하고, 가장 중요한 기준의 장관은 1.5표. 가격이 예산을 넘으면 국무총리 직권 보류."
+    : "규칙: 장관 질문에 고른 답이 그 장관의 표. 가장 중요한 기준의 장관은 1.5표. 실시간 근거가 있으면 공개 규칙에 따라 표를 옮김. 동점이면 국무총리 결선.";
+  const ifs = whatIf(m, r);
+  return `<div class="summary-box">
+    <div class="sum-title">📋 판결 근거 요약</div>
+    <table class="sum-table"><thead><tr><th>장관</th><th>고른 답 · 판단 근거</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="sum-total">합계: ${totals}</div>
+    <div class="sum-rule">${rules}</div>
+    ${ifs.length ? `<div class="sum-if"><b>🔄 결과가 바뀌려면?</b><ul>${ifs.map(t => `<li>${t}</li>`).join("")}</ul></div>` : ""}
+  </div>`;
+}
+
+// 답 하나(또는 기준·입력값 하나)를 바꾸면 판결이 달라지는 경우를 실제로 다시 계산해서 찾는다.
+function whatIf(m, r) {
+  const out = [];
+  const q = s => `「${escapeHTML(s)}」`;
+  if (m.category === "쇼핑") {
+    const s = m.shop, cur = r.winner;
+    const fmtWon = n => n.toLocaleString() + "원";
+    const tries = [];
+    if (r.pct > 100) tries.push([`가격이 예산(${fmtWon(s.budgetValue)}) 이하였다면`, { priceValue: s.budgetValue }]);
+    if (r.pct >= 70) tries.push([`가격이 ${fmtWon(Math.floor(s.budgetValue * 0.69))}(예산의 69%) 이하였다면`, { priceValue: Math.floor(s.budgetValue * 0.69) }]);
+    if (r.pct < 70) tries.push([`가격이 예산의 70%(${fmtWon(Math.ceil(s.budgetValue * 0.7))}) 이상이었다면`, { priceValue: Math.ceil(s.budgetValue * 0.7) }]);
+    tries.push([s.owned ? "비슷한 물건이 없었다면" : "비슷한 물건이 이미 있었다면", { owned: !s.owned }]);
+    if (s.need !== "high") tries.push(["없으면 많이 불편한 물건이었다면", { need: "high" }]);
+    if (s.need !== "low") tries.push(["없어도 불편하지 않은 물건이었다면", { need: "low" }]);
+    if (s.use !== "week") tries.push(["이번 주 안에 쓸 계획이었다면", { use: "week" }]);
+    if (s.use !== "unknown") tries.push(["언제 쓸지 아직 모른다면", { use: "unknown" }]);
+    for (const [desc, patch] of tries) {
+      const alt = decideShop({ ...m, shop: { ...s, ...patch, fx: null } });
+      if (alt.winner !== cur) out.push(`${desc} → ${q(m.options[alt.winner])}`);
+      if (out.length >= 2) break;
+    }
+    if (!out.length) out.push("입력값 하나만 바꿔서는 판결이 바뀌지 않을 만큼 분명한 판결이에요.");
+    return out;
+  }
+  const votes = r.votes;
+  if (r.winner < 0) return ["장관 한 명이라도 한쪽을 고르면 판결이 나와요. 선택지의 가격·거리·시간을 하나만 알아본 뒤 재심을 청구해 보세요."];
+  const ranked = m.options.map((_, i) => i).filter(i => i !== r.winner).sort((a, b) => r.count[b] - r.count[a]);
+  const rival = ranked[0];
+  if (rival === undefined) return out;
+  // ① 장관 한 명의 답이 달랐다면
+  const moved = new Set((r.moves || []).map(t => t.name));
+  for (const x of MINISTERS) {
+    if (votes[x.name] === rival || moved.has(x.name)) continue;
+    const alt = tallyOf(m, { ...votes, [x.name]: rival });
+    const top = topOf(alt);
+    if (top.length === 1 && top[0] === rival) { out.push(`${x.name} 장관의 질문 “${escapeHTML(x.question)}”에 ${q(m.options[rival])}${j(m.options[rival], "를")} 골랐다면 → ${q(m.options[rival])} 승리`); break; }
+    if (top.includes(rival) && top.includes(r.winner)) { out.push(`${x.name} 장관의 질문에 ${q(m.options[rival])}${j(m.options[rival], "를")} 골랐다면 → 동점이 되어 국무총리 결선`); break; }
+  }
+  // ② 가장 중요한 기준이 달랐다면
+  for (const p of Object.keys(PRIORITY_LABEL)) {
+    if (p === m.priority) continue;
+    const top = topOf(tallyOf({ ...m, priority: p }, votes));
+    if (top.length === 1 && top[0] !== r.winner) { out.push(`가장 중요한 기준을 '${PRIORITY_LABEL[p]}'(으)로 골랐다면 → ${q(m.options[top[0]])}`); break; }
+  }
+  if (!out.length) out.push("장관 한 명의 답이나 중요 기준 하나만 바꿔서는 결과가 바뀌지 않을 만큼 분명한 판결이에요.");
+  return out;
+}
+
 // ④ 결재 화면
 // ===== 결재: 실시간 대화처럼 장관들이 차례로 발언한다 =====
 const SPEAKERS = {
@@ -1052,6 +1130,7 @@ function showResult(m, r) {
     <div class="verdict-line">판결: <b>${escapeHTML(r.verdict)}</b><span class="stamp" aria-hidden="true">결재</span></div>
     <div class="pm-line">${escapeHTML(r.pmLine)}</div>
     ${okEv.length ? `<div class="ev-foot">근거: ${okEv.map(it => `${escapeHTML(it.label)} (${escapeHTML(it.source)}, ${escapeHTML(it.fresh || "")})`).join(" / ")}</div>` : ""}`, "verdict-msg"]);
+  script.push(["pm", summaryBox(m, r), "wide"]);
   const minority = r.winner >= 0 ? ops.filter(o => o.pick && o.pick !== winName) : [];
   if (minority.length) {
     script.push(["pm", `<b>소수 의견</b>도 기록합니다.<br>${minority.map(o => {
