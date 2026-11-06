@@ -95,6 +95,18 @@ const run = (spec) => p.evaluate(spec => {
   ok('C-01 구매 비교 화면 흐름: 상품별 점수표·이견 토론·판결서', t.includes('구매 판결서') && t.includes('예산의') && t.includes('이견 토론') && t.includes('사진·링크 속 정보나 최저가는 확인하지 않았습니다'), t.slice(0, 120));
   const rec = await p.evaluate(() => JSON.parse(localStorage.getItem('decision-country-records'))[0]);
   ok('C-02 기록에 규칙 버전(v2)·비교 모드 저장', rec.rule && rec.rule.rv === 2 && rec.rule.mode === 'compare', JSON.stringify(rec.rule)); }
+// F-01 선택지 3개 이상: 위험·비용은 '가장 적은 쪽'을 물어 토끼·곰이 기권하지 않음
+{ const r = await p.evaluate(() => {
+    const m = { ...newMeeting('주말에 뭐 하지?'), category: '일상', options: ['영화', '전시회', '집콕'], priority: 'safe' };
+    const QS = questionsOf(m); [1, 1, 2, 2].forEach((v, k) => setPick(m, QS[k], v));
+    const r = decide(m); return { types: QS.map(q => q.type), votes: r.votes, ops: opinionsOf(m, r).map(o => o.text) };
+  });
+  ok('F-01 선택지 3개: 위험·비용 질문은 가장 적은 쪽, 신중·현실 모두 투표', r.types.join() === 'best,best,best,best' && r.votes['신중주의'] === 1 && r.votes['현실주의'] === 2, JSON.stringify(r.votes));
+  ok('F-02 발언에 같은 선택지 이름이 연달아 반복되지 않음', r.ops.every(t => !/「(.+?)」(입니다|에 한 표[^.]*|죠!|!|\.)\s*「\1」[은는이가]/.test(t)), r.ops.join(' / ')); }
+// F-03 비 예보가 있으면 고른 쪽의 걸리는 점을 한 장관이 한 번 말함
+{ const r = await run({ category: '나들이', options: ['한강 피크닉', '카페'], optTags: ['out', 'in'], priority: 'fun', evidence: { items: [], weather: { rain: 70, tmax: 15, tmin: 8, pm10: 20, pm25: 9 } }, facts: { risk: [0, 2], appeal: [0, 2], cost: [0, 2], ready: [0, 2] } });
+  const warns = r.ops.filter(t => t.includes('다만') && t.includes('비 예보'));
+  ok('F-03 실시간 근거(비 예보)를 판결 쪽 장관 한 명이 짚어 줌', warns.length === 1, r.ops.join(' / ')); }
 ok('E-00 페이지 오류 없음', !p.errs.length, p.errs.join(' | '));
 console.log(out.join('\n')); console.log(`\n${out.filter(l => l.startsWith('PASS')).length}/${out.length} 통과`);
 await b.close();

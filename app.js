@@ -1211,7 +1211,13 @@ const QUESTIONS = {
     { minister: "행동파", key: "use", type: "best", q: "가장 빨리, 자주 쓸 건 어느 쪽이야?" }
   ]
 };
-function questionsOf(m) { return m.category === "쇼핑" && m.shopMode === "compare" ? QUESTIONS.compare : QUESTIONS.general; }
+// 선택지가 3개 이상이면 위험·비용도 '가장 적은 쪽'을 묻는다(가장 큰 쪽만 고르면 나머지가 같은 점수가 되어 장관이 기권하므로)
+const LEAST_Q = { risk: "이 중에서 위험 부담이 가장 적은(후회가 덜할) 건 어느 쪽인가요?", cost: "돈과 시간이 가장 덜 드는 건 어느 쪽입니까?" };
+function questionsOf(m) {
+  if (m.category === "쇼핑" && m.shopMode === "compare") return QUESTIONS.compare;
+  if ((m.options || []).length <= 2) return QUESTIONS.general;
+  return QUESTIONS.general.map(Q => LEAST_Q[Q.key] ? { ...Q, type: "best", q: LEAST_Q[Q.key] } : Q);
+}
 const LV_SCORE = [4.5, 3, 1.5];        // 사실 등급(0 좋음 · 1 보통 · 2 나쁨) → 기본 점수 (공개 규칙)
 const VOTE_GAP = 0.5;                  // 1위와 2위의 차이가 이보다 작으면 기권(차이 없음)
 const clamp5 = v => Math.max(0, Math.min(5, Math.round(v * 10) / 10));
@@ -1425,7 +1431,7 @@ function keyReason(m, a, pick, other, named = false) {
     ? (pp.length ? [named ? `「${P}」${j(P, "는")} ${pp[0]}.` : `${pp[0]}.`, pp[1] ? `게다가 ${pp[1]}.` : oc[0] ? `「${O}」${j(O, "는")} ${oc[0]}.` : ""]
        : oc.length ? [`「${O}」${j(O, "는")} ${oc[0]}.`, ""] : ["", ""])
     : (oc.length ? [`「${O}」${j(O, "는")} ${oc[0]}.`, oc[1] ? `게다가 ${oc[1]}.` : ""]
-       : pp.length ? [`「${P}」${j(P, "는")} ${pp[0]}.`, ""] : ["", ""]);
+       : pp.length ? [named ? `「${P}」${j(P, "는")} ${pp[0]}.` : `${pp[0]}.`, ""] : ["", ""]);
   return lead.filter(Boolean).join(" ");
 }
 // 장관 성격대로 짧고 소신 있게(같은 입력이면 같은 문장)
@@ -1448,6 +1454,10 @@ function independentOpinion(m, r, x) {
   const fan = r.assess["낭만주의"];
   const firstDiff = fan && fan.vote >= 0 ? MINISTERS.find(y => y.name !== "낭만주의" && r.assess[y.name].vote >= 0 && r.assess[y.name].vote !== fan.vote) : null;
   if (firstDiff && firstDiff.name === x.name) text += ` 마음이 「${m.options[fan.vote]}」 쪽인 건 알지만, 제 기준은 이쪽이에요.`;
+  // 실시간 근거: 고른 쪽에 걸리는 점(비 예보·연휴·거리 등)이 있으면 숨기지 않고 한마디(같은 근거는 처음 말한 장관만)
+  const evCon = c => c.cons.find(t => c.evs.includes(t));
+  const firstWarn = MINISTERS.find(y => { const b = r.assess[y.name]; return b.vote >= 0 && evCon(b.cards[b.vote]); });
+  if (firstWarn && firstWarn.name === x.name) text += ` 다만 ${evCon(a.cards[a.vote])}. 이 점은 꼭 대비하세요.`;
   return text;
 }
 // 이견 토론: 판결과 다른 표를 던진 장관이 짧게 반대하고, 판결 쪽 장관 한 명이 짧게 답한다. 새 근거가 없으면 표는 그대로.
@@ -1739,7 +1749,7 @@ function showResult(m, r) {
   ops.forEach(o => {
     const x = MINISTERS.find(y => y.name === o.name);
     const pick = o.pick ? `<span class="pick-chip">${escapeHTML(o.pick)}</span>` : `<span class="pick-chip none">기권</span>`;
-    const weight = x.priority === m.priority ? `<span class="badge">결정권 1.5표</span>` : "";
+    const weight = x.priority === m.priority ? `<span class="badge">${o.pick ? "결정권 1.5표" : "결정권(기권)"}</span>` : "";
     script.push([o.name, `<div class="m-head">${pick}${weight}</div>${escapeHTML(o.text)}`]);
   });
   // 이견 토론: 판결과 다른 표를 던진 장관이 반대 이유를 한 번, 판결 쪽 장관이 한 번 답한다(새 근거가 없으면 표는 그대로)
@@ -2062,7 +2072,7 @@ async function showRecords() {
             <div class="hint">${escapeHTML(item.category || "")}${item.label ? " · " + escapeHTML(item.label) : ""}${item.tally ? " · " + escapeHTML(item.tally) : ""}${item.retrial ? " · 재심" : ""}</div>
             ${(item.evidence || []).length ? `<div class="ev-rec">${item.evidence.map(e => `<div>${e.ok ? "📎" : "⚠️"} <b>${escapeHTML(e.label)}</b> ${escapeHTML(e.summary)}${e.source ? ` <small>(${escapeHTML(e.source)}${e.fetchedAt ? ", " + escapeHTML(hhmm(e.fetchedAt)) + " 조회" : ""})</small>` : ""}</div>`).join("")}</div>` : ""}
             ${(item.moves || []).length ? `<div class="ev-rec">${item.moves.map(v => `<div>🔁 ${escapeHTML(v.name)}: ${escapeHTML(v.from)} → ${escapeHTML(v.to)}</div>`).join("")}</div>` : ""}
-            ${(item.opinions || []).map(([n, t]) => `<div class="opinion small"><strong>${escapeHTML(n)}</strong>${escapeHTML(t)}</div>`).join("")}
+            ${(item.opinions || []).map(([n, t]) => { const pk = pickOf(t), body = String(t).replace(/^(「.+?」|기권) — /, ""); return `<div class="opinion small"><strong>${escapeHTML(n)}</strong><span class="pick-chip ${pk ? "" : "none"}">${pk ? escapeHTML(pk) : "기권"}</span> ${escapeHTML(body)}</div>`; }).join("")}
             <div class="btn-row slim">
               <button class="chip" data-share="${index}">📤 판결문 공유</button>
               <button class="chip" data-again="${index}">♟️ 다시 회의</button>
