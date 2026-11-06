@@ -799,3 +799,14 @@ html.modal-open, html.modal-open body { overflow: hidden; }
   .chip, .delete-btn, .more { min-height: 44px; }
   .chip-row { gap: 8px; }
 }
+
+/* 홈 PC(세로 860~1000px): 남는 세로 공간을 칸 사이·부엉이 위에 고르게 나눠, 아래에만 빈 공간이 몰리지 않게 한다 */
+@media (min-width: 1281px) and (min-height: 860px) and (max-height: 1000px) {
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  main { flex: 1 0 auto; display: flex; flex-direction: column; justify-content: space-evenly; }
+  .hero, .howto, .dashboard { width: 100%; margin-top: 14px; margin-bottom: 0; }
+  .dashboard { gap: 26px; }
+  .panel.frame { padding: 16px 18px 14px; }
+  .records-list { gap: 8px; }
+  .site-foot { margin-top: 10px; }
+}
