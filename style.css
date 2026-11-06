@@ -810,3 +810,11 @@ html.modal-open, html.modal-open body { overflow: hidden; }
   .records-list { gap: 8px; }
   .site-foot { margin-top: 10px; padding-bottom: 18px; }
 }
+
+/* 질문 화면의 내 캐릭터(민원인): 얼굴이 잘리지 않게 전신을 비율 그대로 */
+.me-face img { width: auto; height: 84px; max-width: 70px; object-fit: contain; object-position: bottom; border: 0; background: none; }
+/* 판결서는 장관 대화(회의록)가 끝난 뒤에 나타난다 */
+.after-minutes[hidden] { display: none !important; }
+.after-minutes:not([hidden]) { animation: decreeIn .35s ease-out; }
+@keyframes decreeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .after-minutes:not([hidden]) { animation: none; } }

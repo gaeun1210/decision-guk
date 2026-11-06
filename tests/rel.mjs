@@ -45,7 +45,10 @@ const login = async p => { await p.evaluate(() => document.getElementById('modal
   const order = await p.evaluate(() => { const c = document.getElementById('chat'), d = document.querySelector('.decree'); return c && d ? !!(c.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING) : null; });
   const chatVisible = await p.evaluate(() => { const c = document.getElementById('chat').getBoundingClientRect(); return c.top < innerHeight; });
   ok('R2 판결 화면: 장관 대화(회의록)가 먼저, 최종 판결서는 맨 아래', order === true && chatVisible, `order=${order} chatVisible=${chatVisible}`);
+  const hiddenWhileTalking = await p.evaluate(() => document.getElementById('after-minutes').hidden && !document.querySelector('.decree').getClientRects().length);
   await p.click('#chat-skip'); await p.waitForTimeout(300);
+  const shownAfter = await p.evaluate(() => !document.getElementById('after-minutes').hidden && document.querySelector('.decree').getClientRects().length > 0);
+  ok('R2b 최종 판결서는 장관 대화가 끝난 뒤에 나타남', hiddenWhileTalking && shownAfter, `talking=${hiddenWhileTalking} after=${shownAfter}`);
   // 3. 개별 삭제 확인(체험 모드)
   await p.evaluate(() => document.getElementById('modal-root').innerHTML = '');
   await p.click('[data-action="records"] >> visible=true'); await p.waitForTimeout(300);

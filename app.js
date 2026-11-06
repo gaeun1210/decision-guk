@@ -1539,6 +1539,7 @@ function showResult(m, r) {
     <h3 class="minutes-title">🗒️ 국무회의 회의록</h3>
     <div class="chat" id="chat" aria-live="polite"></div>
     <div class="chat-tools"><button type="button" class="link-btn" id="chat-skip">회의록 한 번에 보기 ⏭</button></div>
+    <div class="after-minutes" id="after-minutes" hidden>
     ${decreeHTML(m, r, ops, okEv)}
     <div class="notice">이 결과는 입력한 답과 공개된 규칙으로 만든 참고 의견입니다. 중요한 결정은 관련 정보를 직접 확인해 주세요.</div>
     <div class="btn-row three">
@@ -1546,7 +1547,8 @@ function showResult(m, r) {
       <button class="primary secondary" id="result-share">📤 결과 공유</button>
       <button class="primary" id="result-done">닫기 ✓</button>
     </div>
-    <button type="button" class="link-btn poll-ask" id="result-poll">📮 장관 판결이 아쉽다면? 국민 여론에도 물어보기</button>`, () => {
+    <button type="button" class="link-btn poll-ask" id="result-poll">📮 장관 판결이 아쉽다면? 국민 여론에도 물어보기</button>
+    </div>`, () => {
       const chat = document.getElementById("chat");
       let i = 0, timer = null, done = false, saveRes = null;
       // 저장 순서: ① 판결을 이 브라우저 보관함에 먼저 넣고 → ② 기록실에 저장 → ③ 저장이 확인되면 보관함을 비운다
@@ -1580,6 +1582,9 @@ function showResult(m, r) {
         while (i < script.length) chat.insertAdjacentHTML("beforeend", chatLine(...script[i++]));
         document.getElementById("chat-skip").parentElement.hidden = true;
         groupChat(chat); paintClerk();
+        // 대화가 모두 끝나면 최종 판결서와 버튼을 보여 준다
+        const after = document.getElementById("after-minutes");
+        if (after && after.hidden) { after.hidden = false; }
       }
       function step() {
         if (done) return;
