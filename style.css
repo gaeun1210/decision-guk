@@ -9,7 +9,7 @@
   --card: #FFFCF7;
   --ink: #50372F;
   --ink-soft: #7A6458;
-  --muted: #9A8577;
+  --muted: #76614F; /* 대비 5.7:1 (작은 글자 WCAG AA 4.5:1 이상) */
   --accent: #854B45;
   --accent-dark: #6C3833;
   --accent-soft: #F3E1DC;
@@ -763,3 +763,39 @@ body {
   .hero, .howto, .dashboard { margin-top: 18px; }
 }
 /* 부엉이 줄은 칸 바로 아래에 붙인다(빈 여백 없이) */
+
+/* ===== 정식 제출 전 수정(인수인계서) ===== */
+/* A11Y-01: 모달이 열리면 뒤 화면 스크롤 잠금 · 제목 포커스는 테두리 없이 */
+html.modal-open, html.modal-open body { overflow: hidden; }
+.modal-head h2:focus { outline: none; }
+/* 키보드 포커스는 색과 관계없이 굵은 점선으로 분명하게 */
+:focus-visible { outline: 3px dashed var(--accent); outline-offset: 3px; }
+/* 선택 상태를 색 말고 ✓ 표시로도 구분 */
+.category.selected::after, .chip[data-cat][aria-pressed="true"]::after { content: "✓"; margin-left: 4px; font-weight: 900; }
+
+/* DATA-01: 삭제 확인 */
+.del-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; margin-top: 8px; padding: 10px 12px; background: #FBEDEA; box-shadow: 0 -2px 0 0 #E8C4BC, 0 2px 0 0 #E8C4BC, -2px 0 0 0 #E8C4BC, 2px 0 0 0 #E8C4BC; color: #6A2A22; font-size: 14px; font-weight: 700; }
+.del-confirm span { flex: 1 1 220px; }
+.del-confirm.big { display: grid; gap: 8px; }
+.del-confirm.big p { margin: 0; }
+.del-confirm input { width: 100%; max-width: 220px; min-height: 44px; padding: 8px 10px; border: 2px solid #E8C4BC; background: #fff; font: inherit; }
+.undo-line { margin: 6px 0; }
+/* DATA-02: 다시 저장 · 저장 못 한 판결 줄 */
+#decree-retry { margin-top: 8px; }
+.pend-row { cursor: default; }
+.pend-row .verdict-pill { border: 0; cursor: pointer; font: inherit; }
+/* STATE-01: 불러오기 실패는 빈 상태와 다르게 */
+.state-error { color: #8E3B2E; }
+.state-error .link-btn, .state-error .primary { margin-top: 6px; }
+/* POLL-02: 신고 사유 */
+.report-box { display: grid; gap: 6px; margin-top: 8px; padding: 10px 12px; background: var(--soft, #F1E4D3); font-size: 13.5px; font-weight: 700; }
+
+@media (max-width: 650px) {
+  /* MOB-01: 고민 유형 5개가 가로 스크롤 없이 한 번에(3+2) · 터치 높이 44px */
+  .categories { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; margin: 12px 0 10px; padding: 2px; gap: 8px; }
+  .category { min-height: 44px; padding: 8px 6px; justify-content: center; }
+  /* A11Y-02: 모바일 터치 목표 44×44px 이상 */
+  .close, .opt-del, .tag, .star { min-width: 44px; min-height: 44px; }
+  .chip, .delete-btn, .more { min-height: 44px; }
+  .chip-row { gap: 8px; }
+}

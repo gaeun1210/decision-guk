@@ -1,0 +1,26 @@
+name: 회귀 테스트
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm i --no-save playwright@1.49.1 && npx playwright install --with-deps chromium
+      - run: python3 -m http.server 8771 >/dev/null 2>&1 &
+      - run: sleep 2 && node tests/qa.mjs | tee qa.txt && grep -q "28/28" qa.txt
+      - run: node tests/fix.mjs | tee fix.txt && grep -q "35/35" fix.txt
+      - run: node tests/rel.mjs | tee rel.txt && grep -q "24/24" rel.txt
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: tests/out/

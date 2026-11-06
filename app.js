@@ -99,7 +99,9 @@ async function loadRecords() {
 
 async function addRecord(record, m) {
   if (!currentUser) {
-    const list = getRecords(); list.unshift(record);
+    const list = getRecords();
+    if (record.key && list.some(x => x.key === record.key)) return { ok: true, source: "local" }; // 다시 저장해도 1건만
+    list.unshift(record);
     return { ok: saveRecords(list), source: "local" };
   }
   const shop = m.category === "쇼핑";
@@ -110,8 +112,10 @@ async function addRecord(record, m) {
     verdict: record.verdict, label: record.label, tally: record.tally,
     opinions: record.opinions, retrial: !!record.retrial, evidence: { items: record.evidence || [], moves: record.moves || [], ...(record.when ? { when: record.when } : {}) }
   }; // user_id는 DB가 auth.uid()로 채운다(화면에서 보내지 않음)
+  if (record.key && UUID_RE.test(record.key)) row.id = record.key; // 같은 판결을 다시 저장해도 중복 생성되지 않게(같은 id면 DB가 거부)
   let { error } = await db.from("decisions").insert(row);
   if (error && /evidence/.test(String(error.message))) { delete row.evidence; ({ error } = await db.from("decisions").insert(row)); } // 근거 칸이 아직 없는 DB
+  if (error && /23505|duplicate/i.test(String(error.code || "") + String(error.message || ""))) error = null; // 이미 저장된 판결
   return { ok: !error, source: "server", error };
 }
 
@@ -130,13 +134,37 @@ async function saveFollowup(item, index, patch) {
   return { ok: !error && data && data.length === 1, error };
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function newKey() {
+  try { if (crypto.randomUUID) return crypto.randomUUID(); } catch { }
+  return "xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx".replace(/x/g, () => (Math.random() * 16 | 0).toString(16));
+}
+// 저장 전 판결 보관함: 판결이 나면 먼저 여기에 넣고, 저장이 확인되면 지운다. (서버·네트워크 오류 때 결과를 잃지 않게)
+const PENDING_KEY = "decision-country-pending";
+function getPending() { try { const p = JSON.parse(localStorage.getItem(PENDING_KEY) || "null"); return p && p.record && p.m ? p : null; } catch { return null; } }
+function setPending(record, m) {
+  try {
+    localStorage.setItem(PENDING_KEY, JSON.stringify({ at: Date.now(), record, m: {
+      category: m.category, options: m.options, priority: m.priority,
+      shop: m.shop ? { priceValue: m.shop.priceValue, budgetValue: m.shop.budgetValue } : null } }));
+  } catch { }
+}
+function clearPending() { try { localStorage.removeItem(PENDING_KEY); } catch { } }
+async function savePending() {
+  const p = getPending();
+  if (!p) return { ok: true };
+  const res = await addRecord(p.record, p.m);
+  if (res.ok) clearPending();
+  return res;
+}
+
 async function removeRecord(item, index) {
   if (!currentUser) {
     const list = getRecords(); list.splice(index, 1);
     return { ok: saveRecords(list) };
   }
-  const { error } = await db.from("decisions").delete().eq("id", item.id);
-  return { ok: !error, error };
+  const { data, error } = await db.from("decisions").delete().eq("id", item.id).select("id");
+  return { ok: !error && Array.isArray(data) && data.length === 1, error }; // 실제로 1건 지워졌을 때만 성공
 }
 
 async function clearRecords() {
@@ -254,7 +282,7 @@ function openAccount() {
       document.getElementById("logout-btn").onclick = async () => {
         const { error } = await db.auth.signOut();
         if (error) return showError("acct-err", authMessage(error));
-        clearDraft(); meeting = null; // 함께 쓰는 컴퓨터 대비: 진행 중이던 회의도 지운다
+        clearDraft(); clearPending(); meeting = null; // 함께 쓰는 컴퓨터 대비: 진행 중이던 회의도 지운다
         closeModal();
       };
     });
@@ -319,13 +347,38 @@ async function showRecent() {
       <span class="record-main"><span class="record-title" title="${escapeHTML(meeting.title)}">${escapeHTML(meeting.title.trim() || "제목 없음")}</span><span class="record-sub">진행 중인 회의</span></span>
       <span class="verdict-pill">이어서 하기 ›</span>
     </button>` : "";
-  const wireResume = () => { const b = document.getElementById("resume-row"); if (b) b.onclick = () => openMeeting(); };
-  if (!records.length) {
-    list.innerHTML = resume + `<div class="empty-line">${error ? "기록을 불러오지 못했어요." : "아직 기록이 없어요. 예시 고민을 누르거나 고민을 접수해 보세요!"}</div>`;
+  // 저장하지 못한 판결이 보관함에 있으면 '다시 저장' 줄을 맨 위에 둔다(이미 기록실에 있으면 보관함을 비움)
+  let pend = getPending();
+  if (pend && !error && records.some(x => x.key === pend.record.key || x.id === pend.record.key)) { clearPending(); pend = null; }
+  const pendRow = pend ? `
+    <div class="record-row resume-row pend-row">
+      <span class="record-icon" aria-hidden="true">⚠️</span>
+      <span class="record-main"><span class="record-title">${escapeHTML(pend.record.verdict)}</span><span class="record-sub">저장하지 못한 판결 · ${escapeHTML(pend.record.title)}</span></span>
+      <button type="button" class="verdict-pill" id="pend-retry">다시 저장 ›</button>
+    </div>` : "";
+  const wireResume = () => {
+    const b = document.getElementById("resume-row"); if (b) b.onclick = () => openMeeting();
+    const pr = document.getElementById("pend-retry");
+    if (pr) pr.onclick = async () => {
+      pr.disabled = true; pr.textContent = "저장 중…";
+      const res = await savePending();
+      if (!res.ok) { pr.disabled = false; pr.textContent = "다시 저장 ›"; return; }
+      showRecent();
+    };
+    const rr = document.getElementById("recent-retry"); if (rr) rr.onclick = () => { list.innerHTML = ""; showRecent(); };
+  };
+  if (error) { // 불러오기 실패는 '기록 없음'과 다르게 보여 준다
+    list.innerHTML = pendRow + resume + `<div class="empty-line state-error">기록을 불러오지 못했어요. 연결을 확인해 주세요. <button type="button" class="link-btn" id="recent-retry">다시 시도</button></div>`;
     wireResume();
     return;
   }
-  list.innerHTML = resume + records.slice(0, resume ? 2 : 3).map((item, i) => `
+  if (!records.length) {
+    list.innerHTML = pendRow + resume + `<div class="empty-line">아직 기록이 없어요. 예시 고민을 누르거나 고민을 접수해 보세요!</div>`;
+    wireResume();
+    return;
+  }
+  const head = (pend ? 1 : 0) + (resume ? 1 : 0);
+  list.innerHTML = pendRow + resume + records.slice(0, Math.max(1, 3 - head)).map((item, i) => `
     <button type="button" class="record-row as-btn" data-recent="${i}">
       <span class="record-icon" aria-hidden="true">${escapeHTML(item.icon || "📌")}</span>
       <span class="record-main"><span class="record-title" title="${escapeHTML(item.verdict)}">${escapeHTML(item.verdict)}</span><span class="record-sub">${escapeHTML(item.title)} · ${escapeHTML(item.date || "")}</span></span>
@@ -335,12 +388,35 @@ async function showRecent() {
   wireResume();
 }
 
+// 모달 접근성: 연 버튼 기억 → 제목에 포커스 → Tab은 모달 안에서만 돎 → 뒤 화면은 inert·스크롤 잠금 → 닫으면 연 버튼으로 복귀
+let modalOpener = null;
+const BG_SEL = "header.topbar, main, footer, .tabbar";
+function setBackground(locked) {
+  document.querySelectorAll(BG_SEL).forEach(el => { if (locked) el.setAttribute("inert", ""); else el.removeAttribute("inert"); });
+  document.documentElement.classList.toggle("modal-open", locked);
+}
+function focusables(root) {
+  return [...root.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])')]
+    .filter(el => !el.hidden && !el.closest("[hidden]") && el.getClientRects().length);
+}
+// 어떤 경로로든 모달이 사라지면 뒤 화면 잠금을 푼다(안전장치)
+new MutationObserver(() => { if (!modalRoot.querySelector(".modal")) setBackground(false); }).observe(modalRoot, { childList: true });
+modalRoot.addEventListener("keydown", event => {
+  if (event.key !== "Tab") return;
+  const box = modalRoot.querySelector(".modal"); if (!box) return;
+  const list = focusables(box); if (!list.length) return;
+  const first = list[0], last = list[list.length - 1];
+  if (event.shiftKey && (document.activeElement === first || !box.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && (document.activeElement === last || !box.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+});
 function openModal(title, body, onReady) {
+  const wasOpen = !!modalRoot.querySelector(".modal");
+  if (!wasOpen) { const a = document.activeElement; modalOpener = a && a !== document.body ? a : null; }
   modalRoot.innerHTML = `
     <div class="modal-backdrop" role="presentation">
       <section class="modal" role="dialog" aria-modal="true" aria-label="${escapeHTML(title)}">
         <div class="modal-head">
-          <h2>${escapeHTML(title)}</h2>
+          <h2 tabindex="-1">${escapeHTML(title)}</h2>
           <button class="close" aria-label="닫기">×</button>
         </div>
         <div class="modal-body">${body}</div>
@@ -350,11 +426,18 @@ function openModal(title, body, onReady) {
   modalRoot.querySelector(".modal-backdrop").addEventListener("click", event => {
     if (event.target.classList.contains("modal-backdrop")) closeModal();
   });
+  setBackground(true);
+  modalRoot.querySelector(".modal-head h2").focus({ preventScroll: true });
   if (onReady) onReady();
 }
 function closeModal() {
   const wasOpen = !!modalRoot.querySelector(".modal");
   modalRoot.innerHTML = "";
+  if (wasOpen) {
+    setBackground(false);
+    const o = modalOpener; modalOpener = null;
+    if (o && document.contains(o)) o.focus({ preventScroll: true });
+  }
   if (wasOpen && meeting) showRecent(); // '이어서 하기' 줄을 최신 상태로
 }
 // 같은 화면을 다시 그릴 때(칩·태그 선택 등) 스크롤 위치와 포커스를 그대로 둔다. 화면이 맨 위로 튀지 않게.
@@ -423,6 +506,7 @@ function showError(id, message) {
 function normalize(text) { return text.replace(/\s+/g, "").toLowerCase(); }
 
 // 유형별 선택지 예시
+const TITLE_PH = { 나들이: "예) 주말에 어디로 놀러 갈까?", 맛집: "예) 오늘 저녁 뭐 먹지?", 쇼핑: "예) 새 운동화 지금 살까?", 일상: "예) 오늘 운동 갈까 말까?" };
 const OPTION_PH = { 나들이: ["예) 한강 피크닉", "예) 집에서 쉬기"], 맛집: ["예) 마라탕", "예) 김치찌개"], 일상: ["예) 운동 가기", "예) 푹 쉬기"] };
 
 // ===== 진행 중인 회의 임시 저장 (이 브라우저에만, 24시간) =====
@@ -535,7 +619,7 @@ function renderAgenda(stay = false) {
     <form id="agenda-form" novalidate>
       <div class="field">
         <label for="meeting-title">고민 제목</label>
-        <input id="meeting-title" maxlength="${LIMITS.title}" value="${escapeHTML(m.title)}" placeholder="예) 오늘 저녁 뭐 먹지?" autocomplete="off" />
+        <input id="meeting-title" maxlength="${LIMITS.title}" value="${escapeHTML(m.title)}" placeholder="${TITLE_PH[m.category] || TITLE_PH.일상}" autocomplete="off" />
       </div>
       <div class="field">
         <span class="label">고민 유형</span>
@@ -1327,7 +1411,7 @@ function buildRecord(m, r, ops) {
     evidence: (m.evidence ? m.evidence.items : []).map(it => ({ label: it.label, ok: it.ok, summary: it.ok ? it.lines.join(" · ") : it.reason, source: it.source || "", fetchedAt: it.fetchedAt || null })),
     moves: (r.moves || []).map(v => ({ name: v.name, from: v.from >= 0 ? m.options[v.from] : "기권", to: m.options[v.to] })),
     when: WEATHER_CATS.includes(m.category) && /^\d{4}-\d{2}-\d{2}$/.test(m.date || "") ? m.date : null, // 일정 날짜(실행 여부를 언제 물을지)
-    createdAt: Date.now()
+    createdAt: Date.now(), key: newKey()
   };
 }
 
@@ -1452,6 +1536,9 @@ function showResult(m, r) {
 
   openModal(shop ? "📜 구매 재판 판결서" : "📜 최종 판결서", `
     ${stepBar(3)}
+    <h3 class="minutes-title">🗒️ 국무회의 회의록</h3>
+    <div class="chat" id="chat" aria-live="polite"></div>
+    <div class="chat-tools"><button type="button" class="link-btn" id="chat-skip">회의록 한 번에 보기 ⏭</button></div>
     ${decreeHTML(m, r, ops, okEv)}
     <div class="notice">이 결과는 입력한 답과 공개된 규칙으로 만든 참고 의견입니다. 중요한 결정은 관련 정보를 직접 확인해 주세요.</div>
     <div class="btn-row three">
@@ -1459,21 +1546,34 @@ function showResult(m, r) {
       <button class="primary secondary" id="result-share">📤 결과 공유</button>
       <button class="primary" id="result-done">닫기 ✓</button>
     </div>
-    <button type="button" class="link-btn poll-ask" id="result-poll">📮 장관 판결이 아쉽다면? 국민 여론에도 물어보기</button>
-    <h3 class="minutes-title">🗒️ 국무회의 회의록</h3>
-    <div class="chat" id="chat" aria-live="polite"></div>
-    <div class="chat-tools"><button type="button" class="link-btn" id="chat-skip">회의록 한 번에 보기 ⏭</button></div>`, () => {
+    <button type="button" class="link-btn poll-ask" id="result-poll">📮 장관 판결이 아쉽다면? 국민 여론에도 물어보기</button>`, () => {
       const chat = document.getElementById("chat");
       let i = 0, timer = null, done = false, saveRes = null;
-      const save = addRecord(record, m).then(res => { saveRes = res; showRecent(); paintClerk(); });
+      // 저장 순서: ① 판결을 이 브라우저 보관함에 먼저 넣고 → ② 기록실에 저장 → ③ 저장이 확인되면 보관함을 비운다
+      setPending(record, m);
+      let save;
+      const trySave = () => (save = addRecord(record, m).then(res => {
+        saveRes = res; if (res.ok) clearPending();
+        showRecent(); paintClerk(); return res;
+      }));
+      trySave();
       function paintClerk() {
         if (!saveRes) return;
         const text = saveRes.ok
-          ? (saveRes.source === "server" ? "내 계정의 결정 기록실에 적어 두었습니다!" : "이 브라우저의 기록실에 적어 두었습니다! (체험 모드 — 로그인하면 계정에 저장돼요)")
-          : "기록하지 못했어요. " + (saveRes.source === "server" ? dbMessage(saveRes.error) : "브라우저 저장소를 쓸 수 없어요.");
+          ? (saveRes.source === "server" ? "내 계정의 결정 기록실에 적어 두었습니다!" : "이 브라우저의 기록실에 적어 두었습니다! (체험 모드: 계정으로 옮겨지지 않아요)")
+          : "기록하지 못했어요. " + (saveRes.source === "server" ? dbMessage(saveRes.error) : "브라우저 저장소를 쓸 수 없어요.") + " 판결은 이 브라우저에 보관해 두었어요.";
         ["clerk-msg", "decree-save"].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = text; });
+        const box = document.getElementById("decree-save");
+        if (box && !saveRes.ok && !document.getElementById("decree-retry")) {
+          box.insertAdjacentHTML("afterend", `<button type="button" class="primary secondary" id="decree-retry">🔁 다시 저장</button>`);
+          document.getElementById("decree-retry").onclick = async ev => {
+            ev.target.disabled = true; ev.target.textContent = "저장 중…";
+            const res = await trySave();
+            if (res.ok) ev.target.remove(); else { ev.target.disabled = false; ev.target.textContent = "🔁 다시 저장"; }
+          };
+        }
       }
-      // 판결서를 먼저 보여 주고, 회의록은 아래에서 차례로 진행된다(화면을 아래로 끌어내리지 않음)
+      // 회의록(장관 대화)이 먼저 진행되고, 최종 판결서는 맨 아래에 놓인다
       function finish() {
         if (done) return; done = true; clearTimeout(timer);
         const typing = chat.querySelector(".typing"); if (typing) typing.remove();
@@ -1515,47 +1615,90 @@ function verdictText(rec) {
   return `[결정국 판결문]\n안건: ${rec.title}\n판결: ${rec.verdict}${rec.label ? ` (${rec.label})` : ""}\n${rec.tally || ""}\n— 고민은 접수하고, 결정은 즐겁게! ${location.origin}`;
 }
 
+// 공유 이미지(1080×1080): 화면 판결서와 같은 크림·버건디 픽셀 스타일. 긴 글은 줄바꿈·말줄임으로 칸 밖으로 나가지 않게.
 function drawVerdictImage(rec) {
   const W = 1080, H = 1080, c = document.createElement("canvas");
   c.width = W; c.height = H;
   const g = c.getContext("2d");
+  const C = { bg: "#F8F3EA", card: "#FFFCF7", ink: "#50372F", accent: "#854B45", point: "#D9B78C", line: "#E6D6C2", soft: "#F1E4D3", muted: "#6E5A4E", red: "#B0413E" };
+  const px = (w, s) => `${w} ${s}px Galmuri11, Pretendard, "Malgun Gothic", sans-serif`;
   const font = (w, s) => `${w} ${s}px Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif`;
-  g.fillStyle = "#19274d"; g.fillRect(0, 0, W, H);
-  g.fillStyle = "#fff1df"; roundRect(g, 60, 60, W - 120, H - 120, 36); g.fill();
-  g.strokeStyle = "#c49b75"; g.lineWidth = 8; roundRect(g, 60, 60, W - 120, H - 120, 36); g.stroke();
-  g.fillStyle = "#19274d"; g.textAlign = "center";
-  g.font = font(900, 58); g.fillText("🏛️ 결정국 판결문", W / 2, 180);
-  g.font = font(700, 34); g.fillStyle = "#6b5a4b";
-  wrap(g, `안건: ${rec.title}`, W / 2, 270, W - 220, 46, 2);
-  g.fillStyle = "#ffe0a6"; roundRect(g, 140, 370, W - 280, 220, 28); g.fill();
-  g.fillStyle = "#c23a2e"; g.font = font(800, 32); g.fillText(rec.label || "판결", W / 2, 430);
-  g.fillStyle = "#19274d"; g.font = font(900, 80); wrap(g, rec.verdict, W / 2, 530, W - 320, 86, 1);
-  g.save(); g.translate(W - 230, 600); g.rotate(-0.16);
-  g.strokeStyle = "#c23a2e"; g.lineWidth = 9; roundRect(g, -110, -55, 220, 110, 14); g.stroke();
-  g.fillStyle = "#c23a2e"; g.font = font(900, 64); g.fillText("결재", 0, 22); g.restore();
-  if (rec.options && rec.counts) {
+  // 배경: 모눈종이
+  g.fillStyle = C.bg; g.fillRect(0, 0, W, H);
+  g.fillStyle = "rgba(133,75,69,.06)";
+  for (let x = 0; x < W; x += 24) g.fillRect(x, 0, 1, H);
+  for (let y = 0; y < H; y += 24) g.fillRect(0, y, W, 1);
+  // 픽셀 계단 테두리 카드
+  pixelBox(56, 56, W - 112, H - 112, C.card, C.accent, 8);
+  g.strokeStyle = C.point; g.lineWidth = 2; g.setLineDash([6, 6]); g.strokeRect(84, 84, W - 168, H - 168); g.setLineDash([]);
+  // 머리글
+  g.textAlign = "left"; g.fillStyle = C.muted; g.font = font(700, 24);
+  g.fillText("🏛️ 결정국 국무회의", 110, 135);
+  g.textAlign = "right"; g.fillText(`${rec.date || today()} 결재`, W - 110, 135);
+  g.textAlign = "center"; g.fillStyle = C.accent; g.font = px(700, 60);
+  g.fillText(rec.category === "쇼핑" ? "구매 판결서" : "최종 판결서", W / 2, 215);
+  g.fillStyle = C.ink; g.font = font(700, 30);
+  wrap(`안건: ${rec.title}`, W / 2, 275, W - 260, 40, 2);
+  // 판결 상자
+  pixelBox(130, 345, W - 260, 230, C.soft, C.point, 6);
+  g.fillStyle = C.red; g.font = px(700, 30); g.fillText(clip(rec.label || "판결", W - 360), W / 2, 400);
+  // 판결 문구: 한 줄에 들어가면 한 줄(글자 크기를 줄여서라도), 아니면 띄어쓰기 단위로 두 줄
+  const VW = W - 440;
+  let vs = 64; g.font = px(700, vs);
+  while (vs > 46 && g.measureText(rec.verdict).width > VW) { vs -= 2; g.font = px(700, vs); }
+  g.fillStyle = C.accent;
+  const twoLine = g.measureText(rec.verdict).width > VW;
+  if (twoLine) { while (vs > 36 && g.measureText(rec.verdict).width > VW * 1.9) { vs -= 2; g.font = px(700, vs); } }
+  wrap(rec.verdict, W / 2, twoLine ? 478 : 505, VW, vs + 10, 2);
+  // 결재 도장(사각 픽셀 도장) — 판결 상자 오른쪽 아래 모서리에 걸치게
+  g.save(); g.translate(W - 175, 575); g.rotate(-0.12);
+  g.strokeStyle = C.red; g.lineWidth = 7; g.strokeRect(-56, -56, 112, 112);
+  g.lineWidth = 3; g.strokeRect(-46, -46, 92, 92);
+  g.fillStyle = C.red; g.font = px(700, 32); g.fillText("결재", 0, -6); g.fillText("완료", 0, 32); g.restore();
+  // 개표(최대 6개) — 줄 높이는 선택지 수에 맞춰 자동 조정
+  if (rec.options && rec.counts && rec.options.length) {
+    const opts = rec.options.slice(0, 6), n = opts.length;
     const total = rec.counts.reduce((a, b) => a + b, 0) || 1;
-    rec.options.slice(0, 6).forEach((o, i) => {
-      const y = 680 + i * 52;
-      g.textAlign = "left"; g.fillStyle = "#3b2f25"; g.font = font(800, 30);
-      g.fillText(clip(g, (i === rec.winner ? "👑 " : "") + o, 300), 150, y);
-      g.fillStyle = "#f0e1d1"; roundRect(g, 470, y - 24, 360, 26, 13); g.fill();
-      g.fillStyle = i === rec.winner ? "#e57a1f" : "#c9a27a"; roundRect(g, 470, y - 24, Math.max(10, 360 * rec.counts[i] / total), 26, 13); g.fill();
-      g.textAlign = "right"; g.fillStyle = "#3b2f25"; g.fillText(`${Number.isInteger(rec.counts[i]) ? rec.counts[i] : rec.counts[i].toFixed(1)}표`, 930, y);
+    const top = 640, rowH = Math.min(60, Math.floor(260 / n));
+    g.textAlign = "left"; g.fillStyle = C.muted; g.font = font(700, 22); g.fillText("📍 개표 결과", 130, top - 14);
+    opts.forEach((o, i) => {
+      const y = top + 18 + i * rowH, win = i === rec.winner;
+      g.textAlign = "left"; g.fillStyle = C.ink; g.font = font(800, Math.min(28, rowH - 18));
+      g.fillText(clip((win ? "👑 " : "") + o, 300), 130, y + rowH / 2);
+      g.fillStyle = C.line; g.fillRect(450, y + rowH / 2 - 16, 400, 22);
+      g.fillStyle = win ? C.accent : C.point; g.fillRect(450, y + rowH / 2 - 16, Math.max(8, 400 * rec.counts[i] / total), 22);
+      g.textAlign = "right"; g.fillStyle = C.ink;
+      g.fillText(`${Number.isInteger(rec.counts[i]) ? rec.counts[i] : rec.counts[i].toFixed(1)}표`, W - 130, y + rowH / 2);
     });
+    if (rec.options.length > 6) { g.textAlign = "center"; g.fillStyle = C.muted; g.font = font(600, 20); g.fillText(`외 ${rec.options.length - 6}개`, W / 2, top + 18 + 6 * rowH); }
+  } else if (rec.tally) {
+    g.textAlign = "center"; g.fillStyle = C.ink; g.font = font(700, 28);
+    wrap(rec.tally, W / 2, 690, W - 260, 40, 4);
   }
-  g.textAlign = "center"; g.fillStyle = "#8a7a6c"; g.font = font(700, 26);
-  g.fillText(`${rec.date || today()} · 고민은 접수하고, 결정은 즐겁게!`, W / 2, H - 100);
+  g.textAlign = "center"; g.fillStyle = C.muted; g.font = px(400, 24);
+  g.fillText("고민은 접수하고, 결정은 즐겁게! · 결정국", W / 2, H - 112);
   return c;
-  function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-  function clip(ctx, t, max) { let s = String(t); while (ctx.measureText(s).width > max && s.length > 1) s = s.slice(0, -1); return s === String(t) ? s : s.slice(0, -1) + "…"; }
-  function wrap(ctx, text, x, y, max, lh, lines) {
-    const chars = [...String(text)]; let line = "", n = 0;
-    for (const ch of chars) {
-      if (ctx.measureText(line + ch).width > max) { if (++n >= lines) { ctx.fillText(clip(ctx, line + "…", max), x, y); return; } ctx.fillText(line, x, y); y += lh; line = ch; }
-      else line += ch;
+  function pixelBox(x, y, w, h, fill, edge, s) { // 모서리가 계단처럼 깎인 픽셀 상자
+    g.fillStyle = edge;
+    g.fillRect(x + s, y, w - 2 * s, h); g.fillRect(x, y + s, w, h - 2 * s);
+    g.fillStyle = fill;
+    g.fillRect(x + 2 * s, y + s, w - 4 * s, h - 2 * s); g.fillRect(x + s, y + 2 * s, w - 2 * s, h - 4 * s);
+  }
+  function clip(t, max) { let s = String(t); if (g.measureText(s).width <= max) return s; while (g.measureText(s + "…").width > max && s.length > 1) s = s.slice(0, -1); return s + "…"; }
+  // 띄어쓰기 단위로 줄바꿈(한 단어가 너무 길면 글자 단위), 마지막 줄은 말줄임
+  function wrap(text, x, y, max, lh, lines) {
+    const words = String(text).split(/(\s+)/).filter(Boolean); let line = "", n = 0;
+    const flush = () => { g.fillText(line.trim(), x, y); y += lh; line = ""; n++; };
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      if (g.measureText(line + w).width <= max) { line += w; continue; }
+      if (n === lines - 1) { g.fillText(clip(line + words.slice(i).join(""), max), x, y); return; }
+      if (line.trim()) { flush(); if (/^\s+$/.test(w)) continue; }
+      if (g.measureText(w).width > max) { // 아주 긴 단어
+        for (const ch of w) { if (g.measureText(line + ch).width > max) { if (n === lines - 1) { g.fillText(clip(line + ch + "…", max), x, y); return; } flush(); } line += ch; }
+      } else line = w;
     }
-    ctx.fillText(line, x, y);
+    if (line.trim()) g.fillText(line.trim(), x, y);
   }
 }
 
@@ -1569,8 +1712,13 @@ function openShare(rec) {
       <button class="primary secondary" id="share-save">🖼️ 이미지 저장</button>
       ${navigator.share ? `<button class="primary" id="share-native">📤 공유하기</button>` : ""}
     </div>`, () => {
-      const canvas = drawVerdictImage(rec);
+      let canvas = drawVerdictImage(rec);
       document.getElementById("share-img").src = canvas.toDataURL("image/png");
+      // 픽셀 글꼴이 늦게 내려받아지면 다시 그린다
+      if (document.fonts && document.fonts.load) Promise.all([document.fonts.load('700 40px Galmuri11'), document.fonts.load('400 24px Galmuri11')]).then(() => {
+        const img = document.getElementById("share-img"); if (!img) return;
+        canvas = drawVerdictImage(rec); img.src = canvas.toDataURL("image/png");
+      }).catch(() => { });
       const ok = msg => { const el = document.getElementById("share-ok"); el.textContent = msg; el.hidden = false; };
       document.getElementById("share-copy").onclick = async () => {
         try { await navigator.clipboard.writeText(verdictText(rec)); ok("판결문 문구를 복사했어요. 원하는 곳에 붙여 넣으세요!"); }
@@ -1598,15 +1746,22 @@ function openShare(rec) {
 }
 
 let recordFilter = { cat: "전체", q: "" };
+let lastDeleted = null; // 체험 모드에서 방금 지운 기록(되돌리기용, 이 화면에서만)
 async function showRecords() {
   const { records, source, error } = await loadRecords();
-  const mode = source === "server"
+  if (source !== "local") lastDeleted = null;
+  const mode = (source === "server"
     ? `<p class="hint">🔒 ${escapeHTML(currentUser.email || "")} 계정의 기록입니다. 다른 사람은 볼 수 없어요.</p>`
-    : `<p class="hint">🧪 체험 모드: 이 브라우저에만 저장됩니다. <button type="button" class="link-btn" id="rec-login">로그인</button>하면 계정에 저장돼요.</p>`;
+    : `<p class="hint">🧪 체험 모드: 이 기기(브라우저) 안에만 저장된 기록이에요. <button type="button" class="link-btn" id="rec-login">로그인</button>하면 그다음 판결부터 계정에 저장되고, 지금 기록은 계정으로 옮겨지지 않아요.</p>`)
+    + (lastDeleted ? `<p class="ok undo-line" role="status">「${escapeHTML(lastDeleted.item.title)}」 기록을 삭제했어요. <button type="button" class="link-btn" id="rec-undo">되돌리기</button></p>` : "");
   const wire = () => { const b = document.getElementById("rec-login"); if (b) b.onclick = () => openLogin(); };
-  if (error) { openModal("📜 결정 기록실", mode + `<p class="err">${escapeHTML(dbMessage(error))}</p>`, wire); return; }
+  if (error) { openModal("📜 결정 기록실", mode + `<p class="err">기록을 불러오지 못했어요. ${escapeHTML(dbMessage(error))}</p><button type="button" class="primary secondary" id="rec-retry">다시 시도</button>`, () => { wire(); document.getElementById("rec-retry").onclick = showRecords; }); return; }
   if (!records.length) {
-    openModal("📜 결정 기록실", mode + `<div class="empty"><div class="empty-faces"><img class="owl" src="assets/owl.png" alt="서기관 부엉이" /></div>아직 저장된 결정이 없습니다.<br>고민을 접수하고 첫 결정을 만들어 보세요!<br><button class="primary" id="rec-start">고민 접수하기</button></div>`, () => { wire(); document.getElementById("rec-start").onclick = () => startMeeting(); });
+    openModal("📜 결정 기록실", mode + `<div class="empty"><div class="empty-faces"><img class="owl" src="assets/owl.png" alt="서기관 부엉이" /></div>아직 저장된 결정이 없습니다.<br>고민을 접수하고 첫 결정을 만들어 보세요!<br><button class="primary" id="rec-start">고민 접수하기</button></div>`, () => {
+      wire(); document.getElementById("rec-start").onclick = () => startMeeting();
+      const undo = document.getElementById("rec-undo");
+      if (undo) undo.onclick = () => { if (!lastDeleted) return; const list = getRecords(); list.unshift(lastDeleted.item); if (saveRecords(list)) { lastDeleted = null; showRecent(); showRecords(); } };
+    });
     return;
   }
   const cats = ["전체", ...[...CATEGORIES, ...Object.keys(LEGACY_CATEGORY)].filter(c => records.some(r => r.category === c))];
@@ -1702,16 +1857,35 @@ async function showRecords() {
         if (real.length >= 2) meeting.rawOptions = real.slice(0, LIMITS.optionsMax);
         renderAgenda();
       });
+      // 삭제는 한 번 더 확인한다. 취소하면 아무것도 지우지 않는다.
       modalRoot.querySelectorAll("[data-delete]").forEach(button => {
-        button.onclick = async () => {
-          button.disabled = true;
-          const index = Number(button.dataset.delete);
-          const res = await removeRecord(records[index], index);
-          if (!res.ok) { button.disabled = false; return showError("rec-err", dbMessage(res.error) || "삭제하지 못했어요."); }
-          showRecent();
-          showRecords();
+        button.onclick = () => {
+          const index = Number(button.dataset.delete), item = records[index];
+          const row = button.parentElement;
+          if (row.querySelector(".del-confirm")) return;
+          button.hidden = true;
+          row.insertAdjacentHTML("beforeend", `<div class="del-confirm" role="group" aria-label="삭제 확인">
+            <span>「${escapeHTML(item.title)}」 기록을 삭제할까요? ${source === "server" ? "계정에서 지우면 되돌릴 수 없어요." : "삭제 직후에는 되돌릴 수 있어요."}</span>
+            <button type="button" class="delete-btn" data-del-yes>삭제</button><button type="button" class="chip" data-del-no>취소</button></div>`);
+          const box = row.querySelector(".del-confirm");
+          box.querySelector("[data-del-no]").onclick = () => { box.remove(); button.hidden = false; button.focus(); };
+          const yes = box.querySelector("[data-del-yes]"); yes.focus();
+          yes.onclick = async () => {
+            yes.disabled = true;
+            const res = await removeRecord(item, index);
+            if (!res.ok) { yes.disabled = false; return showError("rec-err", (dbMessage(res.error) || "삭제하지 못했어요.") + " 기록은 그대로 있어요."); }
+            if (source === "local") lastDeleted = { item, index };
+            showRecent();
+            showRecords();
+          };
         };
       });
+      const undo = document.getElementById("rec-undo");
+      if (undo) undo.onclick = () => {
+        if (!lastDeleted) return;
+        const list = getRecords(); list.splice(Math.min(lastDeleted.index, list.length), 0, lastDeleted.item);
+        if (saveRecords(list)) { lastDeleted = null; showRecent(); showRecords(); }
+      };
     });
 }
 
@@ -1808,7 +1982,7 @@ async function openStats() {
       <div class="stat"><b>${retrials}</b><span>재심 청구</span></div>
       <div class="stat"><b>${topCat ? categoryIcon(topCat[0]) : "-"}</b><span>${topCat ? escapeHTML(topCat[0]) + " 고민이 가장 많아요" : ""}</span></div>
     </div>
-    <h3 class="sub-h">🏆 장관별 내 판결 적중률</h3>
+    <h3 class="sub-h">🏆 장관별 최종 판결 일치율</h3>
     <p class="hint">장관이 던진 표가 최종 판결과 같았던 비율입니다. 높을수록 그 장관의 생각이 내 결정과 닮았어요.</p>
     <div class="tally">
       ${ranked.map((x, i) => `
@@ -1924,6 +2098,7 @@ applyAvatar();
 // ===== 📮 국민 여론 광장 =====
 // 보기: 누구나(합계만 공개하는 poll_board 함수). 글쓰기·투표·신고: 로그인 사용자만.
 // 1인 1표·마감·선택지 범위·하루 5개 제한·신고 3건 숨김은 모두 DB(제약·트리거·RLS)가 강제한다.
+const PII_RE = [/01[016789][- .]?\d{3,4}[- .]?\d{4}/, /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i];
 const POLL_DURATIONS = [[1, "1시간"], [24, "하루"], [72, "3일"], [168, "7일"]];
 let pollFilter = "open";
 let pollSort = "soon"; // soon: 마감 임박 · new: 최신 · hot: 참여 많은 순
@@ -1947,8 +2122,8 @@ function pollLeft(iso) {
 }
 function pollError(error) {
   const msg = String((error && (error.message || error.code)) || "");
-  const known = ["로그인이 필요해요", "하루에 5개", "마감된 여론조사", "없는 선택지", "투표할 수 없는", "내 글은 신고할 수 없어요"].find(k => msg.includes(k));
-  if (known) return msg.replace(/^.*?(여론조사는|로그인|마감|없는|투표할|내 글)/, "$1");
+  const known = ["로그인이 필요해요", "하루에 5개", "마감된 여론조사", "없는 선택지", "투표할 수 없는", "내 글은 신고할 수 없어요", "4자 이상", "개인정보는 올릴 수 없어요"].find(k => msg.includes(k));
+  if (known) return msg.replace(/^.*?(여론조사는|로그인|마감|없는|투표할|내 글|제목은|전화번호)/, "$1");
   if (/duplicate|23505/.test(msg)) return "이미 참여했어요.";
   return dbMessage(error);
 }
@@ -2010,8 +2185,14 @@ async function renderPollPanel(polls) {
   const box = document.getElementById("poll-home");
   if (!box) return;
   if (!polls) {
-    if (!box.children.length) box.innerHTML = `<div class="empty-line">여론을 모으는 중…</div>`;
-    ({ polls } = await loadPolls());
+    if (!box.children.length || box.querySelector(".state-error")) box.innerHTML = `<div class="empty-line">여론을 모으는 중…</div>`;
+    let error;
+    ({ polls, error } = await loadPolls());
+    if (error) { // 연결 실패를 '글이 없음'으로 보이지 않게
+      box.innerHTML = `<div class="empty-line state-error">여론을 불러오지 못했어요. 잠시 연결이 불안정할 수 있어요. <button type="button" class="link-btn" id="poll-home-retry">다시 시도</button></div>`;
+      document.getElementById("poll-home-retry").onclick = ev => { ev.target.disabled = true; renderPollPanel(); };
+      return;
+    }
   }
   const open = polls.filter(p => p.is_open);
   if (!open.length) { box.innerHTML = `<div class="empty-line">진행 중인 여론조사가 없어요. 첫 고민을 올려 보세요!</div>`; return; }
@@ -2053,22 +2234,26 @@ async function openPolls(focusId) {
     <p class="poll-intro">고민을 올리면 다른 시민들이 투표해 줘요. 장관 판결과 국민 여론을 비교해 보세요!</p>
     <div class="poll-top">
       <div class="chip-row" role="group" aria-label="보기">
-        <button type="button" class="chip" data-pf="open" aria-pressed="${pollFilter === "open"}">⏳ 진행 중 ${open.length}</button>
-        <button type="button" class="chip" data-pf="closed" aria-pressed="${pollFilter === "closed"}">🔒 마감 ${closed.length}</button>
+        <button type="button" class="chip" data-pf="open" aria-pressed="${pollFilter === "open"}">⏳ 진행 중 ${error ? "" : open.length}</button>
+        <button type="button" class="chip" data-pf="closed" aria-pressed="${pollFilter === "closed"}">🔒 마감 ${error ? "" : closed.length}</button>
       </div>
       <button type="button" class="primary" id="poll-new">✍️ 여론조사 올리기</button>
     </div>
     <div class="chip-row poll-sort" role="group" aria-label="정렬">${POLL_SORTS.map(([k, t]) => `<button type="button" class="chip" data-psort="${k}" aria-pressed="${pollSort === k}">${t}</button>`).join("")}</div>
     ${currentUser ? "" : `<div class="info-box">👀 <b>투표·글쓰기</b>는 로그인한 시민만 할 수 있어요. 진행 중인 여론조사의 결과는 투표한 뒤에, 마감된 결과는 누구나 볼 수 있어요. <button type="button" class="link-btn" id="poll-login">로그인하기</button></div>`}
-    ${error ? `<div class="form-error">여론을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</div>` : ""}
     <div id="poll-msg" class="form-error" role="alert"></div>
-    <div class="poll-list">${list.length ? list.map(pollCard).join("") : `<div class="empty">${pollFilter === "open" ? "진행 중인 여론조사가 없어요. 첫 고민을 올려 보세요!" : "마감된 여론조사가 없어요."}</div>`}</div>
-    <div class="notice">공개 게시판입니다. 이름·연락처·주소 같은 개인정보는 적지 마세요. 작성자와 투표자는 공개되지 않고 표 합계만 보여요. 신고가 3건 쌓이면 자동으로 숨겨져요.</div>`;
+    <div class="poll-list">${error
+      ? `<div class="empty state-error">여론을 불러오지 못했어요. 글이 없는 게 아니라 연결 문제일 수 있어요.<br><button type="button" class="primary secondary" id="poll-retry">다시 시도</button></div>`
+      : list.length ? list.map(pollCard).join("") : `<div class="empty">${pollFilter === "open" ? "진행 중인 여론조사가 없어요. 첫 고민을 올려 보세요!" : "마감된 여론조사가 없어요."}</div>`}</div>
+    <div class="notice">공개 게시판입니다. 이름·연락처·주소 같은 개인정보는 적지 마세요. 작성자와 투표자는 공개되지 않고 표 합계만 보여요. 신고가 3건 쌓이면 자동으로 숨겨지고, 운영자가 확인해 숨김을 유지하거나 복원해요.</div>`;
   if (focusId) {
     const card = [...body.querySelectorAll("[data-poll-id]")].find(c => c.dataset.pollId === focusId);
     if (card) { card.classList.add("focus"); card.scrollIntoView({ block: "center" }); }
   }
   const msg = text => { const el = document.getElementById("poll-msg"); if (el) el.textContent = text; };
+  let polling = false; // 다시 시도를 여러 번 눌러도 요청은 하나만
+  const rt = document.getElementById("poll-retry");
+  if (rt) rt.onclick = () => { if (polling) return; polling = true; rt.disabled = true; rt.textContent = "불러오는 중…"; openPolls(focusId); };
   body.querySelectorAll("[data-pf]").forEach(b => b.onclick = () => { pollFilter = b.dataset.pf; openPolls(); });
   body.querySelectorAll("[data-psort]").forEach(b => b.onclick = () => { pollSort = b.dataset.psort; openPolls(); });
   document.getElementById("poll-new").onclick = () => openPollForm();
@@ -2080,11 +2265,24 @@ async function openPolls(focusId) {
     if (e) { msg("투표하지 못했어요. " + pollError(e)); body.querySelectorAll(`[data-vote="${CSS.escape(b.dataset.vote)}"]`).forEach(x => x.disabled = false); return; }
     openPolls();
   });
-  body.querySelectorAll("[data-preport]").forEach(b => b.onclick = async () => {
-    if (!confirm("이 여론조사를 신고할까요? 욕설·개인정보·광고처럼 부적절한 글만 신고해 주세요.")) return;
-    const { error: e } = await db.from("poll_reports").insert({ poll_id: b.dataset.preport });
-    if (e) return msg("신고하지 못했어요. " + pollError(e));
-    openPolls();
+  // 신고: 사유를 고르게 한다(개인정보·욕설·광고·기타). 3건이 쌓이면 자동 숨김, 운영자가 확인 후 숨김 유지/복원.
+  body.querySelectorAll("[data-preport]").forEach(b => b.onclick = () => {
+    const foot = b.closest(".poll-foot");
+    if (foot.nextElementSibling && foot.nextElementSibling.classList.contains("report-box")) return;
+    foot.insertAdjacentHTML("afterend", `<div class="report-box" role="group" aria-label="신고 사유">
+      <span>신고 사유를 골라 주세요. 허위 신고는 운영자가 확인해 복원해요.</span>
+      <div class="chip-row">${["개인정보", "욕설", "광고", "기타"].map(r => `<button type="button" class="chip" data-reason="${r}">${r}</button>`).join("")}
+      <button type="button" class="link-btn" data-report-no>취소</button></div></div>`);
+    const box = foot.nextElementSibling;
+    box.querySelector("[data-report-no]").onclick = () => { box.remove(); b.focus(); };
+    box.querySelectorAll("[data-reason]").forEach(rb => rb.onclick = async () => {
+      box.querySelectorAll("button").forEach(x => x.disabled = true);
+      let { error: e } = await db.from("poll_reports").insert({ poll_id: b.dataset.preport, reason: rb.dataset.reason });
+      if (e && /reason/.test(String(e.message))) ({ error: e } = await db.from("poll_reports").insert({ poll_id: b.dataset.preport })); // 사유 칸이 없는 DB
+      if (e) { box.querySelectorAll("button").forEach(x => x.disabled = false); return msg("신고하지 못했어요. " + pollError(e)); }
+      openPolls();
+    });
+    box.querySelector("[data-reason]").focus();
   });
   body.querySelectorAll("[data-pdel]").forEach(b => b.onclick = async () => {
     if (!confirm("내 여론조사를 삭제할까요? 받은 표도 함께 지워져요.")) return;
@@ -2101,7 +2299,7 @@ function openPollForm(prefill = {}) {
   openModal("✍️ 여론조사 올리기", `
     <form id="poll-form" novalidate>
       <div class="field"><label for="poll-title">고민 제목</label>
-        <input id="poll-title" maxlength="100" autocomplete="off" value="${escapeHTML(prefill.title || "")}" placeholder="예) 오늘 저녁 뭐 먹지?" /></div>
+        <input id="poll-title" maxlength="100" autocomplete="off" value="${escapeHTML(prefill.title || "")}" placeholder="예) 주말에 영화 vs 전시회?" /></div>
       <div class="field"><label>고민 유형</label>
         <div class="chip-row" role="group" aria-label="고민 유형">${CATEGORIES.map(c => `<button type="button" class="chip" data-pcat="${c}" aria-pressed="${c === cat}">${categoryIcon(c)} ${c}</button>`).join("")}</div></div>
       <div class="field"><label>선택지 <small>(2~6개, 각 40자 이내)</small></label>
@@ -2128,6 +2326,8 @@ function openPollForm(prefill = {}) {
         const title = document.getElementById("poll-title").value.trim();
         const options = [...form.querySelectorAll(".poll-opt")].map(i => i.value.trim()).filter(Boolean);
         if (!title) return (err.textContent = "고민 제목을 적어 주세요.");
+        if (title.length < 4) return (err.textContent = "제목은 4자 이상 적어 주세요.");
+        if (PII_RE.some(re => re.test([title, ...options].join(" ")))) return (err.textContent = "전화번호·이메일 같은 개인정보는 올릴 수 없어요.");
         if (title.length > 100) return (err.textContent = "제목은 100자 이내로 적어 주세요.");
         if (options.length < 2) return (err.textContent = "선택지를 2개 이상 적어 주세요.");
         if (options.some(o => o.length > 40)) return (err.textContent = "선택지는 40자 이내로 적어 주세요.");
@@ -2158,7 +2358,7 @@ document.querySelectorAll("[data-action]").forEach(button => {
     if (action === "share") loadRecords().then(({ records }) => records[0] ? openShare(records[0])
       : openModal("📤 판결문 공유", `<p>아직 공유할 판결이 없어요. 먼저 고민을 접수해 보세요!</p><button class="primary" id="share-start">고민 접수하기</button>`, () => { document.getElementById("share-start").onclick = () => startMeeting(); }));
     if (action === "settings") openModal("⚙️ 설정", `
-      <div class="field"><label>기록 관리</label><p class="hint">${currentUser ? "결정 기록은 로그인한 계정에 저장되며, 본인만 보고 지울 수 있습니다." : "체험 모드: 결정 기록은 이 브라우저에만 보관되며 서버로 전송되지 않습니다. 로그인하면 계정에 저장됩니다."}</p></div>
+      <div class="field"><label>기록 관리</label><p class="hint">${currentUser ? "결정 기록은 로그인한 계정에 저장되며, 본인만 보고 지울 수 있습니다." : "체험 모드: 결정 기록은 이 기기(브라우저) 안에만 보관되며 서버로 전송되지 않습니다. 로그인하면 그다음 판결부터 계정에 저장되고, 지금 기록은 계정으로 옮겨지지 않아요."}</p></div>
       <div class="field"><label>내 캐릭터 고르기</label>
         <p class="hint">${currentUser ? "선택한 캐릭터는 내 계정에 저장됩니다." : "체험 모드에서는 이 브라우저에만 저장됩니다."}</p>
         <p class="err" id="set-err" role="alert" hidden></p>
@@ -2170,11 +2370,32 @@ document.querySelectorAll("[data-action]").forEach(button => {
           modalRoot.querySelectorAll("[data-avatar]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
           applyAvatar();
         });
-        document.getElementById("clear-records").onclick = async () => {
-          const res = await clearRecords();
-          if (!res.ok) return showError("set-err", dbMessage(res.error));
-          showRecent();
-          closeModal();
+        // 전체 삭제: 몇 건이 어디(계정/이 브라우저)에서 지워지는지 보여 주고, '삭제'를 직접 입력해야 진행
+        document.getElementById("clear-records").onclick = async ev => {
+          const btn = ev.currentTarget;
+          if (document.getElementById("clear-box")) return;
+          const { records, error } = await loadRecords();
+          if (error) return showError("set-err", "기록을 불러오지 못해 삭제하지 않았어요. " + dbMessage(error));
+          if (!records.length) return showError("set-err", "지울 기록이 없어요.");
+          const where = currentUser ? `내 계정(${escapeHTML(currentUser.email || "")})` : "이 브라우저";
+          btn.hidden = true;
+          btn.insertAdjacentHTML("afterend", `<div class="del-confirm big" id="clear-box">
+            <p><b>${where}</b>에 저장된 기록 <b>${records.length}건</b>을 모두 삭제합니다. ${currentUser ? "삭제하면 되돌릴 수 없어요." : "삭제하면 되돌릴 수 없어요."}</p>
+            <label for="clear-word">계속하려면 <b>삭제</b>라고 입력해 주세요.</label>
+            <input id="clear-word" autocomplete="off" maxlength="10" />
+            <div class="btn-row"><button type="button" class="delete-btn" id="clear-yes" disabled>${records.length}건 모두 삭제</button><button type="button" class="chip" id="clear-no">취소</button></div></div>`);
+          const word = document.getElementById("clear-word"), yes = document.getElementById("clear-yes");
+          word.focus();
+          word.oninput = () => { yes.disabled = word.value.trim() !== "삭제"; };
+          document.getElementById("clear-no").onclick = () => { document.getElementById("clear-box").remove(); btn.hidden = false; btn.focus(); };
+          yes.onclick = async () => {
+            yes.disabled = true;
+            const res = await clearRecords();
+            if (!res.ok) { yes.disabled = false; return showError("set-err", (dbMessage(res.error) || "삭제하지 못했어요.") + " 기록은 그대로 있어요."); }
+            lastDeleted = null;
+            showRecent();
+            closeModal();
+          };
         };
       });
     if (action === "login") { if (currentUser) openAccount(); else openLogin(); }
