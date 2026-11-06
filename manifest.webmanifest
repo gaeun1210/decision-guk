@@ -1,0 +1,24 @@
+{
+  "name": "결정국 — 고민은 접수하고, 결정은 즐겁게!",
+  "short_name": "결정국",
+  "description": "고민을 접수하면 성향이 다른 장관 4명이 각자 기준으로 판단하고 투표해 판결을 내려 주는 국무회의",
+  "lang": "ko",
+  "id": "./",
+  "start_url": "./?source=app",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8F3EA",
+  "theme_color": "#854B45",
+  "categories": ["lifestyle", "entertainment"],
+  "icons": [
+    { "src": "assets/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/app-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "국무회의 열기", "short_name": "국무회의", "url": "./?open=meeting", "icons": [{ "src": "assets/app-icon-192.png", "sizes": "192x192" }] },
+    { "name": "국민 여론", "short_name": "여론", "url": "./?open=polls", "icons": [{ "src": "assets/app-icon-192.png", "sizes": "192x192" }] },
+    { "name": "결정 기록실", "short_name": "기록", "url": "./?open=records", "icons": [{ "src": "assets/app-icon-192.png", "sizes": "192x192" }] }
+  ]
+}

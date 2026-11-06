@@ -6,6 +6,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8771';
 mkdirSync(path.join(HERE, 'out'), { recursive: true });
 import fs from 'fs';
+// 이 테스트는 가짜 서버를 끼우므로 서비스 워커(앱 저장)는 끈다 — pwa.mjs에서 따로 검사
 const fake = fs.readFileSync(path.join(HERE, 'fake2.js'), 'utf8');
 const b = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH, args: ['--no-sandbox'] } : { args: ['--no-sandbox'] });
 const out = []; const ok = (n, c, x = '') => out.push(`${c ? 'PASS' : 'FAIL'}  ${n}${x ? '  → ' + String(x).replace(/\s+/g, ' ').slice(0, 160) : ''}`);
@@ -15,7 +16,7 @@ async function picks(p, list) { for (const t of list) await pickPage(p, t); }
 async function factPage(p, levels) { for (let i = 0; i < levels.length; i++) { const btn = p.locator(`.modal [data-fact="${i}"][data-lv="${levels[i]}"]`); if (await btn.count()) await btn.click(); } await p.click('#q-next'); await p.waitForTimeout(150); }
 async function facts(p, matrix) { for (const row of matrix) await factPage(p, row); }
 async function page(w, h = 800, ctx) {
-  const c = ctx || await b.newContext({ viewport: { width: w, height: h } });
+  const c = ctx || await b.newContext({ serviceWorkers: 'block', viewport: { width: w, height: h } });
   const p = await c.newPage();
   p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('dialog', d => d.accept());
   await p.route('**/*', r => { const u = r.request().url();

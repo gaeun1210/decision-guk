@@ -2643,7 +2643,9 @@ document.querySelectorAll("[data-action]").forEach(button => {
         <p class="hint">${currentUser ? "선택한 캐릭터는 내 계정에 저장됩니다." : "체험 모드에서는 이 브라우저에만 저장됩니다."}</p>
         <p class="err" id="set-err" role="alert" hidden></p>
         <div class="avatar-grid">${AVATARS.map(a => `<button type="button" class="avatar-opt" data-avatar="${a[0]}" aria-pressed="${getAvatar() === a[0]}" title="${a[1]}"><img src="assets/people/person_${a[0]}.png" alt="${a[1]}"></button>`).join("")}</div></div>
+      <div class="field"><label>📲 앱으로 쓰기</label><div id="install-box">${installHTML()}</div></div>
       <button class="delete-btn" id="clear-records">저장된 기록 모두 삭제</button>`, () => {
+        wireInstall(document.getElementById("install-box"));
         modalRoot.querySelectorAll("[data-avatar]").forEach(b => b.onclick = async () => {
           const res = await setAvatar(b.dataset.avatar);
           if (!res.ok) return showError("set-err", dbMessage(res.error));
@@ -2700,4 +2702,55 @@ if (db) {
     if (event === "PASSWORD_RECOVERY") setTimeout(openNewPassword, 0);
     setTimeout(() => onAuthChanged(session), 0); // 콜백 안에서 바로 DB를 부르지 않도록 다음 틱에 처리
   });
+}
+
+// ===== 앱으로 쓰기(홈 화면에 추가, PWA) =====
+// 앱 화면 파일만 저장해 빠르게 열고, 인터넷이 끊겨도 체험 모드로 열린다. 개인 기록·로그인 데이터는 저장하지 않는다(sw.js).
+let installPrompt = null;
+const INSTALL_HIDE_KEY = "decision-country-install-hide";
+function isStandalone() { try { return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; } catch { return false; } }
+function isIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }
+function installHTML() {
+  if (isStandalone()) return `<p class="hint">✅ 지금 앱으로 실행 중이에요.</p>`;
+  if (installPrompt) return `<button type="button" class="primary secondary" data-install>📲 홈 화면에 결정국 추가</button><p class="hint">설치하면 앱처럼 전체 화면으로 열리고, 인터넷이 끊겨도 체험 모드로 쓸 수 있어요.</p>`;
+  if (isIOS()) return `<p class="hint"><b>아이폰·아이패드</b>: Safari 아래쪽 <b>공유 버튼(□↑)</b> → <b>홈 화면에 추가</b>를 누르세요.</p>`;
+  return `<p class="hint"><b>안드로이드</b>: 크롬 오른쪽 위 <b>⋮</b> → <b>홈 화면에 추가</b>(또는 <b>앱 설치</b>) · <b>PC</b>: 주소창 오른쪽 <b>설치 아이콘</b>을 누르세요.</p>`;
+}
+function wireInstall(root) {
+  if (!root) return;
+  const b = root.querySelector("[data-install]");
+  if (b) b.onclick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    try { await installPrompt.userChoice; } catch { }
+    installPrompt = null; renderInstallBar();
+    root.innerHTML = installHTML(); wireInstall(root);
+  };
+}
+// 휴대폰 화면 아래(메뉴 위)에 한 번 안내. 닫으면 다시 묻지 않는다.
+function renderInstallBar() {
+  let bar = document.getElementById("install-bar");
+  let hidden = false; try { hidden = localStorage.getItem(INSTALL_HIDE_KEY) === "1"; } catch { }
+  const show = !isStandalone() && !hidden && (installPrompt || isIOS()) && matchMedia("(max-width: 820px)").matches;
+  if (!show) { if (bar) bar.remove(); return; }
+  if (!bar) { bar = document.createElement("div"); bar.id = "install-bar"; bar.className = "install-bar"; bar.setAttribute("role", "region"); bar.setAttribute("aria-label", "앱 설치 안내"); document.body.appendChild(bar); }
+  bar.innerHTML = `<img src="assets/app-icon-192.png" alt="" /><span><b>결정국을 앱처럼 쓰기</b><small>홈 화면에 추가하면 바로 열려요</small></span>
+    <button type="button" class="chip" data-install-go>${installPrompt ? "추가" : "방법"}</button><button type="button" class="close" data-install-x aria-label="닫기">×</button>`;
+  bar.querySelector("[data-install-x]").onclick = () => { try { localStorage.setItem(INSTALL_HIDE_KEY, "1"); } catch { } bar.remove(); };
+  bar.querySelector("[data-install-go]").onclick = async () => {
+    if (installPrompt) { installPrompt.prompt(); try { await installPrompt.userChoice; } catch { } installPrompt = null; renderInstallBar(); }
+    else openModal("📲 앱으로 쓰기", `<div id="install-box">${installHTML()}</div>`, () => wireInstall(document.getElementById("install-box")));
+  };
+}
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installPrompt = e; renderInstallBar(); const box = document.getElementById("install-box"); if (box) { box.innerHTML = installHTML(); wireInstall(box); } });
+window.addEventListener("appinstalled", () => { installPrompt = null; renderInstallBar(); });
+if ("serviceWorker" in navigator && (location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname))) {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => { }); });
+}
+renderInstallBar();
+// 앱 바로가기(홈 화면 아이콘 길게 누르기): ?open=meeting / polls / records
+{
+  const open = new URLSearchParams(location.search).get("open");
+  const go = { meeting: () => openMeeting(), polls: () => openPolls(), records: () => showRecords() }[open];
+  if (go) { history.replaceState(null, "", location.pathname); setTimeout(go, 300); }
 }

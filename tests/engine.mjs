@@ -9,7 +9,7 @@ const BASE = process.env.BASE_URL || 'http://127.0.0.1:8771';
 mkdirSync(path.join(HERE, 'out'), { recursive: true });
 const fake = fs.readFileSync(path.join(HERE, 'fake3.js'), 'utf8');
 const b = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH, args: ['--no-sandbox'] } : { args: ['--no-sandbox'] });
-const p = await b.newPage();
+const p = await b.newPage({ serviceWorkers: 'block' }); // 앱 저장(서비스 워커)은 pwa.mjs에서 따로 검사
 p.errs = []; p.on('pageerror', e => p.errs.push(e.message));
 await p.route('**/*', r => { const u = r.request().url();
   if (u.endsWith('/index.html')) return r.fetch().then(async resp => r.fulfill({ response: resp, body: (await resp.text()).replace(/ integrity="[^"]+"/g, '') }));

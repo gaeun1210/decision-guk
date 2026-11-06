@@ -27,6 +27,7 @@ jobs:
       - run: node tests/rel.mjs | tee rel.txt && grep -q "통과" rel.txt && ! grep -q "^FAIL" rel.txt
       - run: node tests/sec.mjs | tee sec.txt && ! grep -q "^FAIL" sec.txt
       - run: node tests/engine.mjs | tee engine.txt && ! grep -q "^FAIL" engine.txt
+      - run: node tests/pwa.mjs | tee pwa.txt && ! grep -q "^FAIL" pwa.txt
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

@@ -10,7 +10,7 @@ const fake = fs.readFileSync(path.join(HERE, 'fake3.js'), 'utf8');
 const b = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH, args: ['--no-sandbox'] } : { args: ['--no-sandbox'] });
 const out = []; const ok = (n, c, x = '') => out.push(`${c ? 'PASS' : 'FAIL'}  ${n}${x ? '  → ' + String(x).replace(/\s+/g, ' ').slice(0, 160) : ''}`);
 async function page(w, h = 900, pre = '') {
-  const p = await b.newPage({ viewport: { width: w, height: h } });
+  const p = await b.newPage({ serviceWorkers: 'block', viewport: { width: w, height: h } });
   p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('dialog', d => { p.dialog = d.message(); d.dismiss(); });
   await p.route('**/*', r => { const u = r.request().url();
     // 테스트는 가짜 서버(fake*.js)를 끼우므로 SRI 무결성 검사만 테스트 페이지에서 뺀다(실제 사이트는 그대로)
@@ -175,7 +175,7 @@ for (const w of [360, 390]) { const p = await page(w, 800);
   await p.close(); }
 
 // 11. 개인정보 페이지 모바일 가로 넘침
-{ const p = await b.newPage({ viewport: { width: 360, height: 800 } });
+{ const p = await b.newPage({ serviceWorkers: 'block', viewport: { width: 360, height: 800 } });
   await p.route('**/*', r => r.request().url().startsWith(BASE + '') ? r.continue() : r.abort());
   await p.goto(BASE + '/privacy.html'); await p.waitForTimeout(200);
   const r = await p.evaluate(() => ({ docw: document.documentElement.scrollWidth, bg: getComputedStyle(document.body).backgroundColor, issues: !!document.querySelector('a[href*="issues"]') }));

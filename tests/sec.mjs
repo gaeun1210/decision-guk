@@ -12,7 +12,7 @@ const b = await chromium.launch(process.env.CHROME_PATH ? { executablePath: proc
 const out = []; const ok = (n, c, x = '') => out.push(`${c ? 'PASS' : 'FAIL'}  ${n}${x ? '  → ' + String(x).replace(/\s+/g, ' ').slice(0, 160) : ''}`);
 const X1 = '<img src=x onerror="window.__xss=1">', X2 = '"><svg onload="window.__xss=2">', X3 = "'><script>window.__xss=3</script>";
 async function page(w = 1440, h = 900) {
-  const p = await b.newPage({ viewport: { width: w, height: h } });
+  const p = await b.newPage({ serviceWorkers: 'block', viewport: { width: w, height: h } });
   p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('dialog', d => { p.dialog = d.message(); d.dismiss(); });
   await p.route('**/*', r => { const u = r.request().url();
     if (u.endsWith('/index.html')) return r.fetch().then(async resp => r.fulfill({ response: resp, body: (await resp.text()).replace(/ integrity="[^"]+"/g, '') }));

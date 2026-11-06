@@ -10,7 +10,7 @@ const fake = fs.readFileSync(path.join(HERE, 'fake2.js'), 'utf8');
 const b = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH, args: ['--no-sandbox'] } : { args: ['--no-sandbox'] });
 const out = []; const ok = (n, c, x = '') => out.push(`${c ? 'PASS' : 'FAIL'}  ${n}${x ? '  → ' + String(x).replace(/\s+/g, ' ').slice(0, 140) : ''}`);
 async function page(w, h = 860, apiMode = 'ok') {
-  const p = await b.newPage({ viewport: { width: w, height: h } });
+  const p = await b.newPage({ serviceWorkers: 'block', viewport: { width: w, height: h } });
   p.errs = []; p.dialogs = []; p.on('pageerror', e => p.errs.push(e.message));
   p.on('dialog', async d => { p.dialogs.push(d.message()); p.dialogAnswer === false ? await d.dismiss() : await d.accept(); });
   await p.route('**/*', r => { const u = r.request().url();
