@@ -32,6 +32,8 @@ ok('P-05 개인 데이터·조회 요청(Supabase·/api/)은 저장하지 않음
 const sh = await p.evaluate(() => { history.replaceState(null, '', '?open=records'); return true; });
 await p.goto(BASE + '/index.html?open=records'); await p.waitForTimeout(800);
 ok('P-06 앱 바로가기(?open=records) → 결정 기록실이 바로 열림', (await p.locator('.modal').innerText().catch(() => '')).includes('결정 기록실'));
+const swSrc = fs.readFileSync(path.join(HERE, '..', 'sw.js'), 'utf8');
+ok('P-07 서비스 워커는 다른 서버(CDN·Supabase) 요청을 가로채지 않음(보안 헤더 CSP에 막히지 않게)', /url\.origin !== self\.location\.origin\) return/.test(swSrc) && !/cdn\.jsdelivr/.test(swSrc.replace(/\/\/.*$/gm, '')));
 ok('P-00 오류 없음', !p.errs.length, p.errs.join(' | '));
 console.log(out.join('\n')); console.log(`\n${out.filter(l => l.startsWith('PASS')).length}/${out.length} 통과`);
 await b.close();
