@@ -1254,7 +1254,7 @@ function evidenceContext(m) {
 
 // 장관 한 명이 선택지 하나에 매기는 점수와 이유(장점 pros · 걸리는 점 cons, 실시간 근거는 ev 표시)
 function scoreGeneral(m, name, i, E) {
-  const pros = [], cons = [], evs = [];
+  const pros = [], cons = [], evs = [], warns = [];
   const risk = factOf(m, "risk", i), appeal = factOf(m, "appeal", i), cost = factOf(m, "cost", i), ready = factOf(m, "ready", i);
   const out = E && E.outdoor.has(i), bad = E && E.w && E.f.bad.length, caution = E && E.w && E.f.caution.length, good = E && E.w && E.f.good;
   const con = (t, ev) => { cons.push(t); if (ev) evs.push(t); }, pro = (t, ev) => { pros.push(t); if (ev) evs.push(t); };
@@ -1266,8 +1266,8 @@ function scoreGeneral(m, name, i, E) {
     if (m.reversible === false && risk > 0) { s -= risk * 0.5; con("한번 하면 되돌리기도 어려워요"); }
     if (m.budgetTight === true && cost === 2) { s -= 1; con("요즘 예산도 빠듯한데 돈이 많이 들어요"); }
     if (m.timeTight === true && ready === 2) { s -= 0.5; con("여유도 없는데 준비까지 필요해요"); }
-    if (out && bad) { s -= 1.5; con(`야외인데 ${E.f.bad.join(", ")} 소식이 있어요`, true); }
-    else if (out && caution) { s -= 0.5; con(`야외인데 ${E.f.caution.join(", ")}이에요`, true); }
+    if (out && bad) { s -= 1.5; con(`야외인데 ${E.f.bad.join(", ")} 소식이 있어요`, true); warns.push(`${E.f.bad.join(", ")} 소식이 있으니 우산이나 실내 대안을 챙기세요`); }
+    else if (out && caution) { s -= 0.5; con(`야외인데 ${E.f.caution.join(", ")}이에요`, true); warns.push(`${E.f.caution.join(", ")}이니 옷차림을 챙기세요`); }
   } else if (name === "낭만주의") {
     if (appeal == null) return { s: null, pros, cons: ["얼마나 설레는지 몰라요"], evs };
     s = LV_SCORE[appeal];
@@ -1282,9 +1282,9 @@ function scoreGeneral(m, name, i, E) {
     if (m.timeTight === true && ready === 2) { s -= 0.5; con("시간 여유도 없어요"); }
     if (E && E.dist && E.dist[i] != null) {
       if (i === E.nearest) { s += 0.5; pro(`가장 가까워요(${E.km(E.dist[i])})`, true); }
-      else if (E.dist[i] - E.dist[E.nearest] >= 1000) { s -= 0.5; con(`멀어서 이동 부담이 있어요(${E.km(E.dist[i])})`, true); }
+      else if (E.dist[i] - E.dist[E.nearest] >= 1000) { s -= 0.5; con(`멀어서 이동 부담이 있어요(${E.km(E.dist[i])})`, true); warns.push(`거리가 ${E.km(E.dist[i])}라 이동 시간을 넉넉히 잡으세요`); }
     }
-    if (E && E.longWeekend && out && !isNegative(m, i)) { s -= 0.5; con(`${E.offDays}일 연휴라 붐비고 비쌀 수 있어요`, true); }
+    if (E && E.longWeekend && out && !isNegative(m, i)) { s -= 0.5; con(`${E.offDays}일 연휴라 붐비고 비쌀 수 있어요`, true); warns.push(`${E.offDays}일 연휴라 붐빌 수 있으니 미리 예약하세요`); }
   } else if (name === "행동파") {
     if (isNegative(m, i)) { s = 2.5; }
     else {
@@ -1298,7 +1298,7 @@ function scoreGeneral(m, name, i, E) {
     }
     if (E && E.dist && i === E.nearest) { s += 1; pro(`제일 가까워서 바로 갈 수 있어요(${E.km(E.dist[i])})`, true); }
   }
-  return { s: clamp5(s), pros, cons, evs };
+  return { s: clamp5(s), pros, cons, evs, warns };
 }
 
 // 구매 비교: 곰은 가격÷예산으로 자동 계산, 나머지는 한 번의 선택(필요·끌림·사용)
@@ -1454,10 +1454,12 @@ function independentOpinion(m, r, x) {
   const fan = r.assess["낭만주의"];
   const firstDiff = fan && fan.vote >= 0 ? MINISTERS.find(y => y.name !== "낭만주의" && r.assess[y.name].vote >= 0 && r.assess[y.name].vote !== fan.vote) : null;
   if (firstDiff && firstDiff.name === x.name) text += ` 마음이 「${m.options[fan.vote]}」 쪽인 건 알지만, 제 기준은 이쪽이에요.`;
-  // 실시간 근거: 고른 쪽에 걸리는 점(비 예보·연휴·거리 등)이 있으면 숨기지 않고 한마디(같은 근거는 처음 말한 장관만)
-  const evCon = c => c.cons.find(t => c.evs.includes(t));
-  const firstWarn = MINISTERS.find(y => { const b = r.assess[y.name]; return b.vote >= 0 && evCon(b.cards[b.vote]); });
-  if (firstWarn && firstWarn.name === x.name) text += ` 다만 ${evCon(a.cards[a.vote])}. 이 점은 꼭 대비하세요.`;
+  // 실시간 근거: 판결된 쪽에 걸리는 점(비 예보·연휴·거리)이 있으면, 판결 쪽 장관 한 명이 대비할 점을 한마디
+  if (r.winner >= 0) {
+    const warn = MINISTERS.map(y => (r.assess[y.name].cards[r.winner].warns || [])[0]).find(Boolean);
+    const speaker = MINISTERS.find(y => r.assess[y.name].vote === r.winner);
+    if (warn && speaker && speaker.name === x.name) text += ` 다만 ${warn}.`;
+  }
   return text;
 }
 // 이견 토론: 판결과 다른 표를 던진 장관이 짧게 반대하고, 판결 쪽 장관 한 명이 짧게 답한다. 새 근거가 없으면 표는 그대로.

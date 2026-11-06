@@ -105,7 +105,7 @@ const run = (spec) => p.evaluate(spec => {
   ok('F-02 발언에 같은 선택지 이름이 연달아 반복되지 않음', r.ops.every(t => !/「(.+?)」(입니다|에 한 표[^.]*|죠!|!|\.)\s*「\1」[은는이가]/.test(t)), r.ops.join(' / ')); }
 // F-03 비 예보가 있으면 고른 쪽의 걸리는 점을 한 장관이 한 번 말함
 { const r = await run({ category: '나들이', options: ['한강 피크닉', '카페'], optTags: ['out', 'in'], priority: 'fun', evidence: { items: [], weather: { rain: 70, tmax: 15, tmin: 8, pm10: 20, pm25: 9 } }, facts: { risk: [0, 2], appeal: [0, 2], cost: [0, 2], ready: [0, 2] } });
-  const warns = r.ops.filter(t => t.includes('다만') && t.includes('비 예보'));
+  const warns = r.ops.filter(t => t.includes('다만') && t.includes('비 예보') && t.includes('챙기세요'));
   ok('F-03 실시간 근거(비 예보)를 판결 쪽 장관 한 명이 짚어 줌', warns.length === 1, r.ops.join(' / ')); }
 ok('E-00 페이지 오류 없음', !p.errs.length, p.errs.join(' | '));
 console.log(out.join('\n')); console.log(`\n${out.filter(l => l.startsWith('PASS')).length}/${out.length} 통과`);
