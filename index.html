@@ -35,7 +35,8 @@
   </header>
 
   <main>
-    <section class="hero">
+    <section class="hero frame">
+      <span class="hero-ribbon" aria-hidden="true"><span data-icon="landmark"></span></span>
       <div class="hero-copy">
         <span class="hero-pill">사소한 고민도 안건으로</span>
         <h1><span class="laurel l" aria-hidden="true"></span>오늘의 고민,<br>국무회의에 올려보세요!<span class="laurel r" aria-hidden="true"></span></h1>
@@ -43,10 +44,11 @@
       </div>
 
       <div class="hero-art">
+        <span class="px-cloud c1" aria-hidden="true"></span><span class="px-cloud c2" aria-hidden="true"></span><span class="px-cloud c3" aria-hidden="true"></span>
         <img class="hero-img" src="assets/hero-assembly.png" width="838" height="488" alt="국회의사당 앞 단상에 앉은 장관 넷: 토끼 신중주의, 쿼카 낭만주의, 곰 현실주의, 병아리 행동파" />
       </div>
 
-      <form class="intake" id="quick-form">
+      <form class="intake frame" id="quick-form">
         <label class="intake-input">
           <span class="ii-icon" data-icon="pencil"></span>
           <span class="ii-body">
@@ -61,12 +63,12 @@
           <button class="category" type="button" data-category="쇼핑" aria-pressed="false"><span data-icon="bag"></span>쇼핑</button>
           <button class="category" type="button" data-category="일상" aria-pressed="false"><span data-icon="cup"></span>일상</button>
         </div>
-        <button class="primary big" type="submit">국무회의 시작하기 <span data-icon="arrow"></span></button>
+        <button class="primary big" type="submit"><span class="laurel l sm gold" aria-hidden="true"></span>국무회의 시작하기 <span data-icon="arrow"></span><span class="laurel r sm gold" aria-hidden="true"></span></button>
         <p class="intake-note" id="intake-note">'자동'은 제목을 보고 유형을 골라요. 직접 골라도 돼요.</p>
       </form>
     </section>
 
-    <section class="howto" aria-labelledby="howto-title">
+    <section class="howto frame" aria-labelledby="howto-title">
       <h2 id="howto-title"><span data-icon="clipboard"></span>이렇게 결정해요</h2>
       <ol class="howto-steps">
         <li><span class="hs-icon" data-icon="clipboard"></span><span><b class="hs-no">01</b><b>안건 접수</b><small>고민을 입력해요</small></span></li>
@@ -77,19 +79,19 @@
     </section>
 
     <section class="dashboard">
-      <article class="panel">
+      <article class="panel frame deco">
         <h2 class="panel-heading"><span data-icon="file"></span>최근 결정 기록 <span id="recent-note" class="record-note"></span>
           <button class="more" data-action="records">더보기 <span data-icon="chev"></span></button>
         </h2>
         <div class="records-list" id="recent-list"></div>
       </article>
 
-      <article class="panel" id="example-panel">
+      <article class="panel frame" id="example-panel">
         <h2 class="panel-heading"><span data-icon="bulb"></span>이런 고민도 접수해 보세요</h2>
         <div class="example-grid" id="example-list"></div>
       </article>
 
-      <article class="panel poll-panel">
+      <article class="panel frame poll-panel">
         <h2 class="panel-heading"><span data-icon="users"></span>국민 여론
           <button class="more" data-action="polls">더보기 <span data-icon="chev"></span></button>
         </h2>
@@ -98,20 +100,14 @@
       </article>
     </section>
 
-    <section class="cta-band">
-      <button type="button" class="band-owl" data-action="meeting" aria-label="고민 접수하기">
-        <img src="assets/stand_owl.png" alt="서기관 부엉이" />
-        <span class="owl-bubble">결정국에서, 당신의 고민도<br>국무회의의 안건이 될 수 있어요!</span>
-      </button>
-      <p class="band-slogan"><span class="laurel l sm" aria-hidden="true"></span><span>고민은 가볍게, 결정은 함께!<br>지금 바로 국무회의를 열어보세요.</span><span class="laurel r sm" aria-hidden="true"></span></p>
-      <button type="button" class="primary band-go" data-action="meeting">국무회의 시작하기 <span data-icon="arrow"></span></button>
-    </section>
   </main>
 
-  <footer>
-    <span class="footer-brand"><svg class="logo-icon" viewBox="0 0 16 15" shape-rendering="crispEdges" aria-hidden="true"><rect x="6" y="0" width="1" height="1" fill="#50372F"/><rect x="7" y="0" width="1" height="1" fill="#50372F"/><rect x="6" y="1" width="1" height="1" fill="#50372F"/><rect x="7" y="1" width="1" height="1" fill="#C9973F"/><rect x="8" y="1" width="1" height="1" fill="#C9973F"/><rect x="6" y="2" width="1" height="1" fill="#50372F"/><rect x="7" y="2" width="1" height="1" fill="#C9973F"/><rect x="8" y="2" width="1" height="1" fill="#C9973F"/><rect x="9" y="2" width="1" height="1" fill="#C9973F"/><rect x="6" y="3" width="1" height="1" fill="#50372F"/><rect x="4" y="4" width="1" height="1" fill="#50372F"/><rect x="5" y="4" width="1" height="1" fill="#50372F"/><rect x="6" y="4" width="1" height="1" fill="#50372F"/><rect x="7" y="4" width="1" height="1" fill="#50372F"/><rect x="8" y="4" width="1" height="1" fill="#50372F"/><rect x="9" y="4" width="1" height="1" fill="#50372F"/><rect x="10" y="4" width="1" height="1" fill="#50372F"/><rect x="11" y="4" width="1" height="1" fill="#50372F"/><rect x="2" y="5" width="1" height="1" fill="#50372F"/><rect x="3" y="5" width="1" height="1" fill="#50372F"/><rect x="4" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="7" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="10" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="5" width="1" height="1" fill="#50372F"/><rect x="13" y="5" width="1" height="1" fill="#50372F"/><rect x="1" y="6" width="1" height="1" fill="#50372F"/><rect x="2" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="4" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="7" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="10" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="13" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="6" width="1" height="1" fill="#50372F"/><rect x="0" y="7" width="1" height="1" fill="#50372F"/><rect x="1" y="7" width="1" height="1" fill="#50372F"/><rect x="2" y="7" width="1" height="1" fill="#50372F"/><rect x="3" y="7" width="1" height="1" fill="#50372F"/><rect x="4" y="7" width="1" height="1" fill="#50372F"/><rect x="5" y="7" width="1" height="1" fill="#50372F"/><rect x="6" y="7" width="1" height="1" fill="#50372F"/><rect x="7" y="7" width="1" height="1" fill="#50372F"/><rect x="8" y="7" width="1" height="1" fill="#50372F"/><rect x="9" y="7" width="1" height="1" fill="#50372F"/><rect x="10" y="7" width="1" height="1" fill="#50372F"/><rect x="11" y="7" width="1" height="1" fill="#50372F"/><rect x="12" y="7" width="1" height="1" fill="#50372F"/><rect x="13" y="7" width="1" height="1" fill="#50372F"/><rect x="14" y="7" width="1" height="1" fill="#50372F"/><rect x="15" y="7" width="1" height="1" fill="#50372F"/><rect x="0" y="8" width="1" height="1" fill="#50372F"/><rect x="1" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="8" width="1" height="1" fill="#50372F"/><rect x="4" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="8" width="1" height="1" fill="#50372F"/><rect x="7" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="8" width="1" height="1" fill="#50372F"/><rect x="10" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="8" width="1" height="1" fill="#50372F"/><rect x="13" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="8" width="1" height="1" fill="#50372F"/><rect x="0" y="9" width="1" height="1" fill="#50372F"/><rect x="1" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="9" width="1" height="1" fill="#50372F"/><rect x="4" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="9" width="1" height="1" fill="#50372F"/><rect x="7" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="9" width="1" height="1" fill="#50372F"/><rect x="10" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="9" width="1" height="1" fill="#50372F"/><rect x="13" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="9" width="1" height="1" fill="#50372F"/><rect x="0" y="10" width="1" height="1" fill="#50372F"/><rect x="1" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="10" width="1" height="1" fill="#50372F"/><rect x="4" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="10" width="1" height="1" fill="#50372F"/><rect x="7" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="10" width="1" height="1" fill="#50372F"/><rect x="10" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="10" width="1" height="1" fill="#50372F"/><rect x="13" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="10" width="1" height="1" fill="#50372F"/><rect x="0" y="11" width="1" height="1" fill="#50372F"/><rect x="1" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="11" width="1" height="1" fill="#50372F"/><rect x="4" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="11" width="1" height="1" fill="#50372F"/><rect x="7" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="11" width="1" height="1" fill="#50372F"/><rect x="10" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="11" width="1" height="1" fill="#50372F"/><rect x="13" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="11" width="1" height="1" fill="#50372F"/><rect x="0" y="12" width="1" height="1" fill="#50372F"/><rect x="1" y="12" width="1" height="1" fill="#50372F"/><rect x="2" y="12" width="1" height="1" fill="#50372F"/><rect x="3" y="12" width="1" height="1" fill="#50372F"/><rect x="4" y="12" width="1" height="1" fill="#50372F"/><rect x="5" y="12" width="1" height="1" fill="#50372F"/><rect x="6" y="12" width="1" height="1" fill="#50372F"/><rect x="7" y="12" width="1" height="1" fill="#50372F"/><rect x="8" y="12" width="1" height="1" fill="#50372F"/><rect x="9" y="12" width="1" height="1" fill="#50372F"/><rect x="10" y="12" width="1" height="1" fill="#50372F"/><rect x="11" y="12" width="1" height="1" fill="#50372F"/><rect x="12" y="12" width="1" height="1" fill="#50372F"/><rect x="13" y="12" width="1" height="1" fill="#50372F"/><rect x="14" y="12" width="1" height="1" fill="#50372F"/><rect x="15" y="12" width="1" height="1" fill="#50372F"/><rect x="0" y="13" width="1" height="1" fill="#50372F"/><rect x="1" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="4" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="7" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="10" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="13" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="13" width="1" height="1" fill="#50372F"/><rect x="0" y="14" width="1" height="1" fill="#50372F"/><rect x="1" y="14" width="1" height="1" fill="#50372F"/><rect x="2" y="14" width="1" height="1" fill="#50372F"/><rect x="3" y="14" width="1" height="1" fill="#50372F"/><rect x="4" y="14" width="1" height="1" fill="#50372F"/><rect x="5" y="14" width="1" height="1" fill="#50372F"/><rect x="6" y="14" width="1" height="1" fill="#50372F"/><rect x="7" y="14" width="1" height="1" fill="#50372F"/><rect x="8" y="14" width="1" height="1" fill="#50372F"/><rect x="9" y="14" width="1" height="1" fill="#50372F"/><rect x="10" y="14" width="1" height="1" fill="#50372F"/><rect x="11" y="14" width="1" height="1" fill="#50372F"/><rect x="12" y="14" width="1" height="1" fill="#50372F"/><rect x="13" y="14" width="1" height="1" fill="#50372F"/><rect x="14" y="14" width="1" height="1" fill="#50372F"/><rect x="15" y="14" width="1" height="1" fill="#50372F"/></svg><b>결정국</b></span>
-    <span class="footer-links"><a href="privacy.html">개인정보 처리 안내</a></span>
-    <span class="footer-note"><span data-icon="info"></span>결정국의 판결은 공개된 규칙으로 만든 재미용 참고 의견이며(AI 미사용), 법률·의료·재정 등 전문적인 조언이 아닙니다.</span>
+  <footer class="site-foot">
+    <button type="button" class="foot-owl" data-action="meeting" aria-label="고민 접수하기">
+      <img src="assets/stand_owl.png" alt="" />
+      <span class="owl-bubble">결정국에서, 당신의 고민도<br>국무회의의 안건이 될 수 있어요!</span>
+    </button>
+    <p class="foot-meta"><span data-icon="info"></span><span>판결은 공개된 규칙으로 만든 재미용 참고 의견이며(AI 미사용), 법률·의료·재정 등 전문적인 조언이 아닙니다. · <a href="privacy.html">개인정보 처리 안내</a></span></p>
   </footer>
 
   <div class="tabbar" role="navigation" aria-label="하단 메뉴">

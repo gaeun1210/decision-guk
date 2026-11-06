@@ -2017,7 +2017,7 @@ async function renderPollPanel(polls) {
   if (!open.length) { box.innerHTML = `<div class="empty-line">진행 중인 여론조사가 없어요. 첫 고민을 올려 보세요!</div>`; return; }
   // 참여가 가장 많은 글을 크게, 나머지 2개는 작게. 진행 중인 글의 결과는 투표한 사람(또는 작성자)에게만 보여 준다.
   const hot = open.slice().sort((x, y) => (Number(y.total) || 0) - (Number(x.total) || 0) || new Date(x.closes_at) - new Date(y.closes_at))[0];
-  const rest = open.filter(p => p !== hot).slice(0, 2);
+  const rest = open.filter(p => p !== hot).slice(0, 1);
   const opts = Array.isArray(hot.options) ? hot.options.map(String) : [];
   const counts = Array.isArray(hot.counts) ? hot.counts.map(Number) : opts.map(() => 0);
   const total = Number(hot.total) || 0;
