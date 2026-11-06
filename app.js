@@ -979,7 +979,7 @@ function adjustVotes(m, base) {
     } else if (f.caution.length) {
       const why = f.caution.join(", ");
       note("신중주의", `날씨 주의: ${why}. 야외라면 옷차림과 대비를 꼭 챙기세요.`);
-      if (outdoor.includes(votes["낭만주의"])) note("낭만주의", `날씨가 완벽하진 않지만(${why}) 마음이 끌리는 쪽이라 표는 그대로 둡니다.`);
+      if (outdoor.includes(votes["낭만주의"])) note("낭만주의", "날씨가 완벽하진 않아요. 그래도 마음이 끌리는 쪽이라 표는 그대로 둡니다.");
     } else if (f.good) {
       if (votes["낭만주의"] < 0) move("낭만주의", outdoor[0], `날씨가 좋아서(강수확률 ${w.rain}%, 최고 ${Math.round(w.tmax)}℃) 기권 대신 야외인 「${m.options[outdoor[0]]}」에 한 표 드립니다.`);
       else note("낭만주의", `날씨도 좋아요(강수확률 ${w.rain}%, 최고 ${Math.round(w.tmax)}℃).`);
