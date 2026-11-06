@@ -52,14 +52,16 @@ function fromRow(row) {
     options: Array.isArray(row.options) ? row.options.map(String) : [],
     evidence: row.evidence && Array.isArray(row.evidence.items) ? row.evidence.items.slice(0, 6).map(e => ({ label: String(e.label || ""), ok: !!e.ok, summary: String(e.summary || ""), source: String(e.source || ""), fetchedAt: e.fetchedAt || null })) : [],
     moves: row.evidence && Array.isArray(row.evidence.moves) ? row.evidence.moves.slice(0, 4).map(v => ({ name: String(v.name || ""), from: String(v.from || ""), to: String(v.to || "") })) : [],
-    opinions: Array.isArray(row.opinions) ? row.opinions.filter(o => Array.isArray(o) && o.length === 2).map(([n, t]) => [String(n), String(t)]) : []
+    opinions: Array.isArray(row.opinions) ? row.opinions.filter(o => Array.isArray(o) && o.length === 2).map(([n, t]) => [String(n), String(t)]) : [],
+    didIt: typeof row.did_it === "boolean" ? row.did_it : null,
+    satisfaction: Number.isInteger(row.satisfaction) ? row.satisfaction : null
   };
 }
 
 // 기록 불러오기: 로그인 → 서버(RLS로 내 것만), 비로그인 → 이 브라우저(체험 모드)
 async function loadRecords() {
   if (!currentUser) return { records: getRecords(), source: "local" };
-  const cols = "id,title,category,detail,options,priority,verdict,label,tally,opinions,retrial,created_at";
+  const cols = "id,title,category,detail,options,priority,verdict,label,tally,opinions,retrial,created_at,did_it,satisfaction";
   let { data, error } = await db.from("decisions").select(cols + ",evidence").order("created_at", { ascending: false }).limit(100);
   if (error && /evidence/.test(String(error.message))) ({ data, error } = await db.from("decisions").select(cols).order("created_at", { ascending: false }).limit(100));
   if (error) return { records: [], source: "server", error };
@@ -82,6 +84,21 @@ async function addRecord(record, m) {
   let { error } = await db.from("decisions").insert(row);
   if (error && /evidence/.test(String(error.message))) { delete row.evidence; ({ error } = await db.from("decisions").insert(row)); } // 근거 칸이 아직 없는 DB
   return { ok: !error, source: "server", error };
+}
+
+// 판결 이후 기록(선택): 실제로 했는지 · 만족도 1~5. 서버에서는 이 두 칸만 수정 권한이 있다.
+async function saveFollowup(item, index, patch) {
+  if (!currentUser) {
+    const list = getRecords();
+    if (!list[index]) return { ok: false };
+    Object.assign(list[index], patch);
+    return { ok: saveRecords(list) };
+  }
+  const row = {};
+  if ("didIt" in patch) row.did_it = patch.didIt;
+  if ("satisfaction" in patch) row.satisfaction = patch.satisfaction;
+  const { data, error } = await db.from("decisions").update(row).eq("id", item.id).select("id");
+  return { ok: !error && data && data.length === 1, error };
 }
 
 async function removeRecord(item, index) {
@@ -182,6 +199,7 @@ function openLogin(mode = "login", notice = "") {
           } else {
             const { error } = await db.auth.signInWithPassword({ email, password });
             if (error) throw error;
+            if (afterLogin) { const next = afterLogin; afterLogin = null; setTimeout(next, 600); } // 로그인 상태가 반영된 뒤 보던 화면으로
             closeModal();
           }
         } catch (error) {
@@ -310,6 +328,26 @@ function startMeeting(prefill = "") {
   meeting = newMeeting(prefill);
   renderAgenda();
 }
+// 진행 중인 회의를 닫았다가 다시 열면 이어서 할지 묻는다(취소 후 복귀)
+const RESUME = { agenda: () => renderAgenda(), question: () => renderQuestion(), shop: () => renderShop(), priority: () => renderPriority() };
+function hasProgress(m) {
+  return !!(m && !m.done && RESUME[m.view] && (m.title.trim() || Object.keys(m.answers).length || m.rawOptions.some(o => o.trim())));
+}
+function openMeeting(prefill = "") {
+  if (!hasProgress(meeting)) return startMeeting(prefill);
+  const m = meeting;
+  if (prefill && prefill === m.title.trim()) return RESUME[m.view]();
+  openModal("🏛️ 국무회의", `
+    <p>진행 중이던 회의가 있어요.</p>
+    <div class="info-box">「${escapeHTML(m.title.trim() || "제목 없음")}」 · ${({ agenda: "안건 접수", question: `장관 질문 ${Math.min(m.qIndex + 1, 4)}/4`, shop: "구매 심사", priority: "중요 기준" })[m.view]} 단계</div>
+    <div class="btn-row">
+      <button type="button" class="primary secondary" id="resume-new">새로 시작</button>
+      <button type="button" class="primary" id="resume-go">이어서 하기 ▶</button>
+    </div>`, () => {
+      document.getElementById("resume-go").onclick = () => RESUME[m.view]();
+      document.getElementById("resume-new").onclick = () => startMeeting(prefill);
+    });
+}
 
 function stepBar(active) {
   const shop = meeting.category === "쇼핑";
@@ -328,9 +366,11 @@ function normalize(text) { return text.replace(/\s+/g, "").toLowerCase(); }
 // ① 안건 접수
 function renderAgenda() {
   const m = meeting;
+  m.view = "agenda";
   const shop = m.category === "쇼핑";
   openModal("🏛️ 국무회의", `
     ${stepBar(0)}
+    <p class="guide-line">🗂️ ${shop ? "고민 접수 → 구매 심사(가격·예산·필요성) → 중요 기준 → 결재" : "고민 접수 → 장관 질문 4개 → 중요 기준 1개 → 결재"} · 약 1분이면 끝나요.</p>
     <form id="agenda-form" novalidate>
       <div class="field">
         <label for="meeting-title">고민 제목</label>
@@ -442,6 +482,7 @@ function renderAgenda() {
 // ② 장관 질문(일반 고민): 장관마다 질문 하나, 답이 곧 그 장관의 표
 function renderQuestion() {
   const m = meeting;
+  m.view = "question";
   const minister = MINISTERS[m.qIndex];
   const current = m.answers[minister.name];
   openModal("🏛️ 국무회의", `
@@ -482,6 +523,7 @@ function renderQuestion() {
 // ② 구매 심사(쇼핑): 가격·예산은 필수 정수 1~100,000,000, 범위 밖은 거부
 function renderShop() {
   const m = meeting, s = m.shop;
+  m.view = "shop";
   const seg = (key, items, label) => `
     <div class="field">
       <span class="label">${label}</span>
@@ -556,6 +598,7 @@ function renderShop() {
 // ③ 가장 중요한 기준 (+ 되돌림·마감)
 function renderPriority() {
   const m = meeting;
+  m.view = "priority";
   const pairs = [["reversible", [["true", "쉽게 바꿀 수 있어요"], ["false", "되돌리기 어려워요"]], "나중에 되돌릴 수 있나요? (선택)"],
                  ["urgent", [["true", "오늘 안에 정해야 해요"], ["false", "여유가 있어요"]], "언제까지 정해야 하나요? (선택)"]];
   openModal("🏛️ 국무회의", `
@@ -1080,6 +1123,7 @@ function groupChat(chat) {
 }
 
 function showResult(m, r) {
+  m.done = true; // 결재까지 끝난 회의는 '이어서 하기' 대상이 아니다
   const ops = opinionsOf(m, r);
   const record = buildRecord(m, r, ops);
   const fmt = n => (Number.isInteger(n) ? n : n.toFixed(1));
@@ -1193,7 +1237,8 @@ function showResult(m, r) {
       document.getElementById("result-done").onclick = closeModal;
       document.getElementById("result-poll").onclick = () => openPollForm({
         title: m.title, category: m.category,
-        options: shop ? ["산다", "안 산다"] : m.options
+        options: shop ? ["산다", "안 산다"] : m.options,
+        ministerPick: shop ? (r.winner === 0 ? "산다" : "안 산다") : (r.winner >= 0 ? m.options[r.winner] : null)
       });
       document.getElementById("result-share").onclick = () => save.then(() => openShare(record));
       document.getElementById("result-reconsider").onclick = () => {
@@ -1319,8 +1364,18 @@ async function showRecords() {
             <span class="record-title">${escapeHTML(item.title)}</span>
             <span class="record-date">${escapeHTML(item.date || "")}</span>
             <span class="verdict-pill">${escapeHTML(item.verdict)}</span>
+            <span class="fu-badge">${item.didIt === true ? "✅" : item.didIt === false ? "⏸️" : ""}${item.satisfaction ? "★" + item.satisfaction : ""}</span>
           </summary>
           <div class="record-body">
+            <div class="followup" data-fu="${index}">
+              <div class="fu-row"><span class="fu-q">🗳️ 실제로 했나요?</span>
+                <button type="button" class="chip" data-did="true" aria-pressed="${item.didIt === true}">✅ 했어요</button>
+                <button type="button" class="chip" data-did="false" aria-pressed="${item.didIt === false}">⏸️ 안 했어요</button></div>
+              <div class="fu-row"><span class="fu-q">⭐ 결정 만족도</span>
+                ${[1, 2, 3, 4, 5].map(n => `<button type="button" class="star" data-sat="${n}" aria-pressed="${item.satisfaction === n}" aria-label="만족도 ${n}점">${n <= (item.satisfaction || 0) ? "★" : "☆"}</button>`).join("")}
+                <small class="fu-note"></small></div>
+              <div class="hint">선택 사항이에요. 남기면 내 통계에 실행률과 만족도가 나와요.</div>
+            </div>
             <div class="hint">${escapeHTML(item.category || "")}${item.label ? " · " + escapeHTML(item.label) : ""}${item.tally ? " · " + escapeHTML(item.tally) : ""}${item.retrial ? " · 재심" : ""}</div>
             ${(item.evidence || []).length ? `<div class="ev-rec">${item.evidence.map(e => `<div>${e.ok ? "📎" : "⚠️"} <b>${escapeHTML(e.label)}</b> ${escapeHTML(e.summary)}${e.source ? ` <small>(${escapeHTML(e.source)}${e.fetchedAt ? ", " + escapeHTML(hhmm(e.fetchedAt)) + " 조회" : ""})</small>` : ""}</div>`).join("")}</div>` : ""}
             ${(item.moves || []).length ? `<div class="ev-rec">${item.moves.map(v => `<div>🔁 ${escapeHTML(v.name)}: ${escapeHTML(v.from)} → ${escapeHTML(v.to)}</div>`).join("")}</div>` : ""}
@@ -1350,6 +1405,25 @@ async function showRecords() {
         apply();
       });
       apply();
+      modalRoot.querySelectorAll("[data-fu]").forEach(box => {
+        const index = Number(box.dataset.fu), item = records[index];
+        const note = box.querySelector(".fu-note");
+        const paint = () => {
+          box.querySelectorAll("[data-did]").forEach(b => b.setAttribute("aria-pressed", String(String(item.didIt) === b.dataset.did)));
+          box.querySelectorAll("[data-sat]").forEach(b => { const n = Number(b.dataset.sat); b.setAttribute("aria-pressed", String(item.satisfaction === n)); b.textContent = n <= (item.satisfaction || 0) ? "★" : "☆"; });
+          const badge = box.closest(".record-detail").querySelector(".fu-badge");
+          badge.textContent = (item.didIt === true ? "✅" : item.didIt === false ? "⏸️" : "") + (item.satisfaction ? "★" + item.satisfaction : "");
+        };
+        const save = async patch => {
+          const before = { didIt: item.didIt, satisfaction: item.satisfaction };
+          Object.assign(item, patch); paint(); note.textContent = "저장 중…";
+          const res = await saveFollowup(item, index, patch);
+          if (!res.ok) { Object.assign(item, before); paint(); note.textContent = "저장하지 못했어요."; return; }
+          note.textContent = "저장했어요 ✓";
+        };
+        box.querySelectorAll("[data-did]").forEach(b => b.onclick = () => { const v = b.dataset.did === "true"; save({ didIt: item.didIt === v ? null : v }); });
+        box.querySelectorAll("[data-sat]").forEach(b => b.onclick = () => { const n = Number(b.dataset.sat); save({ satisfaction: item.satisfaction === n ? null : n }); });
+      });
       modalRoot.querySelectorAll("[data-share]").forEach(b => b.onclick = () => openShare(records[Number(b.dataset.share)]));
       modalRoot.querySelectorAll("[data-again]").forEach(b => b.onclick = () => {
         const r = records[Number(b.dataset.again)];
@@ -1381,7 +1455,7 @@ document.querySelectorAll(".category").forEach(button => {
 
 document.getElementById("quick-form").onsubmit = event => {
   event.preventDefault();
-  startMeeting(document.getElementById("quick-title").value.trim());
+  openMeeting(document.getElementById("quick-title").value.trim());
 };
 
 // ===== 이런 고민도 접수해 보세요 (누르면 내용이 채워진 채 국무회의 시작) =====
@@ -1403,6 +1477,10 @@ function renderExamples() {
     </button>`).join("");
   box.querySelectorAll("[data-example]").forEach(b => b.onclick = () => {
     const e = EXAMPLES[Number(b.dataset.example)];
+    const typed = document.getElementById("quick-title");
+    if (typed && typed.value.trim() && typed.value.trim() !== e.title &&
+        !confirm(`입력칸에 적은 「${typed.value.trim()}」 대신 예시 「${e.title}」(으)로 시작할까요?\n(취소하면 적은 내용은 그대로 남아요)`)) return;
+    if (hasProgress(meeting) && !confirm("진행 중이던 회의가 있어요. 예시로 새로 시작할까요?")) return RESUME[meeting.view]();
     meeting = newMeeting(e.title);
     meeting.category = e.category;
     if (e.options.length) { meeting.rawOptions = e.options.slice(); meeting.rawTags = (e.tags || e.options.map(() => null)).slice(); }
@@ -1434,6 +1512,13 @@ async function openStats() {
     if (rec.label === "만장일치") unanimous++;
     if (rec.retrial) retrials++;
   });
+  // 판결 이후 기록(실행·만족도)
+  const doneKnown = records.filter(r => typeof r.didIt === "boolean");
+  const did = doneKnown.filter(r => r.didIt).length;
+  const rated = records.filter(r => Number.isInteger(r.satisfaction));
+  const avg = list => list.length ? (list.reduce((a, r) => a + r.satisfaction, 0) / list.length).toFixed(1) : "-";
+  const prioSat = Object.keys(PRIORITY_LABEL).map(p => [p, rated.filter(r => r.priority === p)]).filter(([, l]) => l.length);
+  const catCount = Object.entries(cats).sort((a, b) => b[1] - a[1]);
   const rate = n => votes[n] ? Math.round(wins[n] / votes[n] * 100) : 0;
   const ranked = MINISTERS.slice().sort((a, b) => rate(b.name) - rate(a.name) || wins[b.name] - wins[a.name]);
   const topPrio = Object.entries(prio).sort((a, b) => b[1] - a[1])[0];
@@ -1456,7 +1541,25 @@ async function openStats() {
           <span class="tally-num">${rate(x.name)}%</span>
         </div>`).join("")}
     </div>
-    ${topPrio ? `<p class="stat-note">내가 가장 자주 고른 기준은 <b>${PRIORITY_LABEL[topPrio[0]]}</b>(${topPrio[1]}회)이에요.</p>` : ""}`);
+    ${topPrio ? `<p class="stat-note">내가 가장 자주 고른 기준은 <b>${PRIORITY_LABEL[topPrio[0]]}</b>(${topPrio[1]}회)이에요.</p>` : ""}
+    <h3 class="sub-h">🗳️ 판결 이후</h3>
+    ${doneKnown.length || rated.length ? `
+    <div class="stat-grid">
+      <div class="stat"><b>${doneKnown.length ? Math.round(did / doneKnown.length * 100) + "%" : "-"}</b><span>실행률 (${did}/${doneKnown.length}건)</span></div>
+      <div class="stat"><b>${avg(rated)}</b><span>평균 만족도 (${rated.length}건)</span></div>
+    </div>
+    ${prioSat.length ? `<p class="hint">기준별 평균 만족도 — 어떤 기준으로 정했을 때 만족했는지 보여 줘요.</p>
+    <div class="tally">${prioSat.map(([p, l]) => `
+      <div class="tally-row"><span class="tally-name">${PRIORITY_LABEL[p]}</span>
+        <span class="bar"><span style="width:${Math.round(avg(l) / 5 * 100)}%"></span></span>
+        <span class="tally-num">★${avg(l)} (${l.length})</span></div>`).join("")}</div>` : ""}
+    ${doneKnown.length + rated.length < 3 ? `<p class="hint">기록이 적어서 참고용이에요.</p>` : ""}`
+    : `<p class="hint">결정 기록실에서 "실제로 했나요?"와 만족도를 남기면 실행률과 만족도가 여기에 나와요.</p>`}
+    <h3 class="sub-h">🗂️ 고민 유형 분포</h3>
+    <div class="tally">${catCount.map(([c, n]) => `
+      <div class="tally-row"><span class="tally-name">${categoryIcon(c)} ${escapeHTML(c)}</span>
+        <span class="bar"><span style="width:${Math.round(n / records.length * 100)}%"></span></span>
+        <span class="tally-num">${n}건</span></div>`).join("")}</div>`);
 }
 
 // ===== 계정: 비밀번호 재설정 · 새 비밀번호 · 회원 탈퇴 =====
@@ -1546,6 +1649,19 @@ applyAvatar();
 // 1인 1표·마감·선택지 범위·하루 5개 제한·신고 3건 숨김은 모두 DB(제약·트리거·RLS)가 강제한다.
 const POLL_DURATIONS = [[1, "1시간"], [24, "하루"], [72, "3일"], [168, "7일"]];
 let pollFilter = "open";
+let pollSort = "soon"; // soon: 마감 임박 · new: 최신 · hot: 참여 많은 순
+const POLL_SORTS = [["soon", "⏳ 마감 임박"], ["new", "🆕 최신"], ["hot", "🔥 참여 많은 순"]];
+function sortPolls(list) {
+  const by = {
+    soon: (a, b) => a.is_open && b.is_open ? new Date(a.closes_at) - new Date(b.closes_at) : new Date(b.closes_at) - new Date(a.closes_at),
+    new: (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    hot: (a, b) => (Number(b.total) || 0) - (Number(a.total) || 0) || new Date(b.created_at) - new Date(a.created_at)
+  }[pollSort];
+  return list.slice().sort(by);
+}
+// 로그인 창을 거쳐 온 경우, 로그인이 끝나면 보던 화면으로 돌려보낸다
+let afterLogin = null;
+function loginThen(next, notice = "") { afterLogin = next; openLogin("login", notice); }
 function pollLeft(iso) {
   const ms = new Date(iso) - Date.now();
   if (ms <= 0) return "마감";
@@ -1563,6 +1679,20 @@ async function loadPolls() {
   if (!db) return { polls: [], error: { message: "서버가 연결되지 않았어요" } };
   const { data, error } = await db.rpc("poll_board", { p_limit: 60 });
   return { polls: Array.isArray(data) ? data : [], error };
+}
+// 장관 판결 vs 국민 여론 (판결 화면에서 올린 글만). 표본이 적으면 대표성을 과장하지 않는다.
+function compareLine(p, opts, counts, total, showResult) {
+  const pick = Number.isInteger(p.minister_pick) && opts[p.minister_pick] !== undefined ? p.minister_pick : -1;
+  if (pick < 0) return "";
+  const minister = `🏛️ 장관 판결: <b>${escapeHTML(opts[pick])}</b>`;
+  if (!showResult) return `<div class="poll-compare">${minister} · 투표하면 국민 여론과 비교해 볼 수 있어요.</div>`;
+  if (!total) return `<div class="poll-compare">${minister} · 아직 국민 여론이 없어요.</div>`;
+  const max = Math.max(...counts);
+  const tops = counts.map((c, i) => (c === max ? i : -1)).filter(i => i >= 0);
+  const people = tops.length > 1 ? `${tops.map(i => escapeHTML(opts[i])).join(" · ")} 동률` : escapeHTML(opts[tops[0]]);
+  const same = tops.length === 1 && tops[0] === pick;
+  const verdict = tops.length > 1 ? (tops.includes(pick) ? "🤝 장관 판결도 1위 안에 있어요" : "⚖️ 국민 여론은 다른 쪽이에요") : same ? "🤝 장관과 국민의 뜻이 같아요" : "⚖️ 장관과 국민의 뜻이 달라요";
+  return `<div class="poll-compare">${minister} · 📮 국민 여론 1위: <b>${people}</b> — ${verdict}${total < 5 ? `<small>참여 ${total}명이라 표본이 적어요. 참고용으로만 봐 주세요.</small>` : ""}</div>`;
 }
 function pollCard(p) {
   const opts = Array.isArray(p.options) ? p.options.map(String) : [];
@@ -1588,6 +1718,7 @@ function pollCard(p) {
       <span class="poll-left ${p.is_open ? "" : "done"}">${p.is_open ? "⏳ " + pollLeft(p.closes_at) : "🔒 마감"}</span>
     </div>
     ${body}
+    ${compareLine(p, opts, counts, total, showResult)}
     <div class="poll-foot">
       <span>참여 ${total}명${p.mine ? " · ✍️ 내가 올린 글" : ""}${voted ? " · 투표 완료" : ""}</span>
       ${p.mine ? `<button type="button" class="link-btn" data-pdel="${escapeHTML(p.id)}">삭제</button>`
@@ -1621,7 +1752,7 @@ async function openPolls(focusId) {
   if (!error) renderPollPanel(polls); // 홈 패널도 최신 상태로
   if (!modalRoot.querySelector(".modal")) return;
   const open = polls.filter(p => p.is_open), closed = polls.filter(p => !p.is_open);
-  const list = pollFilter === "open" ? open : closed;
+  const list = sortPolls(pollFilter === "open" ? open : closed);
   const body = modalRoot.querySelector(".modal-body");
   body.innerHTML = `
     <p class="poll-intro">고민을 올리면 다른 시민들이 투표해 줘요. 장관 판결과 국민 여론을 비교해 보세요!</p>
@@ -1632,6 +1763,7 @@ async function openPolls(focusId) {
       </div>
       <button type="button" class="primary" id="poll-new">✍️ 여론조사 올리기</button>
     </div>
+    <div class="chip-row poll-sort" role="group" aria-label="정렬">${POLL_SORTS.map(([k, t]) => `<button type="button" class="chip" data-psort="${k}" aria-pressed="${pollSort === k}">${t}</button>`).join("")}</div>
     ${currentUser ? "" : `<div class="info-box">👀 지금은 결과만 볼 수 있어요. <b>투표·글쓰기</b>는 로그인한 시민만 할 수 있어요. <button type="button" class="link-btn" id="poll-login">로그인하기</button></div>`}
     ${error ? `<div class="form-error">여론을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</div>` : ""}
     <div id="poll-msg" class="form-error" role="alert"></div>
@@ -1643,8 +1775,9 @@ async function openPolls(focusId) {
   }
   const msg = text => { const el = document.getElementById("poll-msg"); if (el) el.textContent = text; };
   body.querySelectorAll("[data-pf]").forEach(b => b.onclick = () => { pollFilter = b.dataset.pf; openPolls(); });
+  body.querySelectorAll("[data-psort]").forEach(b => b.onclick = () => { pollSort = b.dataset.psort; openPolls(); });
   document.getElementById("poll-new").onclick = () => openPollForm();
-  const lg = document.getElementById("poll-login"); if (lg) lg.onclick = () => openLogin();
+  const lg = document.getElementById("poll-login"); if (lg) lg.onclick = () => loginThen(() => openPolls(focusId));
   body.querySelectorAll("[data-vote]").forEach(b => b.onclick = async () => {
     body.querySelectorAll(`[data-vote="${CSS.escape(b.dataset.vote)}"]`).forEach(x => x.disabled = true);
     const { error: e } = await db.from("poll_votes").insert({ poll_id: b.dataset.vote, option_index: Number(b.dataset.opt) });
@@ -1666,7 +1799,7 @@ async function openPolls(focusId) {
 }
 function openPollForm(prefill = {}) {
   if (!db) return openModal("✍️ 여론조사 올리기", `<p>서버가 연결되지 않았어요.</p>`);
-  if (!currentUser) return openLogin("login", "여론조사를 올리려면 로그인해 주세요.");
+  if (!currentUser) return loginThen(() => openPollForm(prefill), "여론조사를 올리려면 로그인해 주세요. 로그인하면 쓰던 화면으로 돌아가요.");
   const opts = (prefill.options && prefill.options.length >= 2 ? prefill.options : ["", ""]).slice(0, LIMITS.optionsMax);
   const cat = CATEGORIES.includes(prefill.category) ? prefill.category : "일상";
   openModal("✍️ 여론조사 올리기", `
@@ -1706,7 +1839,11 @@ function openPollForm(prefill = {}) {
         err.textContent = "올리는 중…";
         form.querySelector('button[type="submit"]').disabled = true;
         // 작성자·작성 시각·마감 시각은 보내지 않는다. DB가 로그인 정보와 서버 시각으로 정한다.
-        const { error } = await db.from("polls").insert({ title, category, options, duration_hours: hours });
+        // 판결 화면에서 왔다면 장관 판결이 몇 번째 선택지인지 함께 저장(선택지 문구가 그대로 남아 있을 때만)
+        const pickIdx = prefill.ministerPick ? options.indexOf(prefill.ministerPick) : -1;
+        const row = { title, category, options, duration_hours: hours };
+        if (pickIdx >= 0) row.minister_pick = pickIdx;
+        const { error } = await db.from("polls").insert(row);
         if (error) { err.textContent = "올리지 못했어요. " + pollError(error); form.querySelector('button[type="submit"]').disabled = false; return; }
         pollFilter = "open";
         openPolls();
@@ -1718,7 +1855,7 @@ document.querySelectorAll("[data-action]").forEach(button => {
   button.addEventListener("click", () => {
     const action = button.dataset.action;
     if (action === "home") window.scrollTo({ top: 0, behavior: "smooth" });
-    if (action === "meeting") startMeeting();
+    if (action === "meeting") openMeeting();
     if (action === "records") showRecords();
     if (action === "stats") openStats();
     if (action === "polls") openPolls();
