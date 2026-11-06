@@ -1,6 +1,6 @@
-// 결정국 앱(홈 화면에 추가) — 화면 파일만 저장해 두어 빠르게 열고, 인터넷이 끊겨도 체험 모드로 열리게 한다.
+// 결정국 앱(홈 화면에 추가) — 이 사이트의 화면 파일만 저장해 두어 빠르게 열고, 인터넷이 끊겨도 체험 모드로 열리게 한다.
 // 개인 기록·로그인·여론·날씨 같은 데이터 요청(Supabase, /api/)은 절대 저장하지 않는다.
-const VERSION = "dg-v1";
+const VERSION = "dg-v2";
 const CORE = [
   "./", "index.html", "style.css", "app.js", "privacy.html", "manifest.webmanifest",
   "assets/hero-assembly.png", "assets/owl.png", "assets/stand_owl.png", "assets/stand_cat.png", "assets/cat_podium.png",
@@ -19,11 +19,11 @@ self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  const same = url.origin === self.location.origin;
-  const cdn = url.origin === "https://cdn.jsdelivr.net"; // 버전이 고정된 라이브러리·글꼴(무결성 검사는 브라우저가 함)
-  if (!same && !cdn) return;                 // Supabase 등 다른 서버 요청은 건드리지 않음
-  if (same && url.pathname.startsWith("/api/")) return; // 날씨·장소 조회는 항상 서버에서 새로
-  if (cdn || url.pathname.startsWith("/assets/")) {
+  // 다른 서버(Supabase·글꼴/라이브러리 CDN) 요청은 건드리지 않는다.
+  // (서비스 워커가 대신 받으면 보안 헤더(CSP)의 연결 허용 목록에 막히므로 브라우저가 직접 받게 둔다)
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/")) return; // 날씨·장소 조회는 항상 서버에서 새로
+  if (url.pathname.startsWith("/assets/")) {
     // 그림·글꼴: 저장본 먼저, 없으면 받아서 저장
     e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); }
