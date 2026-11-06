@@ -10,6 +10,8 @@ const fake = fs.readFileSync(path.join(HERE, 'fake2.js'), 'utf8');
 const b = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH, args: ['--no-sandbox'] } : { args: ['--no-sandbox'] });
 const out = []; const ok = (n, c, x = '') => out.push(`${c ? 'PASS' : 'FAIL'}  ${n}${x ? '  → ' + String(x).replace(/\s+/g, ' ').slice(0, 160) : ''}`);
 let W = { rain: 0, tmax: 7, tmin: -1 };
+async function factPage(p, levels) { for (let i = 0; i < levels.length; i++) { const btn = p.locator(`.modal [data-fact="${i}"][data-lv="${levels[i]}"]`); if (await btn.count()) await btn.click(); } await p.click('#q-next'); await p.waitForTimeout(150); }
+async function facts(p, matrix) { for (const row of matrix) await factPage(p, row); }
 async function page(w, h = 800, ctx) {
   const c = ctx || await b.newContext({ viewport: { width: w, height: h } });
   const p = await c.newPage();
@@ -81,12 +83,12 @@ ok('4 입력 중이던 지역·선택지·태그까지 복원', await p.inputVal
   await p.inputValue('#meeting-place'));
 await p.fill('#meeting-place', '성수동');
 await p.locator('#agenda-form button[type="submit"]').click(); await p.waitForTimeout(400);
-for (const a of ['성수동 나들이', '성수동 나들이']) { await p.locator('.modal .choice', { hasText: a }).first().click(); await p.waitForTimeout(150); }
+await facts(p, [[0, 1], [0, 2]]); // 위험: 나들이 낮음·쉬기 보통 / 기대: 나들이 큼·쉬기 적음
 await p.reload(); await p.waitForTimeout(500);
 await p.click('[data-action="meeting"] >> visible=true'); await p.waitForTimeout(200);
 ok('4 질문 단계도 새로고침 후 이어서', (await modal(p)).includes('장관 질문 3/4'), (await modal(p)).slice(0, 120));
 await p.click('#resume-go'); await p.waitForTimeout(200);
-for (const a of ['집에서 쉬기', '집에서 쉬기']) { await p.locator('.modal .choice', { hasText: a }).first().click(); await p.waitForTimeout(150); }
+await facts(p, [[2, 0], [1, 0]]); // 비용: 나들이 큼·쉬기 적음 / 준비: 나들이 필요·쉬기 바로
 // 2 스크롤 유지 (기준 카드)
 await p.setViewportSize({ width: 390, height: 480 }); await p.waitForTimeout(100);
 await p.evaluate(() => { document.querySelector('.modal').scrollTop = 200; });
@@ -99,7 +101,7 @@ await p.click('#chat-skip'); await p.waitForTimeout(500);
 let res = await modal(p);
 // 7 추운 날씨
 ok('7 최저 -1℃·최고 7℃: "날씨도 좋아요" 안 함', !res.includes('날씨도 좋아요'));
-ok('7 쌀쌀한 날씨 주의가 근거·장관 의견에 표시', res.includes('쌀쌀한 날씨') && res.includes('옷차림'), res.split('③')[1]?.slice(0, 200));
+ok('7 쌀쌀한 날씨 주의가 근거·장관 점수표에 표시', res.includes('쌀쌀한 날씨') && (res.split('③')[1] || '').includes('야외인데 쌀쌀한 날씨'), res.split('③')[1]?.slice(0, 200));
 ok('12 요약표: 이긴 쪽 칩 강조', await p.locator('.sum-chip.win').count() === 2 && await p.locator('.sum-chip.lose').count() === 2);
 ok('4 판결 후 임시 저장 삭제', await p.evaluate(() => localStorage.getItem('decision-country-draft')) === null);
 await p.click('#result-done'); await p.waitForTimeout(300);
@@ -127,11 +129,11 @@ await p.locator('.opt-input').nth(0).fill('한강 피크닉'); await p.locator('
 await p.locator('[data-tag="0"][data-v="out"]').click(); await p.waitForTimeout(80); await p.locator('[data-tag="1"][data-v="in"]').click(); await p.waitForTimeout(80);
 ok('5 "내일 한강" → 지역 한강·날짜 내일', await p.inputValue('#meeting-place') === '한강' && await p.inputValue('#meeting-date') === addDays(kst(), 1));
 await p.locator('#agenda-form button[type="submit"]').click(); await p.waitForTimeout(400);
-for (const a of ['한강 피크닉', '한강 피크닉', '카페', '카페']) { await p.locator('.modal .choice', { hasText: a }).first().click(); await p.waitForTimeout(120); }
+await facts(p, [[0, 0], [0, 1], [1, 0], [0, 0]]); // 위험은 같음(근거 없으면 신중주의 기권)
 await p.locator('.modal .prio').nth(0).click(); await p.locator('.modal button', { hasText: '표결 시작' }).click(); await p.waitForTimeout(800);
 await p.click('#chat-skip'); await p.waitForTimeout(400);
 res = await modal(p);
-ok('7 최고 4℃(추운 날씨) → 신중주의 표를 실내로 옮김', res.includes('추운 날씨') && res.includes('표를 옮깁니다'), res.split('④')[1]?.slice(0, 160));
+ok('7 최고 4℃(추운 날씨) → 신중주의가 확인된 근거로 다시 판단해 실내에 투표', res.includes('추운 날씨') && /신중주의: 기권 → 「카페」/.test(res), res.split('⑤')[1]?.slice(0, 200));
 await p.click('#result-done');
 
 // 8·9·12 쇼핑

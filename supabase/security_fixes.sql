@@ -164,3 +164,7 @@ revoke execute on function public.api_hit(text, integer) from public, anon, auth
 -- 켜는 방법: Vercel 환경변수 RATE_SALT(임의의 긴 문자열)를 등록한 뒤 아래 한 줄을 실행한다.
 --   grant execute on function public.api_hit(text, integer) to anon;
 -- (2026-11-06 현재: RATE_SALT 미등록 → 실행 권한을 꺼 두고, 서버 인스턴스별 제한만 동작)
+
+-- ④ (2026-11-06 추가) 장관 독립 판단 v2: 구매 비교 판결도 연결 검증
+--    polls_before_insert()에서 쇼핑 '살까 말까'(판결 문구가 구매 승인/하루 더 생각하기/보류)만 산다/안 산다로 비교하고,
+--    구매 비교·일반 고민은 '판결 문구 = 선택지 + !'로 확인하도록 바꿨다. (운영 DB 적용 완료, 마이그레이션 pick_verify_shop_compare)

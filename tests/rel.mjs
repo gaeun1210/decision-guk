@@ -27,7 +27,10 @@ async function verdict(p, title = '점심 뭐 먹지', opts = ['국밥', '파스
   await p.fill('#meeting-title', title);
   for (let i = 0; i < opts.length; i++) { if (i >= 2) await p.locator('#add-opt').click(); await p.locator('.opt-input').nth(i).fill(opts[i]); }
   await p.locator('#agenda-form button[type="submit"]').click(); await p.waitForTimeout(400);
-  for (let k = 0; k < 4; k++) { await p.locator('.modal .choice').first().click(); await p.waitForTimeout(150); }
+  for (let k = 0; k < 4; k++) { // 선택지마다 등급을 다르게(첫 선택지가 가장 좋게) 답한다
+    const rows = p.locator('.modal .fact-row:not(.auto)'); const n = await rows.count();
+    for (let i = 0; i < n; i++) await rows.nth(i).locator('.fact').nth(Math.min(i, 2)).click();
+    await p.click('#q-next'); await p.waitForTimeout(150); }
   await p.locator('.modal .prio').first().click(); await p.locator('.modal button', { hasText: '표결 시작' }).click(); await p.waitForTimeout(700);
   if (await p.locator('[data-tb]').count()) { await p.locator('[data-tb]').first().click(); await p.waitForTimeout(400); }
 }

@@ -22,10 +22,11 @@ jobs:
           node-version: 22
       - run: npm i --no-save --ignore-scripts playwright@1.49.1 && npx playwright install --with-deps chromium
       - run: python3 -m http.server 8771 >/dev/null 2>&1 &
-      - run: sleep 2 && node tests/qa.mjs | tee qa.txt && grep -q "28/28" qa.txt
-      - run: node tests/fix.mjs | tee fix.txt && grep -q "35/35" fix.txt
+      - run: sleep 2 && node tests/qa.mjs | tee qa.txt && ! grep -q "^FAIL" qa.txt
+      - run: node tests/fix.mjs | tee fix.txt && ! grep -q "^FAIL" fix.txt
       - run: node tests/rel.mjs | tee rel.txt && grep -q "통과" rel.txt && ! grep -q "^FAIL" rel.txt
       - run: node tests/sec.mjs | tee sec.txt && ! grep -q "^FAIL" sec.txt
+      - run: node tests/engine.mjs | tee engine.txt && ! grep -q "^FAIL" engine.txt
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

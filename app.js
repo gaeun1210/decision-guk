@@ -1,12 +1,13 @@
 "use strict";
 const STORAGE_KEY = "decision-country-records";
 
-// 장관 정보: 질문 하나씩을 맡고, 사용자의 답이 그 장관의 표가 된다(규칙 공개, AI 미사용). 순서는 첫 화면 배치(토끼·쿼카·곰·병아리)와 같다.
+// 장관 정보: 장관마다 사실 질문 하나(위험·기대·비용·준비)를 맡는다. 표는 사용자의 답을 그대로 옮기지 않고,
+// 장관이 자기 기준으로 모든 선택지에 점수를 매겨 정한다(아래 '장관 독립 판단 엔진', 규칙 공개, AI 미사용). 순서는 첫 화면 배치(토끼·쿼카·곰·병아리)와 같다.
 const MINISTERS = [
-  { name: "신중주의", priority: "safe", img: "rabbit_desk", face: "face_rabbit", stand: "stand_rabbit", emoji: "🐰", animal: "토끼", question: "어느 쪽이 나중에 후회가 가장 적을 것 같나요?" },
-  { name: "낭만주의", priority: "fun",  img: "quokka_desk", face: "face_quokka", stand: "stand_quokka", emoji: "🐹", animal: "쿼카", question: "솔직히 어느 쪽이 가장 끌리나요?" },
-  { name: "현실주의", priority: "cost", img: "bear_desk", face: "face_bear", stand: "stand_bear",   emoji: "🐻", animal: "곰",   question: "어느 쪽이 돈과 시간이 가장 덜 드나요?" },
-  { name: "행동파",   priority: "easy", img: "chick_desk", face: "face_chick", stand: "stand_chick",  emoji: "🐤", animal: "병아리", question: "어느 쪽을 지금 바로 시작할 수 있나요?" }
+  { name: "신중주의", priority: "safe", img: "rabbit_desk", face: "face_rabbit", stand: "stand_rabbit", emoji: "🐰", animal: "토끼", question: "선택지마다, 하고 나서 후회하거나 문제가 생길 위험은?" },
+  { name: "낭만주의", priority: "fun",  img: "quokka_desk", face: "face_quokka", stand: "stand_quokka", emoji: "🐹", animal: "쿼카", question: "선택지마다, 얼마나 기대되나요?" },
+  { name: "현실주의", priority: "cost", img: "bear_desk", face: "face_bear", stand: "stand_bear",   emoji: "🐻", animal: "곰",   question: "선택지마다, 돈과 시간이 얼마나 드나요?" },
+  { name: "행동파",   priority: "easy", img: "chick_desk", face: "face_chick", stand: "stand_chick",  emoji: "🐤", animal: "병아리", question: "선택지마다, 지금 바로 시작할 수 있나요?" }
 ];
 // 선 아이콘(Lucide, ISC 라이선스 모양을 참고해 직접 그림)
 const ICONS = {
@@ -104,13 +105,14 @@ async function addRecord(record, m) {
     list.unshift(record);
     return { ok: saveRecords(list), source: "local" };
   }
-  const shop = m.category === "쇼핑";
+  const single = m.category === "쇼핑" && m.shopMode !== "compare";
   const row = {
     title: record.title, category: record.category, detail: record.detail || "",
     options: m.options, priority: m.priority,
-    price: shop ? m.shop.priceValue : null, budget: shop ? m.shop.budgetValue : null,
+    // 구매 비교는 판결된 상품 가격(보류면 가장 싼 후보)을 저장한다(DB: 쇼핑은 가격·예산 필수)
+    price: single && m.shop ? m.shop.priceValue : m.category === "쇼핑" && m.cmp && m.cmp.items ? (record.winner >= 0 && m.cmp.items[record.winner] ? m.cmp.items[record.winner].priceValue : Math.min(...m.cmp.items.map(it => it.priceValue || Infinity))) : null, budget: single && m.shop ? m.shop.budgetValue : m.category === "쇼핑" && m.cmp ? m.cmp.budgetValue : null,
     verdict: record.verdict, label: record.label, tally: record.tally,
-    opinions: record.opinions, retrial: !!record.retrial, evidence: { items: record.evidence || [], moves: record.moves || [], ...(record.when ? { when: record.when } : {}) }
+    opinions: record.opinions, retrial: !!record.retrial, evidence: { items: record.evidence || [], moves: record.moves || [], ...(record.when ? { when: record.when } : {}), ...(record.rule ? { rule: record.rule } : {}) }
   }; // user_id는 DB가 auth.uid()로 채운다(화면에서 보내지 않음)
   if (record.key && UUID_RE.test(record.key)) row.id = record.key; // 같은 판결을 다시 저장해도 중복 생성되지 않게(같은 id면 DB가 거부)
   let { error } = await db.from("decisions").insert(row);
@@ -145,8 +147,9 @@ function getPending() { try { const p = JSON.parse(localStorage.getItem(PENDING_
 function setPending(record, m) {
   try {
     localStorage.setItem(PENDING_KEY, JSON.stringify({ at: Date.now(), record, m: {
-      category: m.category, options: m.options, priority: m.priority,
-      shop: m.shop ? { priceValue: m.shop.priceValue, budgetValue: m.shop.budgetValue } : null } }));
+      category: m.category, options: m.options, priority: m.priority, shopMode: m.shopMode || "single",
+      shop: m.shop ? { priceValue: m.shop.priceValue, budgetValue: m.shop.budgetValue } : null,
+      cmp: m.cmp ? { budgetValue: m.cmp.budgetValue, items: (m.cmp.items || []).map(it => ({ priceValue: it.priceValue })) } : null } }));
   } catch { }
 }
 function clearPending() { try { localStorage.removeItem(PENDING_KEY); } catch { } }
@@ -460,9 +463,10 @@ function newMeeting(prefill) {
     title: prefill || "", category: selectedCategory, detail: "",
     rawOptions: ["", ""], options: [], yesNo: false, rawTags: [null, null], optTags: [], activityTag: null,
     place: "", date: kstToday(), weatherOn: false, evidence: null,
-    answers: {}, qIndex: 0,
+    answers: {}, facts: emptyFacts(), qIndex: 0,
     shop: { price: "", budget: "", owned: null, use: null, need: null, currency: "KRW", fx: null },
-    priority: null, reversible: null, urgent: null, tiebreak: null, retrial: false
+    shopMode: "single", cmp: { budget: "", owned: null, items: [] },
+    priority: null, reversible: null, urgent: null, budgetTight: null, timeTight: null, tiebreak: null, retrial: false
   };
 }
 
@@ -471,9 +475,10 @@ function startMeeting(prefill = "") {
   renderAgenda();
 }
 // 진행 중인 회의를 닫았다가 다시 열면 이어서 할지 묻는다(취소 후 복귀)
-const RESUME = { agenda: () => renderAgenda(), question: () => renderQuestion(), shop: () => renderShop(), priority: () => renderPriority() };
+const RESUME = { agenda: () => renderAgenda(), question: () => renderQuestion(), shop: () => renderShop(), shopcmp: () => renderShopCompare(), priority: () => renderPriority() };
 function hasProgress(m) {
-  return !!(m && !m.done && RESUME[m.view] && (m.title.trim() || Object.keys(m.answers).length || m.rawOptions.some(o => o.trim())));
+  const factCount = m && m.facts ? Object.values(m.facts).reduce((n, a) => n + (Array.isArray(a) ? a.filter(v => v != null).length : 0), 0) : 0;
+  return !!(m && !m.done && RESUME[m.view] && (m.title.trim() || factCount || m.rawOptions.some(o => o.trim())));
 }
 function openMeeting(prefill = "") {
   if (!hasProgress(meeting)) return startMeeting(prefill);
@@ -481,7 +486,7 @@ function openMeeting(prefill = "") {
   if (prefill && prefill === m.title.trim()) return RESUME[m.view]();
   openModal("🏛️ 국무회의", `
     <p>진행 중이던 회의가 있어요.</p>
-    <div class="info-box">「${escapeHTML(m.title.trim() || "제목 없음")}」 · ${({ agenda: "안건 접수", question: `장관 질문 ${Math.min(m.qIndex + 1, 4)}/4`, shop: "구매 심사", priority: "중요 기준" })[m.view]} 단계</div>
+    <div class="info-box">「${escapeHTML(m.title.trim() || "제목 없음")}」 · ${({ agenda: "안건 접수", question: `장관 질문 ${Math.min(m.qIndex + 1, 4)}/4`, shop: "구매 심사", shopcmp: "구매 비교", priority: "중요 기준" })[m.view]} 단계</div>
     <div class="btn-row">
       <button type="button" class="primary secondary" id="resume-new">새로 시작</button>
       <button type="button" class="primary" id="resume-go">이어서 하기 ▶</button>
@@ -493,7 +498,7 @@ function openMeeting(prefill = "") {
 
 function stepBar(active) {
   const shop = meeting.category === "쇼핑";
-  const names = ["안건 접수", shop ? "구매 심사" : "장관 질문", "중요 기준", "결재"];
+  const names = ["안건 접수", shop ? (meeting.shopMode === "compare" ? "구매 비교" : "구매 심사") : "장관 질문", "중요 기준", "결재"];
   return `<ol class="steps" aria-label="진행 단계">${names.map((n, i) =>
     `<li class="${i < active ? "done" : i === active ? "now" : ""}" ${i === active ? 'aria-current="step"' : ""}>${n}</li>`).join("")}</ol>`;
 }
@@ -534,11 +539,21 @@ function loadDraft() {
     m.options = m.options.map(String).slice(0, LIMITS.optionsMax);
     if (!Array.isArray(m.rawTags)) m.rawTags = m.rawOptions.map(() => null);
     m.shop = { ...base.shop, ...(m.shop || {}) };
+    // 사실 답(0~2, 모름 -1)만 남긴다. 예전 방식(장관 답 = 표)으로 저장된 회의는 질문을 다시 받는다.
+    const f = emptyFacts();
+    if (m.facts && typeof m.facts === "object") Object.keys(f).forEach(k => { f[k] = Array.isArray(m.facts[k]) ? m.facts[k].slice(0, LIMITS.optionsMax).map(v => (Number.isInteger(v) && v >= -1 && v <= 2 ? v : null)) : []; });
+    m.facts = f;
+    if (m.shopMode !== "compare") m.shopMode = "single";
+    const cb = m.cmp && typeof m.cmp === "object" ? m.cmp : {};
+    m.cmp = { budget: String(cb.budget || ""), owned: typeof cb.owned === "boolean" ? cb.owned : null,
+      items: Array.isArray(cb.items) ? cb.items.slice(0, 4).map(it => ({ price: String((it && it.price) || ""), need: it && it.need || null, use: it && it.use || null, appeal: it && it.appeal || null })) : [] };
     if (!(m.date >= kstToday())) { m.date = kstToday(); m.dateTouched = false; }
     if (m.view === "question" && !(m.qIndex >= 0 && m.qIndex < MINISTERS.length)) m.qIndex = 0;
     if ((m.view === "question" || m.view === "priority") && m.category !== "쇼핑" && m.options.length < 2) m.view = "agenda";
-    if (m.view === "shop" && m.category !== "쇼핑") m.view = "agenda";
-    if (m.view === "priority" && m.category === "쇼핑" && !(m.shop.priceValue > 0 && m.shop.budgetValue > 0)) m.view = "shop";
+    if ((m.view === "shop" || m.view === "shopcmp") && m.category !== "쇼핑") m.view = "agenda";
+    if (m.view === "shopcmp" && m.options.length < 2) m.view = "agenda";
+    if (m.view === "priority" && m.category === "쇼핑" && m.shopMode !== "compare" && !(m.shop.priceValue > 0 && m.shop.budgetValue > 0)) m.view = "shop";
+    if (m.view === "priority" && m.category === "쇼핑" && m.shopMode === "compare" && !(m.cmp.budgetValue > 0)) m.view = "shopcmp";
     if (!RESUME[m.view]) m.view = "agenda";
     return hasProgress(m) ? m : null;
   } catch { return null; }
@@ -615,7 +630,7 @@ function renderAgenda(stay = false) {
   saveDraft();
   openModal("🏛️ 국무회의", `
     ${stepBar(0)}
-    <p class="guide-line">🗂️ ${shop ? "고민 접수 → 구매 심사(가격·예산·필요성) → 중요 기준 → 결재" : "고민 접수 → 장관 질문 4개 → 중요 기준 1개 → 결재"} · 약 1분이면 끝나요.</p>
+    <p class="guide-line">🗂️ ${shop ? (m.shopMode === "compare" ? "고민 접수 → 상품별 가격·필요성 → 중요 기준 → 장관 4명이 각자 비교 → 결재" : "고민 접수 → 구매 심사(가격·예산·필요성) → 중요 기준 → 결재") : "고민 접수 → 장관 질문 4개(사실 확인) → 중요 기준 → 장관 4명이 각자 판단 → 결재"} · 약 1~2분이면 끝나요.</p>
     <form id="agenda-form" novalidate>
       <div class="field">
         <label for="meeting-title">고민 제목</label>
@@ -637,22 +652,30 @@ function renderAgenda(stay = false) {
       <div class="hint auto-hint" id="auto-hint" ${auto.place || auto.date ? "" : "hidden"}>${autoHintText(auto)}</div>
       <div class="hint">${m.category === "맛집" ? "출발 동네를 도시 이름부터 적으면(예: 대구 동성로) 선택지(가게 이름·메뉴)를 근처에서 찾아 거리를 비교하고, 날씨도 반영해요." : "지역을 도시 이름부터 적으면 그날의 날씨·미세먼지·공휴일을 조회해 장관 판단에 반영해요."}</div>` : m.category === "일상" ? `<div class="hint">📌 일상 고민은 외부 정보 없이 입력한 답만으로 판단해요. 장소·날짜가 있는 고민이면 ✈️ 나들이를 고르면 날씨를 반영해요.</div>` : ""}
       ${shop ? `
+      <div class="field">
+        <span class="label">어떤 쇼핑 고민인가요?</span>
+        <div class="chip-row" role="group" aria-label="쇼핑 고민 방식">
+          <button type="button" class="chip" data-smode="single" aria-pressed="${m.shopMode !== "compare"}">🛍️ 살까, 말까?</button>
+          <button type="button" class="chip" data-smode="compare" aria-pressed="${m.shopMode === "compare"}">⚖️ 이것 중 뭘 살까?</button>
+        </div>
+      </div>` : ""}
+      ${shop && m.shopMode !== "compare" ? `
       <div class="info-box">🛍️ <b>구매 재판</b>으로 진행합니다. 다음 단계에서 가격·예산과 필요성을 물어볼게요.</div>` : `
       <div class="field">
-        <span class="label">선택지 <small>(최대 ${LIMITS.optionsMax}개)</small></span>
+        <span class="label">${shop ? "비교할 상품" : "선택지"} <small>(${shop ? "2~4개" : `최대 ${LIMITS.optionsMax}개`})</small></span>
         <div id="option-list">
           ${m.rawOptions.map((o, i) => `
             <div class="opt-row">
               <span class="opt-no">${i + 1}</span>
-              <input class="opt-input" maxlength="${LIMITS.option}" value="${escapeHTML(o)}" placeholder="${i < 2 ? ph[i] : "선택지"}" aria-label="선택지 ${i + 1}" autocomplete="off" />
+              <input class="opt-input" maxlength="${LIMITS.option}" value="${escapeHTML(o)}" placeholder="${shop ? (i < 2 ? ["예) 무선 이어폰 A", "예) 무선 이어폰 B"][i] : "상품") : i < 2 ? ph[i] : "선택지"}" aria-label="${shop ? "상품" : "선택지"} ${i + 1}" autocomplete="off" />
               ${TAG_CATS.includes(m.category) ? `<span class="tag-pick" role="group" aria-label="선택지 ${i + 1} 장소">
                 <button type="button" class="tag" data-tag="${i}" data-v="in" aria-pressed="${m.rawTags[i] === "in"}" title="실내">🏠</button>
                 <button type="button" class="tag" data-tag="${i}" data-v="out" aria-pressed="${m.rawTags[i] === "out"}" title="야외">🌳</button></span>` : ""}
               ${m.rawOptions.length > 2 ? `<button type="button" class="opt-del" data-del="${i}" aria-label="선택지 ${i + 1} 삭제">✕</button>` : ""}
             </div>`).join("")}
         </div>
-        ${m.rawOptions.length < LIMITS.optionsMax ? `<button type="button" class="add-opt" id="add-opt">＋ 선택지 추가</button>` : ""}
-        <div class="hint">선택지를 하나만 적거나 비워 두면 「한다 / 안 한다」로 회의합니다.${TAG_CATS.includes(m.category) ? " 🏠실내 / 🌳야외를 표시하면 날씨가 판단에 반영돼요." : ""}</div>
+        ${m.rawOptions.length < (shop ? 4 : LIMITS.optionsMax) ? `<button type="button" class="add-opt" id="add-opt">＋ ${shop ? "상품" : "선택지"} 추가</button>` : ""}
+        <div class="hint">${shop ? "다음 단계에서 상품마다 가격·필요성·사용 시기·끌림을 물어보고, 장관 네 명이 각자 기준으로 비교해요. 링크나 사진 속 정보를 자동으로 확인하지는 않아요." : `선택지를 하나만 적거나 비워 두면 「한다 / 안 한다」로 회의합니다.${TAG_CATS.includes(m.category) ? " 🏠실내 / 🌳야외를 표시하면 날씨가 판단에 반영돼요." : ""}`}</div>
         ${TAG_CATS.includes(m.category) ? `<div class="chip-row slim-row" id="act-row" ${m.rawOptions.every(o => !o.trim()) ? "" : "hidden"}><span class="hint">할까 말까 고민이라면, 이 활동은</span>
           <button type="button" class="chip" data-act="in" aria-pressed="${m.activityTag === "in"}">🏠 실내</button><button type="button" class="chip" data-act="out" aria-pressed="${m.activityTag === "out"}">🌳 야외</button></div>` : ""}
       </div>`}
@@ -675,8 +698,9 @@ function renderAgenda(stay = false) {
       modalRoot.querySelectorAll("[data-tag]").forEach(b => b.onclick = () => { keep(); const i = Number(b.dataset.tag); m.rawTags[i] = m.rawTags[i] === b.dataset.v ? null : b.dataset.v; again(`[data-tag="${i}"][data-v="${b.dataset.v}"]`); });
       modalRoot.querySelectorAll("[data-act]").forEach(b => b.onclick = () => { keep(); m.activityTag = m.activityTag === b.dataset.act ? null : b.dataset.act; again(sel("data-act", b.dataset.act)); });
       modalRoot.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { keep(); m.category = b.dataset.cat; again(sel("data-cat", b.dataset.cat)); });
+      modalRoot.querySelectorAll("[data-smode]").forEach(b => b.onclick = () => { keep(); m.shopMode = b.dataset.smode; again(sel("data-smode", b.dataset.smode)); });
       const add = document.getElementById("add-opt");
-      if (add) add.onclick = () => { keep(); m.rawOptions.push(""); m.rawTags.push(null); again(); const ins = modalRoot.querySelectorAll(".opt-input"); ins[ins.length - 1].focus(); };
+      if (add) add.onclick = () => { keep(); if (shop && m.rawOptions.length >= 4) return; m.rawOptions.push(""); m.rawTags.push(null); again(); const ins = modalRoot.querySelectorAll(".opt-input"); ins[ins.length - 1].focus(); };
       modalRoot.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { keep(); m.rawOptions.splice(Number(b.dataset.del), 1); m.rawTags.splice(Number(b.dataset.del), 1); again(); });
       // 입력할 때마다 임시 저장(새로고침·창 닫힘에도 이어서 할 수 있게)
       document.getElementById("agenda-form").addEventListener("input", e => {
@@ -712,9 +736,19 @@ function renderAgenda(stay = false) {
           }
           m.placeChecked = m.place; // 서버 연결 문제면 막지 않고 진행(근거 수집 단계에서 다시 안내)
         }
-        if (m.category === "쇼핑") {
+        if (m.category === "쇼핑" && m.shopMode !== "compare") {
           m.options = ["구매 승인", "하루 더 생각하기", "보류"];
           return renderShop();
+        }
+        if (m.category === "쇼핑") { // 구매 비교: 상품 2~4개
+          const prods = m.rawOptions.map(o => o.trim()).filter(Boolean);
+          if (prods.length < 2) return showError("agenda-err", "비교할 상품을 2개 이상 적어 주세요.");
+          if (prods.length > 4) return showError("agenda-err", "상품은 4개까지 비교할 수 있어요.");
+          if (prods.some(o => o.length > LIMITS.option)) return showError("agenda-err", `상품 이름은 각각 ${LIMITS.option}자 이하로 적어 주세요.`);
+          if (new Set(prods.map(normalize)).size !== prods.length) return showError("agenda-err", "같은 상품이 두 번 적혀 있어요.");
+          if (prods.join("\u0000") !== m.options.join("\u0000")) m.cmp.items = prods.map(() => ({ price: "", need: null, use: null, appeal: null }));
+          m.options = prods; m.yesNo = false; m.optTags = [];
+          return renderShopCompare();
         }
         const pairs = m.rawOptions.map((o, i) => [o.trim(), m.rawTags[i] || null]).filter(([o]) => o);
         const opts = pairs.map(p => p[0]);
@@ -726,7 +760,7 @@ function renderAgenda(stay = false) {
         }
         m.yesNo = opts.length < 2;
         const next = m.yesNo ? (opts.length === 1 ? [opts[0], "하지 않기"] : ["한다", "안 한다"]) : opts.slice(0, LIMITS.optionsMax);
-        if (next.join("\u0000") !== m.options.join("\u0000")) m.answers = {}; // 선택지가 바뀌면 이전 답은 버린다
+        if (next.join("\u0000") !== m.options.join("\u0000")) { m.answers = {}; m.facts = emptyFacts(); } // 선택지가 바뀌면 이전 답은 버린다
         m.options = next;
         m.optTags = !TAG_CATS.includes(m.category) ? [] : m.yesNo ? [opts.length === 1 ? pairs[0][1] : m.activityTag, "in"] : pairs.slice(0, LIMITS.optionsMax).map(p => p[1]);
         m.qIndex = 0;
@@ -735,45 +769,64 @@ function renderAgenda(stay = false) {
     });
 }
 
-// ② 장관 질문(일반 고민): 장관마다 질문 하나, 답이 곧 그 장관의 표
+// ② 장관 질문(일반 고민): 장관마다 '사실' 질문 하나를 모든 선택지에 대해 묻는다. 답은 표가 아니라 판단 재료다.
 function renderQuestion() {
   const m = meeting;
   m.view = "question";
+  if (!m.facts) m.facts = emptyFacts();
   saveDraft();
   const minister = MINISTERS[m.qIndex];
-  const current = m.answers[minister.name];
+  const F = FACTS.find(f => f.key === FACT_OF[minister.name]);
+  const arr = m.facts[F.key] || (m.facts[F.key] = []);
+  const rows = m.options.map((o, i) => {
+    const auto = autoFact(m, F.key, i);
+    if (auto !== undefined) return `<div class="fact-row auto"><span class="fact-opt">${escapeHTML(o)}</span><span class="hint">${auto === "na" ? "해당 없음(하지 않는 쪽)" : `자동: ${F.lv[auto]} (안 하면 돈·시간이 들지 않아요)`}</span></div>`;
+    return `<div class="fact-row" role="group" aria-label="${escapeHTML(o)}">
+      <span class="fact-opt">${escapeHTML(o)}</span>
+      <span class="fact-chips">${F.lv.map((t, v) => `<button type="button" class="chip fact" data-fact="${i}" data-lv="${v}" aria-pressed="${arr[i] === v}">${t}</button>`).join("")}
+        <button type="button" class="chip fact unk" data-fact="${i}" data-lv="-1" aria-pressed="${arr[i] === -1}">모름</button></span>
+    </div>`;
+  }).join("");
+  const done = () => m.options.every((_, i) => autoFact(m, F.key, i) !== undefined || Number.isInteger(arr[i]));
   openModal("🏛️ 국무회의", `
     ${stepBar(1)}
     <div class="q-card">
       <img class="q-sprite" src="assets/${minister.img}.png" alt="${minister.animal} ${minister.name} 장관" />
       <div class="q-bubble">
         <div class="q-who">${minister.emoji} ${minister.name} 장관 <span class="q-count">질문 ${m.qIndex + 1} / ${MINISTERS.length}</span></div>
-        <div class="q-text">${escapeHTML(minister.question)}</div>
+        <div class="q-text">${escapeHTML(F.q)}</div>
       </div>
     </div>
     <div class="answer-row">
       <div class="face me-face">${userFace()}<small>${userName()}</small></div>
       <div class="answer-col">
-    <div class="q-title">안건: ${escapeHTML(m.title)}</div>
-    <div class="choice-list" role="group" aria-label="${escapeHTML(minister.question)}">
-      ${m.options.map((o, i) => `<button type="button" class="choice" data-answer="${i}" aria-pressed="${current === i}">${escapeHTML(o)}</button>`).join("")}
-      <button type="button" class="choice abstain" data-answer="-1" aria-pressed="${current === -1}">비슷해요 / 잘 모르겠어요</button>
-    </div>
+        <div class="q-title">안건: ${escapeHTML(m.title)}</div>
+        <div class="fact-list">${rows}</div>
+        <p class="hint">어느 쪽이 좋은지는 묻지 않아요. 사실만 알려 주면 장관이 자기 기준으로 점수를 매겨 판단합니다. 모르면 '모름' — 모르는 값은 채우지 않아요.</p>
       </div>
     </div>
+    <p class="err" id="q-err" role="alert" hidden></p>
     <div class="btn-row">
       <button type="button" class="primary secondary" id="q-back">◀ 이전</button>
+      <button type="button" class="primary" id="q-next" ${done() ? "" : "aria-disabled=\"true\""}>다음 ▶</button>
     </div>`, () => {
-      modalRoot.querySelectorAll("[data-answer]").forEach(b => b.onclick = () => {
-        m.answers[minister.name] = Number(b.dataset.answer);
+      modalRoot.querySelectorAll("[data-fact]").forEach(b => b.onclick = () => {
+        const i = Number(b.dataset.fact), v = Number(b.dataset.lv);
+        arr[i] = v; saveDraft();
+        modalRoot.querySelectorAll(`[data-fact="${i}"]`).forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+        const nx = document.getElementById("q-next"); if (done()) nx.removeAttribute("aria-disabled");
+        showError("q-err", "");
+      });
+      document.getElementById("q-next").onclick = () => {
+        if (!done()) return showError("q-err", "선택지마다 하나씩 골라 주세요. 모르면 '모름'을 눌러도 돼요.");
         if (m.qIndex < MINISTERS.length - 1) { m.qIndex++; renderQuestion(); }
         else renderPriority();
-      });
+      };
       document.getElementById("q-back").onclick = () => {
         if (m.qIndex > 0) { m.qIndex--; renderQuestion(); } else renderAgenda();
       };
-      const first = modalRoot.querySelector('.choice[aria-pressed="true"]') || modalRoot.querySelector(".choice");
-      if (first) first.focus();
+      const first = modalRoot.querySelector('.fact[aria-pressed="true"]') || modalRoot.querySelector(".fact");
+      if (first) first.focus({ preventScroll: true });
     });
 }
 
@@ -872,6 +925,85 @@ function renderShop() {
     });
 }
 
+// ② 구매 비교(쇼핑 · 이것 중 뭘 살까?): 상품마다 가격(원)·필요성·사용 시기·끌림, 공통 예산·보유 여부
+function renderShopCompare() {
+  const m = meeting, c = m.cmp;
+  m.view = "shopcmp";
+  while (c.items.length < m.options.length) c.items.push({ price: "", need: null, use: null, appeal: null });
+  c.items.length = m.options.length;
+  saveDraft();
+  const seg = (i, key, items) => `<span class="fact-chips">${items.map(([v, t]) => `<button type="button" class="chip fact" data-ci="${i}" data-ck="${key}" data-val="${v}" aria-pressed="${c.items[i][key] === v}">${t}</button>`).join("")}</span>`;
+  openModal("⚖️ 구매 비교", `
+    ${stepBar(1)}
+    <div class="q-card">
+      <img class="q-sprite" src="assets/bear_desk.png" alt="곰 현실주의 장관" />
+      <div class="q-bubble"><div class="q-who">🐻 현실주의 장관</div><div class="q-text">「${escapeHTML(m.title)}」, 후보마다 사실부터 확인하겠습니다! 네 장관이 각자 기준으로 비교해요.</div></div>
+    </div>
+    <form id="cmp-form" novalidate>
+      <div class="field-row">
+        <div class="field"><label for="cmp-budget">쓸 수 있는 예산 (원)</label>
+          <input id="cmp-budget" inputmode="numeric" autocomplete="off" value="${escapeHTML(c.budget)}" placeholder="예) 150000" />
+          <div class="money-echo" id="cmp-budget-echo" aria-live="polite"></div></div>
+        <div class="field"><span class="label">비슷한 물건이 이미 있나요?</span>
+          <div class="chip-row" role="group" aria-label="비슷한 물건 보유">
+            <button type="button" class="chip" data-cown="true" aria-pressed="${c.owned === true}">있어요</button>
+            <button type="button" class="chip" data-cown="false" aria-pressed="${c.owned === false}">없어요</button></div></div>
+      </div>
+      ${m.options.map((o, i) => `
+      <fieldset class="cmp-item">
+        <legend>${i + 1}. ${escapeHTML(o)}</legend>
+        <div class="field"><label for="cmp-price-${i}">가격 (원)</label>
+          <input id="cmp-price-${i}" class="cmp-price" data-i="${i}" inputmode="numeric" autocomplete="off" value="${escapeHTML(c.items[i].price)}" placeholder="예) 89000" />
+          <div class="money-echo" id="cmp-price-${i}-echo" aria-live="polite"></div></div>
+        <div class="fact-row"><span class="fact-opt">없으면 불편한 정도</span>${seg(i, "need", [["high", "많이 불편"], ["mid", "조금"], ["low", "괜찮아요"]])}</div>
+        <div class="fact-row"><span class="fact-opt">언제 쓸 계획</span>${seg(i, "use", [["week", "이번 주"], ["month", "한 달 안"], ["unknown", "모르겠어요"]])}</div>
+        <div class="fact-row"><span class="fact-opt">얼마나 끌리나요</span>${seg(i, "appeal", [["high", "많이"], ["mid", "조금"], ["low", "별로"]])}</div>
+      </fieldset>`).join("")}
+      <p class="hint">사진·링크 속 품질이나 최저가는 자동으로 확인하지 않아요. 적어 주신 값으로만 판단합니다.</p>
+      <p class="err" id="cmp-err" role="alert" hidden></p>
+      <div class="btn-row">
+        <button type="button" class="primary secondary" id="cmp-back">◀ 이전</button>
+        <button type="submit" class="primary">다음 ▶</button>
+      </div>
+    </form>`, () => {
+      const keep = () => {
+        c.budget = document.getElementById("cmp-budget").value;
+        modalRoot.querySelectorAll(".cmp-price").forEach(el => { c.items[Number(el.dataset.i)].price = el.value; });
+      };
+      const echo = el => { const out = document.getElementById(el.id + "-echo"); const n = Number(String(el.value).replace(/[,\s]/g, "")); out.textContent = el.value.trim() && Number.isFinite(n) && n > 0 ? moneyWords(n) : ""; };
+      modalRoot.querySelectorAll("#cmp-budget, .cmp-price").forEach(el => {
+        el.addEventListener("input", () => { echo(el); keep(); saveDraft(); });
+        el.addEventListener("blur", () => { const raw = String(el.value).replace(/[,\s]/g, ""); if (/^\d+$/.test(raw)) { el.value = Number(raw).toLocaleString("ko-KR"); keep(); saveDraft(); } });
+        echo(el);
+      });
+      modalRoot.querySelectorAll("[data-ci]").forEach(b => b.onclick = () => {
+        keep(); const i = Number(b.dataset.ci), k = b.dataset.ck;
+        c.items[i][k] = c.items[i][k] === b.dataset.val ? null : b.dataset.val;
+        modalRoot.querySelectorAll(`[data-ci="${i}"][data-ck="${k}"]`).forEach(x => x.setAttribute("aria-pressed", String(c.items[i][k] === x.dataset.val)));
+        saveDraft();
+      });
+      modalRoot.querySelectorAll("[data-cown]").forEach(b => b.onclick = () => {
+        keep(); const v = b.dataset.cown === "true"; c.owned = c.owned === v ? null : v;
+        modalRoot.querySelectorAll("[data-cown]").forEach(x => x.setAttribute("aria-pressed", String(c.owned === (x.dataset.cown === "true"))));
+        saveDraft();
+      });
+      document.getElementById("cmp-back").onclick = () => { keep(); renderAgenda(); };
+      document.getElementById("cmp-form").onsubmit = e => {
+        e.preventDefault(); keep();
+        const b = parseMoney(c.budget);
+        if (b.error) return showError("cmp-err", "예산: " + b.error);
+        for (let i = 0; i < m.options.length; i++) {
+          const p = parseMoney(c.items[i].price);
+          if (p.error) return showError("cmp-err", `「${m.options[i]}」 가격: ${p.error}`);
+          c.items[i].priceValue = p.value;
+        }
+        c.budgetValue = b.value;
+        // 필요성·사용 시기·끌림은 비워 둘 수 있어요(모름 → 그 기준의 장관은 판단하지 않음)
+        renderPriority();
+      };
+    });
+}
+
 // ③ 가장 중요한 기준 (+ 되돌림·마감)
 function renderPriority() {
   const m = meeting;
@@ -879,6 +1011,9 @@ function renderPriority() {
   saveDraft();
   const pairs = [["reversible", [["true", "쉽게 바꿀 수 있어요"], ["false", "되돌리기 어려워요"]], "나중에 되돌릴 수 있나요? (선택)"],
                  ["urgent", [["true", "오늘 안에 정해야 해요"], ["false", "여유가 있어요"]], "언제까지 정해야 하나요? (선택)"]];
+  if (m.category !== "쇼핑") pairs.push(
+    ["budgetTight", [["false", "여유 있어요"], ["true", "빠듯해요"]], "요즘 예산 상황은? (선택)"],
+    ["timeTight", [["false", "여유 있어요"], ["true", "빠듯해요"]], "시간·체력 여유는? (선택)"]);
   openModal("🏛️ 국무회의", `
     ${stepBar(2)}
     <div class="q-card">
@@ -908,12 +1043,12 @@ function renderPriority() {
         rerender(renderPriority, `[data-ctx="${key}"][data-val="${b.dataset.val}"]`);
       });
       document.getElementById("prio-back").onclick = () => {
-        if (m.category === "쇼핑") renderShop(); else { m.qIndex = MINISTERS.length - 1; renderQuestion(); }
+        if (m.category === "쇼핑") { if (m.shopMode === "compare") renderShopCompare(); else renderShop(); } else { m.qIndex = MINISTERS.length - 1; renderQuestion(); }
       };
       document.getElementById("prio-go").onclick = () => {
         if (!m.priority) return showError("prio-err", "가장 중요한 기준을 하나 골라 주세요.");
         m.tiebreak = null;
-        const needs = (WEATHER_CATS.includes(m.category) && m.place) || (m.category === "쇼핑" && m.shop.fx);
+        const needs = (WEATHER_CATS.includes(m.category) && m.place) || (isShopSingle(m) && m.shop.fx);
         const run = () => { const result = decide(m); if (result.tie) renderTiebreak(result); else showResult(m, result); };
         if (!needs) { m.evidence = null; return run(); }
         openModal("🏛️ 국무회의", `${stepBar(3)}<div class="empty"><img class="owl" src="assets/stand_owl.png" alt="" /><br><b>서기관 부엉이가 근거를 수집하는 중…</b><br><span class="hint">날씨·장소 정보를 확인하고 있어요</span></div>`);
@@ -947,7 +1082,7 @@ function j(word, particle) {
   const jong = hangul ? code % 28 : 0;
   const has = hangul ? jong !== 0 : /[0-9lmnLMN]$/.test(ch) && !/[2459]$/.test(ch);
   if (particle === "로") return has && jong !== 8 ? "으로" : "로";
-  const pairs = { 를: ["을", "를"], 가: ["이", "가"], 는: ["은", "는"], 이라고: ["이라고", "라고"] };
+  const pairs = { 를: ["을", "를"], 가: ["이", "가"], 는: ["은", "는"], 와: ["과", "와"], 이라고: ["이라고", "라고"] };
   return has ? pairs[particle][0] : pairs[particle][1];
 }
 
@@ -1003,7 +1138,7 @@ async function collectEvidence(m) {
   if (m.category === "맛집" && place && !m.yesNo) {
     jobs.push(infoGet({ type: "places", near: place, q: m.options }).then(p => { ev.places = p.ok ? p : null; ev.items.push(placesItem(p)); }));
   }
-  if (m.category === "쇼핑" && m.shop.fx) ev.items.push(fxItem(m.shop));
+  if (isShopSingle(m) && m.shop.fx) ev.items.push(fxItem(m.shop));
   await Promise.all(jobs);
   const order = ["weather", "holiday", "places", "fx"];
   ev.items.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
@@ -1063,68 +1198,6 @@ function fxItem(s) {
     source: f.source, fetchedAt: f.fetchedAt, fresh: `${f.rateDate} 기준환율(영업일 하루 1회 갱신)` };
 }
 
-// 근거에 따라 장관의 표를 조정한다(공개 규칙). 반환: { votes, moves[], notes{} }
-function adjustVotes(m, base) {
-  const votes = { ...base }, moves = [], notes = {};
-  const ev = m.evidence;
-  if (!ev) return { votes, moves, notes };
-  const n = m.options.length;
-  const note = (name, t) => { notes[name] = (notes[name] ? notes[name] + " " : "") + t; };
-  const move = (name, to, why) => { if (votes[name] === to) return; moves.push({ name, from: votes[name], to, why }); votes[name] = to; };
-
-  // 날씨 × 실내/야외
-  const w = ev.weather, f = weatherFlags(w);
-  const tags = m.optTags || [];
-  const outdoor = m.options.map((_, i) => i).filter(i => tags[i] === "out");
-  const shelter = m.options.map((_, i) => i).filter(i => tags[i] !== "out" && (tags[i] === "in" || (m.yesNo && i === 1)));
-  if (w && outdoor.length) {
-    if (f.bad.length && shelter.length) {
-      const why = f.bad.join(", ");
-      const target = shelter.slice().sort((a, b) => MINISTERS.filter(x => votes[x.name] === b).length - MINISTERS.filter(x => votes[x.name] === a).length)[0];
-      if (outdoor.includes(votes["신중주의"])) move("신중주의", target, `${why} 소식 때문에 야외인 「${m.options[votes["신중주의"]]}」 대신 「${m.options[target]}」${j(m.options[target], "로")} 표를 옮깁니다.`);
-      else note("신중주의", `${why} 소식이 있어 야외 선택지는 피하는 게 안전합니다.`);
-      if (outdoor.includes(votes["낭만주의"])) note("낭만주의", `${why} 소식이 있어 야외 만족도는 떨어지겠지만, 마음이 끌리는 쪽이라 표는 그대로 둡니다.`);
-      note("행동파", `${why} 소식이 있으니 날짜를 바꾸거나 실내 대안을 준비해 두세요.`);
-    } else if (f.bad.length) {
-      note("신중주의", `${f.bad.join(", ")} 소식이 있습니다. 야외라면 날짜를 바꾸는 것도 생각해 보세요.`);
-    } else if (f.caution.length) {
-      const why = f.caution.join(", ");
-      note("신중주의", `날씨 주의: ${why}. 야외라면 옷차림과 대비를 꼭 챙기세요.`);
-      if (outdoor.includes(votes["낭만주의"])) note("낭만주의", "날씨가 완벽하진 않아요. 그래도 마음이 끌리는 쪽이라 표는 그대로 둡니다.");
-    } else if (f.good) {
-      if (votes["낭만주의"] < 0) move("낭만주의", outdoor[0], `날씨가 좋아서(강수확률 ${w.rain}%, 최고 ${Math.round(w.tmax)}℃) 기권 대신 야외인 「${m.options[outdoor[0]]}」에 한 표 드립니다.`);
-      else note("낭만주의", `날씨도 좋아요(강수확률 ${w.rain}%, 최고 ${Math.round(w.tmax)}℃).`);
-    }
-  } else if (w && (f.bad.length || f.caution.length)) note("신중주의", `참고로 ${[...f.bad, ...f.caution].join(", ")} 소식이 있습니다.`);
-
-  // 공휴일(나들이)
-  const h = ev.holiday;
-  if (h && h.longWeekend) {
-    note("현실주의", `${h.offDays}일 연휴라 숙소·교통비가 오르고 붐빌 수 있습니다.`);
-    if (m.yesNo && votes["행동파"] < 0) move("행동파", 0, `${h.offDays}일 연휴라 떠나기 좋은 때입니다. 기권 대신 「${m.options[0]}」에 한 표!`);
-    else note("행동파", `${h.offDays}일 연휴라 시간은 충분합니다.`);
-  }
-
-  // 장소 거리(맛집)
-  const p = ev.places;
-  if (p) {
-    const dist = m.options.map((o, i) => { const x = p.places[i]; return x && x.name && x.distance != null ? x.distance : null; });
-    const known = dist.map((d, i) => [d, i]).filter(([d]) => d != null).sort((a, b) => a[0] - b[0]);
-    if (known.length >= 2) {
-      const [dc, c] = known[0];
-      const km = d => (d >= 1000 ? (d / 1000).toFixed(1) + "km" : d + "m");
-      const vB = votes["행동파"];
-      if (vB < 0 || (dist[vB] != null && dist[vB] - dc >= 1000)) move("행동파", c, `가장 가까운 「${m.options[c]}」(${km(dc)})${j(m.options[c], "로")} 갑시다. 가까워야 바로 실행할 수 있습니다.`);
-      if (w && w.rain != null && w.rain >= 60) {
-        const vS = votes["신중주의"];
-        if (vS >= 0 && dist[vS] != null && dist[vS] - dc >= 500) move("신중주의", c, `비 예보(강수확률 ${w.rain}%)가 있어 가까운 「${m.options[c]}」(${km(dc)})${j(m.options[c], "로")} 표를 옮깁니다.`);
-      }
-      note("현실주의", `이동 거리는 ${known.map(([d, i]) => `${m.options[i]} ${km(d)}`).join(", ")}입니다.`);
-    }
-  }
-  return { votes, moves, notes };
-}
-
 function evidenceCard(it) {
   if (!it.ok) return `<div class="ev fail"><b>${escapeHTML(it.label)}</b><div>⚠️ ${escapeHTML(it.reason)} — 이 정보는 반영하지 않고 판단합니다.</div></div>`;
   return `<div class="ev"><b>${escapeHTML(it.label)}</b><ul>${it.lines.map(l => `<li>${escapeHTML(l)}</li>`).join("")}</ul><small>출처: ${escapeHTML(it.source)} · ${escapeHTML(it.fresh || "")}</small></div>`;
@@ -1138,7 +1211,8 @@ function variant(seed, list) {
 }
 
 function decide(m) {
-  return m.category === "쇼핑" ? decideShop(m) : decideGeneral(m);
+  if (m.category === "쇼핑") return m.shopMode === "compare" ? decideIndependent(m) : decideShop(m);
+  return decideIndependent(m);
 }
 
 function marginLabel(count, winner, voters, allSame) {
@@ -1154,6 +1228,142 @@ function isNegative(m, i) {
   return (m.yesNo && i === 1) || /(하지\s?않|않는다|않기|않을래|안\s?(한|함|해|할|하|가|사|먹|볼|봐)|말기|말자|그만|포기)/.test(o);
 }
 
+// ===== 장관 독립 판단 엔진 (규칙 버전 2, AI 미사용 · 같은 입력이면 항상 같은 결과) =====
+// 사용자는 '취향'이 아니라 선택지마다의 사실(위험·기대·비용·준비)을 알려 주고,
+// 장관 네 명은 각자 자기 기준으로 모든 선택지에 0~5점을 매겨 가장 높은 쪽에 표를 던진다.
+// 사용자의 끌림(기대)은 낭만주의 장관의 점수에만 들어가고, 다른 장관의 비용·위험 점수를 바꾸지 않는다.
+// 모르는 값은 채우지 않는다: 점수를 매길 수 없으면 기권. 1위와 2위가 0.5점 미만 차이면 '차이 없음'으로 기권.
+const RULE_VERSION = 2;
+const FACTS = [
+  { key: "risk", q: "선택지마다, 하고 나서 후회하거나 문제가 생길 위험은 어느 정도인가요?", lv: ["낮아요", "보통이에요", "높아요"], tag: ["위험 낮음", "위험 보통", "위험 높음"] },
+  { key: "appeal", q: "선택지마다, 생각만 해도 얼마나 기대되나요?", lv: ["많이 기대돼요", "조금", "별로예요"], tag: ["기대 큼", "기대 보통", "기대 적음"] },
+  { key: "cost", q: "선택지마다, 돈과 시간이 얼마나 드나요?", lv: ["적게 들어요", "보통이에요", "많이 들어요"], tag: ["비용 적음", "비용 보통", "비용 큼"] },
+  { key: "ready", q: "선택지마다, 지금 바로 시작할 수 있나요?", lv: ["바로 돼요", "준비가 좀 필요해요", "지금은 어려워요"], tag: ["바로 가능", "준비 필요", "지금 어려움"] }
+];
+const FACT_OF = { 신중주의: "risk", 낭만주의: "appeal", 현실주의: "cost", 행동파: "ready" };
+const LV_SCORE = [4.5, 3, 1.5];        // 사실 등급 → 기본 점수 (공개 규칙)
+const VOTE_GAP = 0.5;                  // 1위와 2위의 차이가 이보다 작으면 기권(차이 없음)
+const clamp5 = v => Math.max(0, Math.min(5, Math.round(v * 10) / 10));
+function emptyFacts() { return { risk: [], appeal: [], cost: [], ready: [] }; }
+// 할까 말까(한다/안 한다)의 '안 한다' 쪽은 돈·시간이 들지 않고(자동 '적게 들어요'), '바로 시작'은 해당 없음
+function autoFact(m, key, i) {
+  if (m.yesNo && i === 1) { if (key === "cost") return 0; if (key === "ready") return "na"; }
+  return undefined;
+}
+function factOf(m, key, i) {
+  const a = autoFact(m, key, i);
+  if (a !== undefined) return a === "na" ? null : a;
+  const v = ((m.facts || {})[key] || [])[i];
+  return Number.isInteger(v) && v >= 0 && v <= 2 ? v : null; // -1(모름)·빈칸은 null
+}
+function factAsked(m, key, i) { return autoFact(m, key, i) === undefined; }
+
+// 실시간 근거를 판단에 쓰기 좋은 모양으로(조회 성공한 것만)
+function evidenceContext(m) {
+  const ev = m.evidence || {};
+  const w = ev.weather || null, f = weatherFlags(w);
+  const tags = m.optTags || [];
+  const n = m.options.length;
+  const outdoor = new Set([...Array(n).keys()].filter(i => tags[i] === "out"));
+  const shelter = new Set([...Array(n).keys()].filter(i => tags[i] !== "out" && (tags[i] === "in" || (m.yesNo && i === 1))));
+  let dist = null, nearest = -1;
+  if (ev.places) {
+    dist = m.options.map((o, i) => { const x = ev.places.places[i]; return x && x.name && x.distance != null ? x.distance : null; });
+    const known = dist.map((d, i) => [d, i]).filter(([d]) => d != null).sort((a, b) => a[0] - b[0]);
+    if (known.length >= 2) nearest = known[0][1]; else dist = null;
+  }
+  const km = d => (d >= 1000 ? (d / 1000).toFixed(1) + "km" : d + "m");
+  return { w, f, outdoor, shelter, dist, nearest, km, longWeekend: !!(ev.holiday && ev.holiday.longWeekend), offDays: ev.holiday ? ev.holiday.offDays : 0 };
+}
+
+// 장관 한 명이 선택지 하나에 매기는 점수와 그 이유(일반 고민)
+function scoreGeneral(m, name, i, E) {
+  const why = [], evWhy = [];
+  const risk = factOf(m, "risk", i), appeal = factOf(m, "appeal", i), cost = factOf(m, "cost", i), ready = factOf(m, "ready", i);
+  const out = E && E.outdoor.has(i), bad = E && E.w && E.f.bad.length, caution = E && E.w && E.f.caution.length, good = E && E.w && E.f.good;
+  let s = null;
+  if (name === "신중주의") {
+    if (risk == null) return { s: null, why: ["위험 정보 모름"], evWhy };
+    s = LV_SCORE[risk]; why.push(FACTS[0].tag[risk]);
+    if (m.reversible === false && risk > 0) { s -= risk * 0.5; why.push("되돌리기 어려움"); }
+    if (m.budgetTight === true && cost === 2) { s -= 1; why.push("예산이 빠듯한데 비용 큼"); }
+    if (m.timeTight === true && ready === 2) { s -= 0.5; why.push("여유가 없는데 준비가 어려움"); }
+    if (out && bad) { s -= 1.5; evWhy.push(`야외인데 ${E.f.bad.join(", ")}`); }
+    else if (out && caution) { s -= 0.5; evWhy.push(`야외인데 ${E.f.caution.join(", ")}`); }
+  } else if (name === "낭만주의") {
+    if (appeal == null) return { s: null, why: ["기대 정도 모름"], evWhy };
+    s = LV_SCORE[appeal]; why.push(FACTS[1].tag[appeal]);
+    if (out && good) { s += 0.5; evWhy.push("야외 활동하기 좋은 날씨"); }
+    if (out && bad) { s -= 0.5; evWhy.push(`야외 만족도가 떨어질 날씨(${E.f.bad.join(", ")})`); }
+  } else if (name === "현실주의") {
+    if (cost == null) return { s: null, why: ["비용 정보 모름"], evWhy };
+    s = LV_SCORE[cost]; why.push(FACTS[2].tag[cost]);
+    if (m.budgetTight === true && cost > 0) { s -= cost === 2 ? 1.5 : 0.5; why.push("예산 빠듯"); }
+    if (m.timeTight === true && ready === 2) { s -= 0.5; why.push("시간 여유 없음"); }
+    if (E && E.dist && E.dist[i] != null) {
+      if (i === E.nearest) { s += 0.5; evWhy.push(`가장 가까움(${E.km(E.dist[i])})`); }
+      else if (E.dist[i] - E.dist[E.nearest] >= 1000) { s -= 0.5; evWhy.push(`멀어서 이동 부담(${E.km(E.dist[i])})`); }
+    }
+    if (E && E.longWeekend && out && !isNegative(m, i)) { s -= 0.5; evWhy.push(`${E.offDays}일 연휴라 붐비고 비쌀 수 있음`); }
+  } else if (name === "행동파") {
+    if (isNegative(m, i)) { s = 2.5; why.push("하지 않는 쪽(실행할 일이 없음)"); }
+    else {
+      if (ready == null) return { s: null, why: ["준비 정보 모름"], evWhy };
+      s = LV_SCORE[ready]; why.push(FACTS[3].tag[ready]);
+      if (m.urgent === true) { if (ready === 0) { s += 0.5; why.push("오늘 정해야 함"); } if (ready === 2) { s -= 1; why.push("오늘 정해야 하는데 어려움"); } }
+      if (m.timeTight === true && ready > 0) { s -= 0.5; why.push("여유가 없는데 준비 필요"); }
+      if (out && bad) { s -= 1; evWhy.push(`야외 실행이 어려운 날씨(${E.f.bad.join(", ")})`); }
+      if (E && E.longWeekend && m.yesNo && i === 0) { s += 0.5; evWhy.push(`${E.offDays}일 연휴라 시간 충분`); }
+    }
+    if (E && E.dist && i === E.nearest) { s += 1; evWhy.push(`가장 가까워 바로 갈 수 있음(${E.km(E.dist[i])})`); }
+  }
+  return { s: clamp5(s), why, evWhy };
+}
+
+// 구매 비교(이것 중 뭘 살까?): 상품마다 가격·필요성·사용 시기·끌림
+function scoreCompare(m, name, i) {
+  const c = m.cmp, it = (c.items || [])[i] || {}, why = [], evWhy = [];
+  const price = it.priceValue, budget = c.budgetValue;
+  const over = price > budget;
+  let s = null;
+  const NEED = { high: [4.5, "없으면 많이 불편"], mid: [3, "조금 불편"], low: [1.5, "없어도 괜찮음"] };
+  const USE = { week: [4.5, "이번 주에 씀"], month: [3, "한 달 안에 씀"], unknown: [1.5, "언제 쓸지 모름"] };
+  const APP = { high: [4.5, "많이 끌림"], mid: [3, "조금 끌림"], low: [1.5, "별로 안 끌림"] };
+  if (name === "현실주의") {
+    const pct = Math.round(price / budget * 100);
+    if (over) { s = 0; why.push(`예산 초과(예산의 ${pct}%)`); }
+    else { s = 4.5 - (pct / 100) * 2.5; why.push(`예산의 ${pct}%`); }
+  } else if (name === "신중주의") {
+    if (!NEED[it.need]) return { s: null, why: ["필요성 모름"], evWhy };
+    s = NEED[it.need][0]; why.push(NEED[it.need][1]);
+    if (c.owned === true && it.need !== "high") { s -= 1; why.push("비슷한 물건이 이미 있음"); }
+    if (over) { s -= 2; why.push("예산을 넘으면 후회 위험"); }
+  } else if (name === "낭만주의") {
+    if (!APP[it.appeal]) return { s: null, why: ["끌림 정도 모름"], evWhy };
+    s = APP[it.appeal][0]; why.push(APP[it.appeal][1]);
+  } else if (name === "행동파") {
+    if (!USE[it.use]) return { s: null, why: ["사용 시기 모름"], evWhy };
+    s = USE[it.use][0]; why.push(USE[it.use][1]);
+  }
+  return { s: clamp5(s), why, evWhy };
+}
+
+// 장관 한 명의 독립 평가: 모든 선택지 점수 → 표(또는 기권)
+function assessMinister(m, x, E) {
+  const scorer = m.category === "쇼핑" ? scoreCompare : scoreGeneral;
+  const cards = m.options.map((_, i) => scorer(m, x.name, i, E));
+  const known = cards.map((c, i) => [c.s, i]).filter(([s]) => s != null).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+  let vote = -1, abstainWhy = "", confidence = "none";
+  if (known.length < 2) abstainWhy = known.length ? "비교할 정보가 부족(모름)" : "판단할 정보가 없음(모름)";
+  else if (known[0][0] - known[1][0] < VOTE_GAP) abstainWhy = `「${m.options[known[0][1]]}」${j(m.options[known[0][1]], "와")} 「${m.options[known[1][1]]}」의 점수 차이가 없음`;
+  else {
+    vote = known[0][1];
+    const gap = known[0][0] - known[1][0];
+    confidence = gap >= 1.5 ? "high" : gap >= 1 ? "mid" : "low";
+  }
+  return { name: x.name, scores: cards.map(c => c.s), cards, vote, abstainWhy, confidence };
+}
+
 function tallyOf(m, votes) {
   const count = m.options.map(() => 0);
   MINISTERS.forEach(x => { if (votes[x.name] >= 0) count[votes[x.name]] += x.priority === m.priority ? 1.5 : 1; }); // 중요 기준 장관은 1.5표
@@ -1161,87 +1371,116 @@ function tallyOf(m, votes) {
 }
 function topOf(count) { const max = Math.max(...count); return count.map((c, i) => (c === max && max > 0 ? i : -1)).filter(i => i >= 0); }
 
-function decideGeneral(m) {
-  const base = {};
+// 일반 고민·구매 비교 공통 판결
+function decideIndependent(m) {
+  const E = m.category === "쇼핑" ? null : evidenceContext(m);
+  const hasEv = !!(E && (E.w || E.dist || E.longWeekend));
+  const assess = {}, before = {}, votes = {}, base = {}, moves = [];
   MINISTERS.forEach(x => {
-    const a = Number.isInteger(m.answers[x.name]) ? m.answers[x.name] : -1;
-    base[x.name] = a >= 0 && a < m.options.length ? a : -1;
+    const a = assessMinister(m, x, E);
+    assess[x.name] = a; votes[x.name] = a.vote;
+    const b = hasEv ? assessMinister(m, x, null) : a; // 근거를 빼고 다시 계산 → 근거로 판단이 바뀌었는지 공개
+    before[x.name] = b; base[x.name] = b.vote;
+    if (hasEv && b.vote !== a.vote) {
+      const why = a.cards.flatMap((c, i) => c.evWhy.map(w => `${m.options[i]}: ${w}`));
+      moves.push({ name: x.name, from: b.vote, to: a.vote, why: [...new Set(why)].join(", ") || "확인된 근거 반영" });
+    }
   });
-  const { votes, moves, notes } = adjustVotes(m, base); // 실시간 근거로 표 조정(공개 규칙)
-  const count = tallyOf(m, votes);
-  const baseTop = topOf(tallyOf(m, base));
-  const adj = { moves, notes, base, baseCount: tallyOf(m, base), baseWinner: baseTop.length === 1 ? baseTop[0] : -1 };
+  const count = tallyOf(m, votes), baseCount = tallyOf(m, base);
+  const baseTop = topOf(baseCount);
+  const common = { rv: RULE_VERSION, assess, before, moves, base, baseCount, baseWinner: baseTop.length === 1 ? baseTop[0] : -1, votes, count };
   const voters = MINISTERS.filter(x => votes[x.name] >= 0);
   const abstain = MINISTERS.length - voters.length;
-  if (!voters.length) {
-    return { ...adj, votes, count, abstain, winner: -1, verdict: "판단 보류!", label: "전원 기권",
-      pmLine: "장관 전원이 기권했습니다. 선택지끼리 차이가 거의 없다는 뜻이에요. 정보를 조금 더 모은 뒤 재심을 청구해 주세요.",
-      nextLine: "각 선택지의 가격·거리·소요 시간 중 하나만이라도 찾아본 뒤 다시 회의해 보세요." };
+  common.abstain = abstain;
+  // 구매 비교: 예산을 넘는 상품은 국무총리 직권으로 판결에서 뺀다(기존 보호 규칙과 같은 원칙)
+  const banned = m.category === "쇼핑" ? m.options.map((_, i) => i).filter(i => m.cmp.items[i].priceValue > m.cmp.budgetValue) : [];
+  if (banned.length === m.options.length) {
+    return { ...common, winner: -1, verdict: "모두 보류!", label: "총리 직권 보류",
+      pmLine: "후보가 모두 예산을 넘습니다. 국무총리 직권으로 이번에는 모두 보류합니다.",
+      nextLine: "예산 안에 드는 후보를 하나 더 찾거나, 예산을 다시 정한 뒤 재심을 청구해 주세요." };
   }
-  const max = Math.max(...count);
-  const top = count.map((c, i) => (c === max ? i : -1)).filter(i => i >= 0);
+  if (!voters.length) {
+    const lacking = MINISTERS.filter(x => /모름/.test(assess[x.name].abstainWhy)).map(x => x.name);
+    return { ...common, winner: -1, verdict: "판단 보류!", label: "전원 기권",
+      pmLine: lacking.length ? `장관 전원이 기권했습니다. ${lacking.join("·")} 장관은 판단할 정보가 부족하다고 합니다. 억지로 정하지 않고 판단을 보류합니다.`
+        : "장관 전원이 기권했습니다. 각자 기준으로 봐도 선택지 사이에 차이가 없다는 뜻이에요. 억지로 정하지 않고 판단을 보류합니다.",
+      nextLine: lacking.length ? "'모름'으로 남긴 정보(비용·위험·준비 등)를 하나만 알아본 뒤 재심을 청구해 주세요."
+        : "어느 쪽을 골라도 큰 차이가 없어요. 동전을 던져도 괜찮은 고민입니다." };
+  }
+  let count2 = count.slice();
+  banned.forEach(i => { count2[i] = -1; });
+  const max = Math.max(...count2);
+  const top = count2.map((c, i) => (c === max ? i : -1)).filter(i => i >= 0);
   let winner, label, pmExtra = "";
   if (top.length > 1) {
-    if (m.tiebreak === null || !top.includes(m.tiebreak)) return { ...adj, tie: top, votes, count, abstain };
+    if (m.tiebreak === null || m.tiebreak === undefined || !top.includes(m.tiebreak)) return { ...common, tie: top };
     winner = m.tiebreak; label = "박빙 · 총리 결선";
-    pmExtra = " 동점이라 국무총리 결선 질문으로 정했습니다.";
+    pmExtra = " 장관들의 표가 똑같이 갈려 국무총리 결선 질문으로 정했습니다.";
   } else {
     winner = top[0];
     label = marginLabel(count, winner, voters.length, voters.every(x => votes[x.name] === winner));
   }
+  const rawTop = topOf(count);
+  if (banned.length && rawTop.length === 1 && banned.includes(rawTop[0])) { label = "총리 직권"; pmExtra += ` 표가 가장 많은 「${m.options[rawTop[0]]}」${j(m.options[rawTop[0]], "는")} 예산을 넘어 국무총리 직권으로 제외했습니다.`; }
   const win = m.options[winner];
   const decider = MINISTERS.find(x => x.priority === m.priority);
   const deciderNote = votes[decider.name] >= 0
     ? ` 가장 중요한 기준(${PRIORITY_LABEL[m.priority]})을 맡은 ${decider.name} 장관의 표는 1.5표로 계산했습니다.`
-    : ` 가장 중요한 기준(${PRIORITY_LABEL[m.priority]})을 맡은 ${decider.name} 장관은 기권했습니다.`;
-  const changed = adj.baseWinner >= 0 && adj.baseWinner !== winner;
-  if (changed) pmExtra += ` 근거에 따라 표가 조정되어, 조정 전 1위였던 「${m.options[adj.baseWinner]}」 대신 「${win}」${j(win, "가")} 1위가 되었습니다.`;
+    : ` 가장 중요한 기준(${PRIORITY_LABEL[m.priority]})을 맡은 ${decider.name} 장관은 기권했습니다(${assess[decider.name].abstainWhy}).`;
+  const changed = common.baseWinner >= 0 && common.baseWinner !== winner;
+  if (changed) pmExtra += ` 확인된 근거로 장관 판단이 바뀌어, 근거 반영 전 1위였던 「${m.options[common.baseWinner]}」 대신 「${win}」${j(win, "가")} 1위가 되었습니다.`;
+  const shop = m.category === "쇼핑";
   return {
-    ...adj, changed, votes, count, abstain, winner, label, verdict: `${win}!`,
-    pmLine: `「${win}」${j(win,"로")} 결정합니다.${pmExtra}${deciderNote}`,
-    nextLine: isNegative(m, winner)
-      ? "이번에는 하지 않기로 했어요. 마음이 바뀌면 재심 청구로 다시 회의해 보세요."
-      : m.urgent === true ? `오늘 안에 「${win}」${j(win,"를")} 위한 첫 행동 하나를 바로 해 보세요.` : `「${win}」${j(win,"를")} 위해 지금 할 수 있는 가장 작은 행동 하나를 정해 보세요.`
+    ...common, changed, winner, label, verdict: `${win}!`,
+    pmLine: `「${win}」${j(win, "로")} 결정합니다.${pmExtra}${deciderNote}`,
+    nextLine: shop ? `「${win}」${j(win, "를")} 사기 전에 같은 상품의 최저가와 반품 조건을 확인하세요.`
+      : isNegative(m, winner) ? "이번에는 하지 않기로 했어요. 마음이 바뀌면 재심 청구로 다시 회의해 보세요."
+      : m.urgent === true ? `오늘 안에 「${win}」${j(win, "를")} 위한 첫 행동 하나를 바로 해 보세요.` : `「${win}」${j(win, "를")} 위해 지금 할 수 있는 가장 작은 행동 하나를 정해 보세요.`
   };
 }
 
-function generalOpinion(x, m, r) {
-  const mv = (r.moves || []).find(v => v.name === x.name);
-  const extra = r.notes && r.notes[x.name] ? " " + r.notes[x.name] : "";
-  if (mv) return mv.why + extra;
-  return baseOpinion(x, m, r) + extra;
+// 점수표를 사람이 읽는 문장으로: 「A」 4.5점(위험 낮음) · 「B」 1.5점(위험 높음, 예산 빠듯)
+function scoreLine(m, a) {
+  return a.cards.map((c, i) => `「${m.options[i]}」 ${c.s == null ? "모름" : c.s + "점"}${c.why.length || c.evWhy.length ? `(${[...c.why, ...c.evWhy].join(", ")})` : ""}`).join(" · ");
 }
-function baseOpinion(x, m, r) {
-  const a = r.votes[x.name];
-  const opt = a >= 0 ? m.options[a] : "";
-  const seed = m.title + x.name;
-  const tailR = m.reversible === true ? "R1" : m.reversible === false ? "R0" : "";
-  const tailU = m.urgent === true ? "U1" : m.urgent === false ? "U0" : "";
-  const T = {
-    신중주의: { pick: [`후회가 가장 적을 것 같다고 하신 「${opt}」${j(opt,"를")} 지지합니다.`, `나중에 돌아봐도 아쉽지 않을 쪽은 「${opt}」${j(opt,"이라고")} 보셨죠. 저도 같은 생각입니다.`],
-      abstain: "후회할 정도는 비슷하다고 하셨으니 이번에는 기권하겠습니다.",
-      R1: " 다시 바꿀 수 있는 선택이라 부담도 적습니다.", R0: " 되돌리기 어려운 선택이니 결정 전에 놓친 정보가 없는지 한 번만 더 확인하세요." },
-    낭만주의: { pick: [`가장 끌린다고 하신 「${opt}」! 마음이 가는 쪽이 만족도도 큽니다.`, `설레는 쪽이 정답일 때가 많아요. 저는 「${opt}」에 한 표!`],
-      abstain: "둘 다 끌린다니 행복한 고민이네요! 저는 기권합니다.",
-      R1: " 되돌릴 수 있으니 기분 좋은 쪽으로 가 봐요.", R0: " 오래 남을 선택일수록 마음이 중요합니다." },
-    현실주의: { pick: [`돈과 시간이 가장 덜 든다고 하신 「${opt}」에 한 표 드립니다.`, `부담이 가장 적은 「${opt}」${j(opt,"가")} 합리적입니다.`],
-      abstain: "비용 차이가 크지 않다고 하셨으니 기권하겠습니다.",
-      U1: " 오늘 안에 정해야 하니 부담이 적은 쪽이 안전합니다.", U0: " 여유가 있다면 실제 비용을 한 번 더 비교해 보세요." },
-    행동파: { pick: [`지금 바로 할 수 있는 「${opt}」! 일단 시작하면 고민이 줄어듭니다.`, `고민은 짧게, 실행은 빠르게! 「${opt}」${j(opt,"로")} 갑시다.`],
-      abstain: "어느 쪽도 바로 하기 어렵다면 이번엔 쉬겠습니다.",
-      U1: " 오늘 정해야 하니 바로 실행하세요.", U0: " 작게 먼저 해 보고 다시 판단해도 늦지 않습니다." }
-  }[x.name];
-  if (a < 0) return T.abstain;
-  if (isNegative(m, a)) {
-    const N = {
-      신중주의: `하지 않는 쪽이 후회가 적을 것 같다고 하셨죠. 「${opt}」에 한 표, 이번엔 쉬어 가도 괜찮습니다.`,
-      낭만주의: `마음이 크게 끌리지 않는다면 억지로 할 필요는 없어요. 「${opt}」에 한 표!`,
-      현실주의: `돈과 시간을 아끼는 쪽은 「${opt}」입니다. 한 표 드립니다.`,
-      행동파: `지금 당장 하기 어렵다면 「${opt}」도 괜찮아요. 대신 다시 정할 날짜를 하나 잡아 두세요.`
-    };
-    return N[x.name] + (x.name === "행동파" ? "" : (T[tailR] || "") + (T[tailU] || ""));
+const PERSONA = {
+  신중주의: { vote: "후회와 위험이 가장 적은 쪽은", lens: "위험" },
+  낭만주의: { vote: "가장 설레는 쪽은", lens: "기대" },
+  현실주의: { vote: "돈과 시간 부담이 가장 적은 쪽은", lens: "비용" },
+  행동파: { vote: "지금 바로 실행할 수 있는 쪽은", lens: "실행" }
+};
+function independentOpinion(m, r, x) {
+  const a = r.assess[x.name];
+  const line = scoreLine(m, a);
+  if (a.vote < 0) return `이번에는 기권합니다(${a.abstainWhy}). 제 점수표: ${line}`;
+  const opt = m.options[a.vote];
+  let text = `${PERSONA[x.name].vote} 「${opt}」입니다. 제 점수표: ${line}`;
+  // 사용자의 끌림과 다른 판단을 했다면 숨기지 않고 말한다(독립 판단)
+  const fan = r.assess["낭만주의"];
+  // (같은 말을 반복하지 않도록, 끌림과 다르게 판단한 첫 장관만 말한다)
+  const firstDiff = fan && fan.vote >= 0 ? MINISTERS.find(y => y.name !== "낭만주의" && r.assess[y.name].vote >= 0 && r.assess[y.name].vote !== fan.vote) : null;
+  if (firstDiff && firstDiff.name === x.name && m.category !== "쇼핑") text += ` 마음이 「${m.options[fan.vote]}」 쪽으로 기운 건 알지만, 제 기준(${PERSONA[x.name].lens})으로는 「${opt}」입니다.`;
+  if (x.name === "신중주의" && m.reversible === false) text += " 되돌리기 어려운 선택이니 결정 전에 한 번 더 확인하세요.";
+  return text;
+}
+// 이견 토론: 판결과 다른 표를 던진 장관이 반대 이유를 한 번, 판결 쪽 장관이 한 번 답한다. 새 근거가 없으면 표는 바뀌지 않는다.
+function debateOf(m, r) {
+  if (r.winner < 0) return [];
+  const turns = [];
+  const win = r.winner, winName = m.options[win];
+  const dissent = MINISTERS.filter(x => r.votes[x.name] >= 0 && r.votes[x.name] !== win);
+  if (!dissent.length) return [];
+  const support = MINISTERS.filter(x => r.votes[x.name] === win).sort((a, b) => (b.priority === m.priority) - (a.priority === m.priority));
+  dissent.forEach(x => {
+    const a = r.assess[x.name], mine = m.options[a.vote];
+    const wc = a.cards[win], mc = a.cards[a.vote];
+    turns.push({ speaker: x.name, stance: "반대", text: `「${winName}」에 반대합니다. 제 기준으로 「${winName}」${j(winName, "는")} ${wc.s == null ? "판단할 정보가 없고" : `${wc.s}점(${[...wc.why, ...wc.evWhy].join(", ")})이고`}, 「${mine}」${j(mine, "는")} ${mc.s}점(${[...mc.why, ...mc.evWhy].join(", ")})입니다.` });
+  });
+  if (support.length) {
+    const y = support[0], b = r.assess[y.name], c = b.cards[win];
+    turns.push({ speaker: y.name, stance: "반론", text: `제 기준으로는 「${winName}」${j(winName, "가")} ${c.s}점(${[...c.why, ...c.evWhy].join(", ")})으로 가장 높습니다.${y.priority === m.priority ? ` 이번 고민에서 가장 중요한 기준(${PRIORITY_LABEL[m.priority]})이라 1.5표로 계산됩니다.` : ""}` });
   }
-  return variant(seed, T.pick) + (T[tailR] || "") + (T[tailU] || "");
+  return turns;
 }
 
 function decideShop(m) {
@@ -1284,10 +1523,11 @@ function decideShop(m) {
   };
 }
 
+function isShopSingle(m) { return m.category === "쇼핑" && m.shopMode !== "compare"; }
 function opinionsOf(m, r) {
   return MINISTERS.map(x => {
     const a = r.votes[x.name];
-    const text = m.category === "쇼핑" ? r.reasons[x.name] : generalOpinion(x, m, r);
+    const text = isShopSingle(m) ? r.reasons[x.name] : independentOpinion(m, r, x);
     return { name: x.name, pick: a >= 0 ? m.options[a] : null, text };
   });
 }
@@ -1296,26 +1536,32 @@ function opinionsOf(m, r) {
 // 내 답 → 장관 표 → 가중치 → 근거 조정 → 합계를 한 상자에 보여 주고, "결과가 바뀌려면?"을 계산해 알려 준다.
 function fmtVote(n) { return Number.isInteger(n) ? String(n) : n.toFixed(1); }
 function summaryBox(m, r) {
-  const shop = m.category === "쇼핑";
+  const shop = isShopSingle(m);
   const rows = MINISTERS.map(x => {
     const v = r.votes[x.name];
     const w = x.priority === m.priority ? 1.5 : 1;
     const mv = (r.moves || []).find(t => t.name === x.name);
-    const why = shop
-      ? escapeHTML(r.reasons[x.name])
-      : mv ? `내 답 ${mv.from >= 0 ? `「${escapeHTML(m.options[mv.from])}」` : "기권"} → 근거로 조정`
-      : `“${escapeHTML(x.question)}” → ${v >= 0 ? `「${escapeHTML(m.options[v])}」` : "비슷해요(기권)"}`;
+    let why;
+    if (shop) why = escapeHTML(r.reasons[x.name]);
+    else {
+      const a = r.assess[x.name];
+      why = `<span class="score-line">${a.cards.map((c, i) => `<span class="sc">${i === v ? "<b>" : ""}${escapeHTML(m.options[i])} ${c.s == null ? "모름" : c.s + "점"}${i === v ? "</b>" : ""}<small>${escapeHTML([...c.why, ...c.evWhy].join(", "))}</small></span>`).join("")}</span>`
+        + (v < 0 ? `<small class="abst">기권: ${escapeHTML(a.abstainWhy)}</small>` : "")
+        + (mv ? `<small class="abst">근거 반영 전에는 ${mv.from >= 0 ? `「${escapeHTML(m.options[mv.from])}」` : "기권"} → 확인된 근거(${escapeHTML(mv.why)})로 다시 판단</small>` : "");
+    }
     return `<tr><th>${x.emoji} ${x.name}<small>${PRIORITY_LABEL[x.priority]}</small></th>
       <td><span class="sum-chip ${v < 0 ? "none" : v === r.winner ? "win" : "lose"}">${v === r.winner ? "👑 " : ""}${v >= 0 ? escapeHTML(m.options[v]) : "기권"} · ${v >= 0 ? (w === 1.5 ? "1.5표" : "1표") : "-"}</span>${why}</td></tr>`;
   }).join("");
   const totals = m.options.map((o, i) => `${i === r.winner ? "👑 " : ""}${escapeHTML(o)} <b>${fmtVote(r.count[i])}</b>`).join(" · ");
   const rules = shop
     ? "규칙: 장관마다 입력값(가격÷예산, 보유·필요성, 사용 시기)으로 표를 정하고, 가장 중요한 기준의 장관은 1.5표. 가격이 예산을 넘으면 국무총리 직권 보류."
-    : "규칙: 장관 질문에 고른 답이 그 장관의 표. 가장 중요한 기준의 장관은 1.5표. 실시간 근거가 있으면 공개 규칙에 따라 표를 옮김. 동점이면 국무총리 결선.";
+    : m.category === "쇼핑"
+    ? `규칙(v${RULE_VERSION}): 장관마다 자기 기준으로 상품별 0~5점(현실=가격÷예산, 신중=필요성·보유·예산 초과, 낭만=끌림, 행동=사용 시기). 가장 높은 상품에 투표, 1·2위 차이 0.5점 미만이면 기권. 중요 기준 장관 1.5표. 예산을 넘는 상품은 국무총리 직권으로 제외.`
+    : `규칙(v${RULE_VERSION}): 장관마다 자기 기준으로 선택지별 0~5점(사실 등급 4.5/3/1.5점 + 예산·여유·되돌리기·날씨·거리 보정). 가장 높은 선택지에 투표, 1·2위 차이 0.5점 미만이거나 정보가 '모름'이면 기권. 사용자의 끌림은 낭만주의 장관 점수에만 반영. 중요 기준 장관 1.5표. 동점이면 국무총리 결선.`;
   const ifs = whatIf(m, r);
   return `<div class="summary-box">
-    <div class="sum-title">📋 판결 근거 요약</div>
-    <table class="sum-table"><thead><tr><th>장관</th><th>고른 답 · 판단 근거</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="sum-title">📋 판결 근거 요약 · 장관별 점수표</div>
+    <table class="sum-table"><thead><tr><th>장관</th><th>표 · 선택지별 점수와 이유</th></tr></thead><tbody>${rows}</tbody></table>
     <div class="sum-total">합계: ${totals}</div>
     <div class="sum-rule">${rules}</div>
     ${ifs.length ? `<div class="sum-if"><b>🔄 결과가 바뀌려면?</b><ul>${ifs.map(t => `<li>${t}</li>`).join("")}</ul></div>` : ""}
@@ -1326,7 +1572,7 @@ function summaryBox(m, r) {
 function whatIf(m, r) {
   const out = [];
   const q = s => `「${escapeHTML(s)}」`;
-  if (m.category === "쇼핑") {
+  if (isShopSingle(m)) {
     const s = m.shop, cur = r.winner;
     const fmtWon = n => n.toLocaleString() + "원";
     const tries = [];
@@ -1350,27 +1596,30 @@ function whatIf(m, r) {
     if (!out.length) out.push("입력값 하나만 바꿔서는 판결이 바뀌지 않을 만큼 분명한 판결이에요.");
     return out;
   }
-  const votes = r.votes;
-  if (r.winner < 0) return ["장관 한 명이라도 한쪽을 고르면 판결이 나와요. 선택지의 가격·거리·시간을 하나만 알아본 뒤 재심을 청구해 보세요."];
+  if (r.winner < 0) return [m.category === "쇼핑" ? "예산 안에 드는 상품이 있거나, '모름'으로 남긴 정보를 채우면 판결이 나와요." : "'모름'으로 남긴 정보를 채우거나 선택지 사이의 차이(비용·위험·준비)를 하나만 더 알아보면 판결이 나와요."];
   const ranked = m.options.map((_, i) => i).filter(i => i !== r.winner).sort((a, b) => r.count[b] - r.count[a]);
   const rival = ranked[0];
   if (rival === undefined) return out;
-  // ① 장관 한 명의 답이 달랐다면
-  const moved = new Set((r.moves || []).map(t => t.name));
-  for (const x of MINISTERS) {
-    if (votes[x.name] === rival || moved.has(x.name)) continue;
-    const alt = tallyOf(m, { ...votes, [x.name]: rival });
-    const top = topOf(alt);
-    if (top.length === 1 && top[0] === rival) { out.push(`${x.name} 장관의 질문 “${escapeHTML(x.question)}”에 ${q(m.options[rival])}${j(m.options[rival], "를")} 골랐다면 → ${q(m.options[rival])} 승리`); break; }
-    if (top.includes(rival) && top.includes(r.winner)) { out.push(`${x.name} 장관의 질문에 ${q(m.options[rival])}${j(m.options[rival], "를")} 골랐다면 → 동점이 되어 국무총리 결선`); break; }
+  const rivalName = m.options[rival];
+  const flips = alt => { const t = decide({ ...alt, tiebreak: null }); return t.tie ? (t.tie.includes(rival) ? "tie" : null) : t.winner === rival ? "win" : null; };
+  // ① 2위 선택지의 사실 하나가 더 좋았다면(실제로 다시 계산)
+  if (m.category !== "쇼핑") {
+    for (const F of FACTS) {
+      if (!factAsked(m, F.key, rival)) continue;
+      const cur = factOf(m, F.key, rival);
+      if (cur === 0) continue;
+      const facts = { ...m.facts, [F.key]: m.facts[F.key].slice() }; facts[F.key][rival] = 0;
+      const res = flips({ ...m, facts });
+      if (res) { out.push(`「${escapeHTML(rivalName)}」${j(rivalName, "가")} '${F.lv[0]}'(${F.tag[0]})였다면 → ${res === "win" ? `${q(rivalName)} 승리` : "동점이 되어 국무총리 결선"}`); break; }
+    }
   }
   // ② 가장 중요한 기준이 달랐다면
   for (const p of Object.keys(PRIORITY_LABEL)) {
     if (p === m.priority) continue;
-    const top = topOf(tallyOf({ ...m, priority: p }, votes));
-    if (top.length === 1 && top[0] !== r.winner) { out.push(`가장 중요한 기준을 '${PRIORITY_LABEL[p]}'(으)로 골랐다면 → ${q(m.options[top[0]])}`); break; }
+    const t = decide({ ...m, priority: p, tiebreak: null });
+    if (!t.tie && t.winner >= 0 && t.winner !== r.winner) { out.push(`가장 중요한 기준을 '${PRIORITY_LABEL[p]}'(으)로 골랐다면 → ${q(m.options[t.winner])}`); break; }
   }
-  if (!out.length) out.push("장관 한 명의 답이나 중요 기준 하나만 바꿔서는 결과가 바뀌지 않을 만큼 분명한 판결이에요.");
+  if (!out.length) out.push("사실 하나나 중요 기준 하나만 바꿔서는 결과가 바뀌지 않을 만큼 분명한 판결이에요.");
   return out;
 }
 
@@ -1407,9 +1656,11 @@ function buildRecord(m, r, ops) {
     title: m.title, verdict: r.verdict, category: m.category, date: today(),
     icon: categoryIcon(m.category), detail: m.detail.trim(), priority: m.priority, tally,
     label: r.label, retrial: m.retrial, options: m.options.slice(), counts: r.count.slice(), winner: r.winner,
-    opinions: ops.map(o => [o.name, (o.pick ? `「${o.pick}」 — ` : "기권 — ") + o.text]),
+    opinions: ops.map(o => [o.name, ((o.pick ? `「${o.pick}」 — ` : "기권 — ") + o.text).slice(0, 320)]), // DB 크기 제한 안에서 저장
     evidence: (m.evidence ? m.evidence.items : []).map(it => ({ label: it.label, ok: it.ok, summary: it.ok ? it.lines.join(" · ") : it.reason, source: it.source || "", fetchedAt: it.fetchedAt || null })),
-    moves: (r.moves || []).map(v => ({ name: v.name, from: v.from >= 0 ? m.options[v.from] : "기권", to: m.options[v.to] })),
+    moves: (r.moves || []).map(v => ({ name: v.name, from: v.from >= 0 ? m.options[v.from] : "기권", to: v.to >= 0 ? m.options[v.to] : "기권" })),
+    // 규칙 버전과 판단에 쓴 사실(스냅샷). 과거 기록은 다시 계산하지 않는다.
+    rule: isShopSingle(m) ? { rv: 1 } : { rv: RULE_VERSION, ...(m.category === "쇼핑" ? { mode: "compare" } : { facts: m.facts, ctx: { reversible: m.reversible, urgent: m.urgent, budgetTight: m.budgetTight, timeTight: m.timeTight } }) },
     when: WEATHER_CATS.includes(m.category) && /^\d{4}-\d{2}-\d{2}$/.test(m.date || "") ? m.date : null, // 일정 날짜(실행 여부를 언제 물을지)
     createdAt: Date.now(), key: newKey()
   };
@@ -1426,7 +1677,7 @@ function groupChat(chat) {
 
 // ===== 최종 판결서 (결재 화면 맨 위) — 사용자 입력은 모두 escape =====
 function decreeHTML(m, r, ops, okEv) {
-  const shop = m.category === "쇼핑";
+  const shop = isShopSingle(m);
   const fmt = n => (Number.isInteger(n) ? n : n.toFixed(1));
   const decider = MINISTERS.find(x => x.priority === m.priority);
   const faces = MINISTERS.map(x => {
@@ -1446,10 +1697,18 @@ function decreeHTML(m, r, ops, okEv) {
     why.push(`${escapeHTML(it.label)}: ${escapeHTML(main.join(", "))}${flag ? ` · ${escapeHTML(flag)}` : ""}`);
   });
   (m.evidence ? m.evidence.items.filter(it => !it.ok) : []).forEach(it => why.push(`${escapeHTML(it.label)}: 조회하지 못해 반영하지 않음`));
-  (r.moves || []).forEach(v => why.push(`근거로 표 조정 — ${escapeHTML(v.name)}: ${v.from >= 0 ? escapeHTML(m.options[v.from]) : "기권"} → ${escapeHTML(m.options[v.to])}`));
+  if (m.category === "쇼핑" && !shop) why.push(`예산 ${m.cmp.budgetValue.toLocaleString()}원 · ${m.options.map((o, i) => `${escapeHTML(o)} ${m.cmp.items[i].priceValue.toLocaleString()}원`).join(" · ")}`);
+  if (!shop) {
+    const lack = MINISTERS.filter(x => r.votes[x.name] < 0).map(x => `${x.name}(${escapeHTML(r.assess[x.name].abstainWhy)})`);
+    if (lack.length) why.push(`기권: ${lack.join(", ")}`);
+    const dis = MINISTERS.filter(x => r.votes[x.name] >= 0 && r.votes[x.name] !== r.winner);
+    if (r.winner >= 0 && dis.length) why.push(`반대 의견: ${dis.map(x => `${x.name} → ${escapeHTML(m.options[r.votes[x.name]])}`).join(", ")}`);
+    why.push(`판단 방식: 장관 4명이 각자 기준으로 점수를 매긴 독립 판단(규칙 v${RULE_VERSION})`);
+  }
+  (r.moves || []).forEach(v => why.push(`근거로 다시 판단 — ${escapeHTML(v.name)}: ${v.from >= 0 ? escapeHTML(m.options[v.from]) : "기권"} → ${v.to >= 0 ? escapeHTML(m.options[v.to]) : "기권"}`));
   return `<section class="decree" aria-label="최종 판결서">
     <div class="decree-head"><span>🏛️ 결정국 국무회의</span><span>${today()} 결재</span></div>
-    <div class="decree-title"><span class="laurel l sm" aria-hidden="true"></span>${shop ? "구매 판결서" : "최종 판결서"}<span class="laurel r sm" aria-hidden="true"></span></div>
+    <div class="decree-title"><span class="laurel l sm" aria-hidden="true"></span>${m.category === "쇼핑" ? "구매 판결서" : "최종 판결서"}<span class="laurel r sm" aria-hidden="true"></span></div>
     <span class="decree-stamp" aria-hidden="true">결재<br>완료</span>
     <div class="decree-main">
       <span class="decree-label">${escapeHTML(r.label)}</span>
@@ -1472,7 +1731,7 @@ function showResult(m, r) {
   const record = buildRecord(m, r, ops);
   const fmt = n => (Number.isInteger(n) ? n : n.toFixed(1));
   const total = r.count.reduce((a, b) => a + b, 0) || 1;
-  const shop = m.category === "쇼핑";
+  const shop = isShopSingle(m);
   const winName = r.winner >= 0 ? m.options[r.winner] : "";
 
   // 대화 대본: [말하는 사람, 내용(HTML, 사용자 입력은 모두 escape), 추가 클래스]
@@ -1487,20 +1746,33 @@ function showResult(m, r) {
   if (ev && ev.items.length) {
     script.push(["owl", `수집한 근거입니다.${ev.items.map(evidenceCard).join("")}`, "wide"]);
   } else {
-    script.push(["owl", WEATHER_CATS.includes(m.category) ? "지역을 적지 않아 외부 정보 없이 입력한 답만으로 판단합니다. (지역을 적으면 날씨 등을 반영해요)"
-      : "일상 고민은 개인정보 보호를 위해 외부 정보를 조회하지 않고, 입력한 답만으로 판단합니다."]);
+    script.push(["owl", WEATHER_CATS.includes(m.category) ? "지역을 적지 않아 외부 정보 없이, 현재 입력된 정보만으로 판단합니다. (지역을 적으면 날씨 등을 반영해요)"
+      : m.category === "쇼핑" ? "적어 주신 가격·예산과 답만으로 판단합니다. 사진·링크 속 정보나 최저가는 확인하지 않았습니다."
+      : "일상 고민은 개인정보 보호를 위해 외부 정보를 조회하지 않고, 현재 입력된 정보만으로 판단합니다."]);
   }
-  script.push(["stage", "③ 장관별 검토"]);
+  script.push(["stage", shop ? "③ 장관별 검토" : "③ 장관별 독립 검토"]);
   ops.forEach(o => {
     const x = MINISTERS.find(y => y.name === o.name);
     const pick = o.pick ? `<span class="pick-chip">${escapeHTML(o.pick)}</span>` : `<span class="pick-chip none">기권</span>`;
     const weight = x.priority === m.priority ? `<span class="badge">결정권 1.5표</span>` : "";
     script.push([o.name, `<div class="m-head">${pick}${weight}</div>${escapeHTML(o.text)}`]);
   });
-  script.push(["stage", "④ 표결 및 이견 조정"]);
+  // 이견 토론: 판결과 다른 표를 던진 장관이 반대 이유를 한 번, 판결 쪽 장관이 한 번 답한다(새 근거가 없으면 표는 그대로)
+  if (!shop) {
+    const turns = debateOf(m, r);
+    script.push(["stage", "④ 이견 토론"]);
+    if (turns.length) {
+      turns.forEach(t => script.push([t.speaker, `<div class="m-head"><span class="pick-chip ${t.stance === "반대" ? "none" : ""}">${t.stance}</span></div>${escapeHTML(t.text)}`]));
+      script.push(["pm", "양측 의견을 들었습니다. 새로 확인된 근거가 나오지 않았으므로 장관들의 표는 바꾸지 않고 그대로 표결합니다."]);
+    } else {
+      const voters = MINISTERS.filter(x => r.votes[x.name] >= 0).length;
+      script.push(["pm", voters ? "투표한 장관들이 각자 기준으로 따져도 같은 결론이라, 이견 없이 표결합니다." : "모든 장관이 기권해 토론할 쟁점이 없습니다."]);
+    }
+  }
+  script.push(["stage", shop ? "④ 표결" : "⑤ 표결"]);
   if (r.moves && r.moves.length) {
-    script.push(["pm", `근거에 따라 표가 조정되었습니다.<div class="moves">${r.moves.map(v => `<div>🔁 ${escapeHTML(v.name)}: ${v.from >= 0 ? `「${escapeHTML(m.options[v.from])}」` : "기권"} → 「${escapeHTML(m.options[v.to])}」</div>`).join("")}</div>${
-      r.changed ? `<div class="hint">조정 전 1위는 「${escapeHTML(m.options[r.baseWinner])}」${j(m.options[r.baseWinner], "가") === "이" ? "이었" : "였"}습니다.</div>` : `<div class="hint">조정 후에도 1위는 바뀌지 않았습니다.</div>`}`]);
+    script.push(["pm", `확인된 근거(날씨·거리·연휴)를 반영해 다시 판단한 장관이 있습니다.<div class="moves">${r.moves.map(v => `<div>🔁 ${escapeHTML(v.name)}: ${v.from >= 0 ? `「${escapeHTML(m.options[v.from])}」` : "기권"} → ${v.to >= 0 ? `「${escapeHTML(m.options[v.to])}」` : "기권"} <small>(${escapeHTML(v.why)})</small></div>`).join("")}</div>${
+      r.changed ? `<div class="hint">근거 반영 전 1위는 「${escapeHTML(m.options[r.baseWinner])}」${j(m.options[r.baseWinner], "가") === "이" ? "이었" : "였"}습니다.</div>` : `<div class="hint">근거를 반영해도 1위는 바뀌지 않았습니다.</div>`}`]);
   }
   script.push(["pm", `개표 결과를 발표합니다.
     <div class="tally" aria-label="개표 결과">
@@ -1512,7 +1784,7 @@ function showResult(m, r) {
         </div>`).join("")}
       ${r.abstain ? `<div class="hint">기권 ${r.abstain}명</div>` : ""}
     </div>`, "wide"]);
-  script.push(["stage", "⑤ 최종 판결문"]);
+  script.push(["stage", shop ? "⑤ 최종 판결문" : "⑥ 최종 판결문"]);
   const okEv = ev ? ev.items.filter(it => it.ok) : [];
   script.push(["pm", `<div class="label-chip">${escapeHTML(r.label)}</div>
     <div class="verdict-line">판결: <b>${escapeHTML(r.verdict)}</b><span class="stamp" aria-hidden="true">결재</span></div>
@@ -1525,7 +1797,7 @@ function showResult(m, r) {
   const overruled = r.winner >= 0 && topIdx !== r.winner && r.count[topIdx] > r.count[r.winner];
   if (minority.length) {
     script.push(["pm", `${overruled
-      ? `<b>표결 다수 의견</b>: 표결에서는 「${escapeHTML(m.options[topIdx])}」${j(m.options[topIdx], "가")} ${fmt(r.count[topIdx])}표로 가장 많았지만, ${shop ? "가격이 예산을 넘어 국무총리 직권으로 보류했습니다" : "판결 규칙에 따라 다른 쪽으로 정했습니다"}. 판결과 다른 의견도 기록합니다.`
+      ? `<b>표결 다수 의견</b>: 표결에서는 「${escapeHTML(m.options[topIdx])}」${j(m.options[topIdx], "가")} ${fmt(r.count[topIdx])}표로 가장 많았지만, ${m.category === "쇼핑" ? "가격이 예산을 넘어 국무총리 직권으로 정했습니다" : "판결 규칙에 따라 다른 쪽으로 정했습니다"}. 판결과 다른 의견도 기록합니다.`
       : "<b>소수 의견</b>도 기록합니다."}<br>${minority.map(o => {
       const x = MINISTERS.find(y => y.name === o.name);
       return `· ${x.name}: 「${escapeHTML(o.pick)}」 — ${PRIORITY_LABEL[x.priority]}${j(PRIORITY_LABEL[x.priority], "를")} 더 중시한다면 이쪽도 좋은 선택입니다.`;
@@ -1534,7 +1806,7 @@ function showResult(m, r) {
   script.push(["pm", `👉 다음 할 일: ${escapeHTML(r.nextLine)}`]);
   script.push(["owl", `<span id="clerk-msg" role="status">기록하는 중…</span>`]);
 
-  openModal(shop ? "📜 구매 재판 판결서" : "📜 최종 판결서", `
+  openModal(m.category === "쇼핑" ? "📜 구매 재판 판결서" : "📜 최종 판결서", `
     ${stepBar(3)}
     <h3 class="minutes-title">🗒️ 국무회의 회의록</h3>
     <div class="chat" id="chat" aria-live="polite"></div>
@@ -1612,7 +1884,7 @@ function showResult(m, r) {
       document.getElementById("result-share").onclick = () => save.then(() => openShare(record));
       document.getElementById("result-reconsider").onclick = () => {
         m.retrial = true; m.tiebreak = null; m.qIndex = 0;
-        if (m.category === "쇼핑") renderShop(); else renderQuestion();
+        if (m.category === "쇼핑") { if (m.shopMode === "compare") renderShopCompare(); else renderShop(); } else renderQuestion();
       };
     });
 }

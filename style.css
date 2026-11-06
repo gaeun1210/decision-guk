@@ -818,3 +818,23 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 .after-minutes:not([hidden]) { animation: decreeIn .35s ease-out; }
 @keyframes decreeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .after-minutes:not([hidden]) { animation: none; } }
+
+/* ===== 장관 독립 판단(규칙 v2): 사실 확인 표 · 구매 비교 · 점수표 ===== */
+.fact-list { display: grid; gap: 8px; }
+.fact-row { display: grid; grid-template-columns: minmax(90px, 160px) 1fr; align-items: center; gap: 10px; padding: 10px 12px; background: var(--card); box-shadow: var(--px-soft); }
+.fact-row.auto { opacity: .8; }
+.fact-opt { font-weight: 800; color: var(--ink); overflow-wrap: anywhere; }
+.fact-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip.fact { min-height: 40px; padding: 6px 12px; font-size: 14px; }
+.chip.fact.unk { color: var(--muted); }
+.cmp-item { margin: 12px 0 0; padding: 12px 14px 4px; border: 0; background: var(--card); box-shadow: var(--px-soft); }
+.cmp-item legend { padding: 0 6px; font-family: "Galmuri11", sans-serif; font-weight: 700; color: var(--accent); }
+.cmp-item .fact-row { box-shadow: none; padding: 6px 0; background: none; }
+.score-line { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; font-size: 13px; }
+.score-line small { display: block; color: var(--muted); font-size: 11.5px; }
+.score-line > * { min-width: 0; }
+.sum-table td small.abst { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+@media (max-width: 650px) {
+  .fact-row { grid-template-columns: 1fr; gap: 6px; }
+  .chip.fact { min-height: 44px; flex: 1 1 auto; }
+}
