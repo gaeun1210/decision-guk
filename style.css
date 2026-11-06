@@ -808,5 +808,5 @@ html.modal-open, html.modal-open body { overflow: hidden; }
   .dashboard { gap: 26px; }
   .panel.frame { padding: 16px 18px 14px; }
   .records-list { gap: 8px; }
-  .site-foot { margin-top: 10px; }
+  .site-foot { margin-top: 10px; padding-bottom: 18px; }
 }
