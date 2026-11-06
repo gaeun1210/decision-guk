@@ -8,6 +8,34 @@ const MINISTERS = [
   { name: "현실주의", priority: "cost", img: "bear_desk", face: "face_bear", stand: "stand_bear",   emoji: "🐻", animal: "곰",   question: "어느 쪽이 돈과 시간이 가장 덜 드나요?" },
   { name: "행동파",   priority: "easy", img: "chick_desk", face: "face_chick", stand: "stand_chick",  emoji: "🐤", animal: "병아리", question: "어느 쪽을 지금 바로 시작할 수 있나요?" }
 ];
+// 선 아이콘(Lucide, ISC 라이선스 모양을 참고해 직접 그림)
+const ICONS = {
+  pencil: '<path d="M21.2 6.8a1 1 0 0 0-4-4L3.8 16.2a2 2 0 0 0-.5.8l-1.3 4.4a.5.5 0 0 0 .6.6l4.4-1.3a2 2 0 0 0 .8-.5z"/><path d="m15 5 4 4"/>',
+  grid: '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+  tent: '<path d="M3.5 21 14 3"/><path d="M20.5 21 10 3"/><path d="M15.5 21 12 15l-3.5 6"/><path d="M2 21h20"/>',
+  utensils: '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>',
+  bag: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  cup: '<path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/>',
+  arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  chev: '<path d="m9 18 6-6-6-6"/>',
+  clipboard: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/>',
+  scale: '<path d="m16 16 3-8 3 8c-.9.7-1.9 1-3 1s-2.1-.3-3-1Z"/><path d="m2 16 3-8 3 8c-.9.7-1.9 1-3 1s-2.1-.3-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+  gavel: '<path d="m14.5 12.5-8 8a2.1 2.1 0 1 1-3-3l8-8"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  bulb: '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
+  landmark: '<path d="M3 22h18"/><path d="M6 18v-7"/><path d="M10 18v-7"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M12 2 20 7H4z"/>',
+  home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .7-1.5l7-6a2 2 0 0 1 2.6 0l7 6a2 2 0 0 1 .7 1.5v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  chart: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  settings: '<path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  pin: '<path d="M20 10c0 5-5.5 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.5 20.2 4 15 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>'
+};
+const CAT_ICON = { 나들이: "tent", 맛집: "utensils", 쇼핑: "bag", 일상: "cup" };
+function icon(name) { return ICONS[name] ? `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>` : ""; }
+function hydrateIcons(root = document) { root.querySelectorAll("[data-icon]").forEach(el => { if (!el.firstChild || el.dataset.iconDone !== "1") { el.innerHTML = icon(el.dataset.icon); el.dataset.iconDone = "1"; } }); }
 const LIMITS = { title: 100, detail: 1000, option: 40, optionsMax: 6, moneyMin: 1, moneyMax: 100000000 };
 const PRIORITY_LABEL = { cost: "비용·시간", fun: "즐거움", safe: "후회 없음", easy: "실행 쉬움" };
 
@@ -281,28 +309,27 @@ function avatar(minister) {
 
 async function showRecent() {
   const list = document.getElementById("recent-list"), note = document.getElementById("recent-note");
-  if (!list.children.length) list.innerHTML = `<div class="record-row"><span class="record-title record-empty">불러오는 중…</span></div>`;
+  if (!list.children.length) list.innerHTML = `<div class="empty-line">불러오는 중…</div>`;
   const { records, error } = await loadRecords();
   note.textContent = currentUser ? "🔒 내 계정" : "🧪 체험 모드";
   // 진행 중이던 회의가 있으면 맨 위에 '이어서 하기' 줄을 보여 준다(새로고침해도 이어서)
   const resume = hasProgress(meeting) ? `
     <button type="button" class="record-row as-btn resume-row" id="resume-row">
       <span class="record-icon">↩️</span>
-      <span class="record-title" title="${escapeHTML(meeting.title)}">진행 중: ${escapeHTML(meeting.title.trim() || "제목 없음")}</span>
+      <span class="record-main"><span class="record-title" title="${escapeHTML(meeting.title)}">${escapeHTML(meeting.title.trim() || "제목 없음")}</span><span class="record-sub">진행 중인 회의</span></span>
       <span class="verdict-pill">이어서 하기 ›</span>
     </button>` : "";
   const wireResume = () => { const b = document.getElementById("resume-row"); if (b) b.onclick = () => openMeeting(); };
   if (!records.length) {
-    list.innerHTML = resume + `<div class="record-row"><span class="record-title record-empty">${error ? "기록을 불러오지 못했어요." : "아직 기록이 없어요. 예시 고민을 누르거나 고민을 접수해 보세요!"}</span></div>`;
+    list.innerHTML = resume + `<div class="empty-line">${error ? "기록을 불러오지 못했어요." : "아직 기록이 없어요. 예시 고민을 누르거나 고민을 접수해 보세요!"}</div>`;
     wireResume();
     return;
   }
   list.innerHTML = resume + records.slice(0, resume ? 2 : 3).map((item, i) => `
     <button type="button" class="record-row as-btn" data-recent="${i}">
-      <span class="record-icon">${escapeHTML(item.icon || "📌")}</span>
-      <span class="record-title" title="${escapeHTML(item.title)}">${escapeHTML(item.title)}</span>
-      <span class="verdict-pill">${escapeHTML(item.verdict)}</span>
-      <span class="record-date">${escapeHTML(item.date || "")}</span>
+      <span class="record-icon" aria-hidden="true">${escapeHTML(item.icon || "📌")}</span>
+      <span class="record-main"><span class="record-title" title="${escapeHTML(item.verdict)}">${escapeHTML(item.verdict)}</span><span class="record-sub">${escapeHTML(item.title)} · ${escapeHTML(item.date || "")}</span></span>
+      <span class="verdict-pill">${item.didIt === true ? "✅ 실행" : item.didIt === false ? "⏸️ 보류" : "결정 완료"}${item.satisfaction ? " ★" + item.satisfaction : ""}</span>
     </button>`).join("");
   list.querySelectorAll("[data-recent]").forEach(b => b.onclick = showRecords);
   wireResume();
@@ -513,7 +540,7 @@ function renderAgenda(stay = false) {
       <div class="field">
         <span class="label">고민 유형</span>
         <div class="chip-row" role="group" aria-label="고민 유형">
-          ${CATEGORIES.map(c => `<button type="button" class="chip" data-cat="${c}" aria-pressed="${c === m.category}">${categoryIcon(c)} ${c}</button>`).join("")}
+          ${CATEGORIES.map(c => `<button type="button" class="chip" data-cat="${c}" aria-pressed="${c === m.category}">${icon(CAT_ICON[c])}${c}</button>`).join("")}
         </div>
       </div>
       ${WEATHER_CATS.includes(m.category) ? `
@@ -1313,6 +1340,47 @@ function groupChat(chat) {
   });
 }
 
+// ===== 최종 판결서 (결재 화면 맨 위) — 사용자 입력은 모두 escape =====
+function decreeHTML(m, r, ops, okEv) {
+  const shop = m.category === "쇼핑";
+  const fmt = n => (Number.isInteger(n) ? n : n.toFixed(1));
+  const decider = MINISTERS.find(x => x.priority === m.priority);
+  const faces = MINISTERS.map(x => {
+    const v = r.votes[x.name];
+    const pick = v >= 0 ? m.options[v] : null;
+    return `<div class="vote-face ${v >= 0 && v === r.winner ? "win" : ""}">
+      <img src="assets/${x.face}.png" alt="" /><small>${x.name}</small>
+      <b class="${pick ? "" : "none"}">${pick ? escapeHTML(pick) : "기권"}</b>${x.priority === m.priority ? `<span class="w15">1.5표</span>` : ""}</div>`;
+  }).join("");
+  const why = [];
+  why.push(`가장 중요한 기준 <b>'${PRIORITY_LABEL[m.priority]}'</b> — ${decider.name} 장관의 표를 1.5표로 계산`);
+  why.push(`개표: ${m.options.map((o, i) => `${escapeHTML(o)} ${fmt(r.count[i])}표`).join(" · ")}${r.abstain ? ` (기권 ${r.abstain})` : ""}`);
+  if (shop) why.push(`가격 ${m.shop.priceValue.toLocaleString()}원 · 예산 ${m.shop.budgetValue.toLocaleString()}원 (예산의 ${r.pct}%)`);
+  okEv.forEach(it => {
+    const flag = (it.lines || []).find(l => /^(⚠️|🧥|☀️)/.test(l));
+    const main = (it.lines || []).filter(l => !/^(⚠️|🧥|☀️)/.test(l)).slice(0, 2);
+    why.push(`${escapeHTML(it.label)}: ${escapeHTML(main.join(", "))}${flag ? ` · ${escapeHTML(flag)}` : ""}`);
+  });
+  (m.evidence ? m.evidence.items.filter(it => !it.ok) : []).forEach(it => why.push(`${escapeHTML(it.label)}: 조회하지 못해 반영하지 않음`));
+  (r.moves || []).forEach(v => why.push(`근거로 표 조정 — ${escapeHTML(v.name)}: ${v.from >= 0 ? escapeHTML(m.options[v.from]) : "기권"} → ${escapeHTML(m.options[v.to])}`));
+  return `<section class="decree" aria-label="최종 판결서">
+    <div class="decree-head"><span>🏛️ 결정국 국무회의</span><span>${today()} 결재</span></div>
+    <div class="decree-title"><span class="laurel l sm" aria-hidden="true"></span>${shop ? "구매 판결서" : "최종 판결서"}<span class="laurel r sm" aria-hidden="true"></span></div>
+    <span class="decree-stamp" aria-hidden="true">결재<br>완료</span>
+    <div class="decree-main">
+      <span class="decree-label">${escapeHTML(r.label)}</span>
+      <div class="decree-verdict">${escapeHTML(r.verdict)}</div>
+      <p class="decree-line">${escapeHTML(r.pmLine)}</p>
+    </div>
+    <div class="decree-cols">
+      <div><h4>📍 장관별 투표 결과</h4><div class="vote-faces">${faces}</div></div>
+      <div><h4>📍 결정 근거</h4><ul class="why-list">${why.map(w => `<li>${w}</li>`).join("")}</ul></div>
+    </div>
+    <div class="decree-next"><span aria-hidden="true">💡</span><div><b>오늘의 실행 제안</b>${escapeHTML(r.nextLine)}</div></div>
+    <p class="hint" id="decree-save" role="status">기록하는 중…</p>
+  </section>`;
+}
+
 function showResult(m, r) {
   m.done = true; // 결재까지 끝난 회의는 '이어서 하기' 대상이 아니다
   clearDraft();
@@ -1382,38 +1450,36 @@ function showResult(m, r) {
   script.push(["pm", `👉 다음 할 일: ${escapeHTML(r.nextLine)}`]);
   script.push(["owl", `<span id="clerk-msg" role="status">기록하는 중…</span>`]);
 
-  openModal(shop ? "📜 구매 재판" : "📜 국무회의 결재", `
+  openModal(shop ? "📜 구매 재판 판결서" : "📜 최종 판결서", `
     ${stepBar(3)}
+    ${decreeHTML(m, r, ops, okEv)}
+    <div class="notice">이 결과는 입력한 답과 공개된 규칙으로 만든 참고 의견입니다. 중요한 결정은 관련 정보를 직접 확인해 주세요.</div>
+    <div class="btn-row three">
+      <button class="primary secondary" id="result-reconsider">♟️ 재심 청구</button>
+      <button class="primary secondary" id="result-share">📤 결과 공유</button>
+      <button class="primary" id="result-done">닫기 ✓</button>
+    </div>
+    <button type="button" class="link-btn poll-ask" id="result-poll">📮 장관 판결이 아쉽다면? 국민 여론에도 물어보기</button>
+    <h3 class="minutes-title">🗒️ 국무회의 회의록</h3>
     <div class="chat" id="chat" aria-live="polite"></div>
-    <div class="chat-tools"><button type="button" class="link-btn" id="chat-skip">끝까지 바로 보기 ⏭</button></div>
-    <div id="chat-end" hidden>
-      <div class="notice">이 결과는 입력한 답과 공개된 규칙으로 만든 참고 의견입니다. 중요한 결정은 관련 정보를 직접 확인해 주세요.</div>
-      <div class="btn-row three">
-        <button class="primary secondary" id="result-reconsider">♟️ 재심 청구</button>
-        <button class="primary secondary" id="result-share">📤 판결문 공유</button>
-        <button class="primary" id="result-done">닫기 ✓</button>
-      </div>
-      <button type="button" class="link-btn poll-ask" id="result-poll">📮 장관 판결이 아쉽다면? 국민 여론에도 물어보기</button>
-    </div>`, () => {
+    <div class="chat-tools"><button type="button" class="link-btn" id="chat-skip">회의록 한 번에 보기 ⏭</button></div>`, () => {
       const chat = document.getElementById("chat");
-      const modalBox = modalRoot.querySelector(".modal");
       let i = 0, timer = null, done = false, saveRes = null;
       const save = addRecord(record, m).then(res => { saveRes = res; showRecent(); paintClerk(); });
       function paintClerk() {
-        const el = document.getElementById("clerk-msg");
-        if (!el || !saveRes) return;
-        el.textContent = saveRes.ok
+        if (!saveRes) return;
+        const text = saveRes.ok
           ? (saveRes.source === "server" ? "내 계정의 결정 기록실에 적어 두었습니다!" : "이 브라우저의 기록실에 적어 두었습니다! (체험 모드 — 로그인하면 계정에 저장돼요)")
           : "기록하지 못했어요. " + (saveRes.source === "server" ? dbMessage(saveRes.error) : "브라우저 저장소를 쓸 수 없어요.");
+        ["clerk-msg", "decree-save"].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = text; });
       }
-      function scrollDown() { if (modalBox) modalBox.scrollTop = modalBox.scrollHeight; }
+      // 판결서를 먼저 보여 주고, 회의록은 아래에서 차례로 진행된다(화면을 아래로 끌어내리지 않음)
       function finish() {
         if (done) return; done = true; clearTimeout(timer);
         const typing = chat.querySelector(".typing"); if (typing) typing.remove();
         while (i < script.length) chat.insertAdjacentHTML("beforeend", chatLine(...script[i++]));
         document.getElementById("chat-skip").parentElement.hidden = true;
-        document.getElementById("chat-end").hidden = false;
-        groupChat(chat); paintClerk(); scrollDown();
+        groupChat(chat); paintClerk();
       }
       function step() {
         if (done) return;
@@ -1421,13 +1487,12 @@ function showResult(m, r) {
         const [who] = script[i];
         const typing = who === "user" || who === "stage" ? "" : chatLine(who, `<span class="dots"><i></i><i></i><i></i></span>`, "typing");
         if (typing) chat.insertAdjacentHTML("beforeend", typing);
-        scrollDown();
         timer = setTimeout(() => {
           const t = chat.querySelector(".typing"); if (t) t.remove();
           chat.insertAdjacentHTML("beforeend", chatLine(...script[i++]));
-          groupChat(chat); paintClerk(); scrollDown();
-          timer = setTimeout(step, who === "user" ? 350 : 550);
-        }, who === "user" || who === "stage" ? 120 : 700);
+          groupChat(chat); paintClerk();
+          timer = setTimeout(step, who === "user" ? 300 : 450);
+        }, who === "user" || who === "stage" ? 100 : 550);
       }
       if (reduceMotion()) finish(); else step();
       document.getElementById("chat-skip").onclick = finish;
@@ -1652,33 +1717,40 @@ async function showRecords() {
 
 document.querySelectorAll(".category").forEach(button => {
   button.onclick = () => {
-    document.querySelectorAll(".category").forEach(item => item.classList.remove("selected"));
-    button.classList.add("selected");
-    selectedCategory = button.dataset.category;
+    document.querySelectorAll(".category").forEach(item => { item.classList.toggle("selected", item === button); item.setAttribute("aria-pressed", String(item === button)); });
+    homeCategory = button.dataset.category;
   };
 });
-
+// '자동': 제목에 쓰인 말로 유형을 고른다(못 고르면 일상). 회의 화면에서 언제든 바꿀 수 있다.
+let homeCategory = "auto";
+function guessCategory(title) {
+  const t = String(title || "");
+  if (/(살까|사도|살지|사야|구매|지를까|주문할까|장바구니)/.test(t)) return "쇼핑";
+  if (/(먹|저녁|점심|아침|야식|메뉴|맛집|배달|식당|카페 갈|치킨|피자|커피)/.test(t)) return "맛집";
+  if (/(갈까|가볼까|놀러|여행|나들이|피크닉|산책|주말|캠핑|드라이브|바다|전시)/.test(t)) return "나들이";
+  return "일상";
+}
 document.getElementById("quick-form").onsubmit = event => {
   event.preventDefault();
-  openMeeting(document.getElementById("quick-title").value.trim());
+  const title = document.getElementById("quick-title").value.trim();
+  selectedCategory = homeCategory === "auto" ? guessCategory(title) : homeCategory;
+  openMeeting(title);
 };
 
 // ===== 이런 고민도 접수해 보세요 (누르면 내용이 채워진 채 국무회의 시작) =====
 const EXAMPLES = [
-  { icon: "🍴", title: "오늘 저녁 뭐 먹지?", category: "맛집", options: ["마라탕", "김치찌개", "샐러드"] },
-  { icon: "✈️", title: "이번 주말 어디 갈까?", category: "나들이", options: ["한강 피크닉", "전시회", "집에서 쉬기"], tags: ["out", "in", "in"] },
-  { icon: "🛍️", title: "새 이어폰 살까?", category: "쇼핑", options: [] },
-  { icon: "🎮", title: "오늘 밤 게임 할까, 일찍 잘까?", category: "일상", options: ["게임 한 판", "일찍 자기"] },
-  { icon: "📌", title: "운동 시작할까?", category: "일상", options: [] }
+  { icon: "🍗", title: "오늘 저녁 치킨 vs 피자?", category: "맛집", options: ["치킨", "피자"] },
+  { icon: "⛺", title: "주말에 나들이 vs 집콕?", category: "나들이", options: ["한강 피크닉", "집에서 쉬기"], tags: ["out", "in"] },
+  { icon: "🛍️", title: "새 이어폰 지금 살까?", category: "쇼핑", options: [] },
+  { icon: "☕", title: "커피 vs 차, 무엇을 마실까?", category: "일상", options: ["커피", "차"] }
 ];
 function renderExamples() {
   const box = document.getElementById("example-list");
   if (!box) return;
   box.innerHTML = EXAMPLES.map((e, i) => `
-    <button type="button" class="example-item" data-example="${i}">
-      <span class="pop-icon">${e.icon}</span>
-      <span><span class="pop-title">${escapeHTML(e.title)}</span><span class="pop-sub">${e.options.length ? escapeHTML(e.options.join(" · ")) : e.category === "쇼핑" ? "구매 재판" : "할까 말까"}</span></span>
-      <span class="pop-go">접수 ›</span>
+    <button type="button" class="example-tile" data-example="${i}">
+      <span class="pop-icon" aria-hidden="true">${e.icon}</span>
+      <span>${escapeHTML(e.title)}<small>${e.options.length ? escapeHTML(e.options.join(" · ")) : e.category === "쇼핑" ? "구매 재판" : "할까 말까"}</small></span>
     </button>`).join("");
   box.querySelectorAll("[data-example]").forEach(b => b.onclick = () => {
     const e = EXAMPLES[Number(b.dataset.example)];
@@ -1938,18 +2010,35 @@ async function renderPollPanel(polls) {
   const box = document.getElementById("poll-home");
   if (!box) return;
   if (!polls) {
-    if (!box.children.length) box.innerHTML = `<div class="record-row"><span class="record-title record-empty">여론을 모으는 중…</span></div>`;
+    if (!box.children.length) box.innerHTML = `<div class="empty-line">여론을 모으는 중…</div>`;
     ({ polls } = await loadPolls());
   }
-  const open = polls.filter(p => p.is_open).slice(0, 4);
-  box.innerHTML = open.length ? open.map(p => {
-    const done = p.mine || (p.my_vote !== null && p.my_vote !== undefined);
-    return `<button type="button" class="example-item" data-poll-go="${escapeHTML(p.id)}">
-      <span class="pop-icon">${categoryIcon(p.category)}</span>
-      <span><span class="pop-title">${escapeHTML(p.title)}</span><span class="pop-sub">⏳ ${escapeHTML(pollLeft(p.closes_at))} · 참여 ${Number(p.total) || 0}명</span></span>
-      <span class="pop-go">${done ? "결과 ›" : "투표 ›"}</span>
-    </button>`;
-  }).join("") : `<div class="record-row"><span class="record-title record-empty">진행 중인 여론조사가 없어요. 첫 고민을 올려 보세요!</span></div>`;
+  const open = polls.filter(p => p.is_open);
+  if (!open.length) { box.innerHTML = `<div class="empty-line">진행 중인 여론조사가 없어요. 첫 고민을 올려 보세요!</div>`; return; }
+  // 참여가 가장 많은 글을 크게, 나머지 2개는 작게. 진행 중인 글의 결과는 투표한 사람(또는 작성자)에게만 보여 준다.
+  const hot = open.slice().sort((x, y) => (Number(y.total) || 0) - (Number(x.total) || 0) || new Date(x.closes_at) - new Date(y.closes_at))[0];
+  const rest = open.filter(p => p !== hot).slice(0, 2);
+  const opts = Array.isArray(hot.options) ? hot.options.map(String) : [];
+  const counts = Array.isArray(hot.counts) ? hot.counts.map(Number) : opts.map(() => 0);
+  const total = Number(hot.total) || 0;
+  const seen = hot.mine || (hot.my_vote !== null && hot.my_vote !== undefined);
+  let body;
+  if (seen && total && opts.length >= 2) {
+    const order = counts.map((c, i) => [c, i]).sort((x, y) => y[0] - x[0]);
+    const [a, b2] = [order[0], order[1]];
+    const pa = Math.round(a[0] / total * 100), pb = Math.round(b2[0] / total * 100);
+    body = `<div class="split-bar" role="img" aria-label="${escapeHTML(opts[a[1]])} ${pa}%, ${escapeHTML(opts[b2[1]])} ${pb}%"><span class="a" style="width:${Math.max(pa, 18)}%">${escapeHTML(opts[a[1]])} ${pa}%</span><span class="b">${escapeHTML(opts[b2[1]])} ${pb}%</span></div>`;
+  } else {
+    body = `<div class="pf-opts">${opts.slice(0, 4).map((o, i) => `<button type="button" class="chip" data-poll-go="${escapeHTML(hot.id)}" data-opt="${i}">${escapeHTML(o)}</button>`).join("")}</div>`;
+  }
+  box.innerHTML = `
+    <div class="poll-feature">
+      <div class="pf-top"><span class="pf-icon" aria-hidden="true">${categoryIcon(hot.category)}</span>
+        <span><span class="pf-tag">${total ? "지금 가장 뜨거운 여론 🔥" : "새로 올라온 여론"}</span><span class="pf-title">${escapeHTML(hot.title)}</span></span></div>
+      ${body}
+      <div class="pf-meta"><span>${icon("users")} 참여 ${total}명</span><span>⏳ ${escapeHTML(pollLeft(hot.closes_at))}</span>${seen ? "" : `<span>투표하면 결과가 보여요</span>`}</div>
+    </div>
+    ${rest.length ? `<div class="poll-mini">${rest.map(p => `<button type="button" data-poll-go="${escapeHTML(p.id)}"><span>${categoryIcon(p.category)} ${escapeHTML(p.title)}</span><small>참여 ${Number(p.total) || 0}명 ›</small></button>`).join("")}</div>` : ""}`;
   box.querySelectorAll("[data-poll-go]").forEach(b => b.onclick = () => { pollFilter = "open"; openPolls(b.dataset.pollGo); });
 }
 async function openPolls(focusId) {
@@ -2096,73 +2185,7 @@ document.querySelectorAll("[data-action]").forEach(button => {
 });
 
 
-// 배경 이미지(1264x842) 위에 말풍선·이름표를 같은 자리에 덮어 그린다. (이미지 속 말풍선 글자 오타 대체)
-const SCENE_W = 1264, SCENE_H = 842;
-const VIEW_TOP = 138, VIEW_ROWS = 495, DESK_TOP = 140, DESK_ROWS = 300; // 화면에 보여 줄 그림 구간(국무총리 말풍선~관객)
-const SCENE_ITEMS = [
-  { x: 618,  y: 236, w: 112, h: 54, text: "신중하게 검토해야 합니다!", chip: [706, 414, "신중주의"] },
-  { x: 744,  y: 246, w: 108, h: 46, text: "재미도 중요합니다!",         chip: [820, 402, "낭만주의"] },
-  { x: 852,  y: 148, w: 172, h: 50, text: "지금부터 국무회의를 시작하겠습니다!", chip: [938, 340, "국무총리"] },
-  { x: 1022, y: 233, w: 116, h: 50, text: "예산도 따져 봅시다!",         chip: [1060, 402, "현실주의"] },
-  { x: 1155, y: 262, w: 94,  h: 46, text: "일단 해봅시다!",             chip: [1186, 414, "행동파"] }
-];
-function layoutScene() {
-  const box = document.getElementById("hero-art");
-  const img = document.getElementById("scene-img");
-  if (!box || !img) return;
-  const narrow = window.matchMedia("(max-width: 1000px)").matches;
-  const phone = window.matchMedia("(max-width: 600px)").matches;
-  const w = box.clientWidth;
-  const hero = box.parentElement;
-  let scale, offsetX, yTop = VIEW_TOP;
-  if (narrow) {
-    // 태블릿·폰: 너비에 맞춰 그림 구간을 통째로 보여 준다(폰은 오른쪽 62%만)
-    const base = phone ? w / (SCENE_W * 0.62) : w / SCENE_W;
-    box.style.height = Math.round(VIEW_ROWS * base) + "px";
-    hero.style.minHeight = "";
-    scale = base;
-    offsetX = Math.max(0, SCENE_W * scale - w) * (phone ? 1 : 0.5);
-  } else {
-    // 데스크톱: 글자·접수 칸은 왼쪽, 장면은 오른쪽에 붙인다. 장관들이 접수 칸 쪽으로 다가오도록 조금만 키우되,
-    // 말풍선~관객 머리(최소 380행)는 항상 보이게 확대 한도를 둔다.
-    box.style.height = "";
-    hero.style.minHeight = "";
-    const h = box.clientHeight;
-    const copy = hero.querySelector(".hero-copy");
-    const boxLeft = box.getBoundingClientRect().left;
-    const copyRight = copy ? copy.getBoundingClientRect().right - boxLeft : w * 0.4;
-    const free = Math.max(200, w - copyRight - 30);
-    scale = Math.max(h / VIEW_ROWS, Math.min(free / (SCENE_W - 590), h / 380));
-    const rows = h / scale;
-    yTop = Math.max(0, Math.min(SCENE_H - rows, 138)); // 국무총리 말풍선이 잘리지 않게 위쪽 기준
-    offsetX = SCENE_W * scale - w; // 오른쪽 정렬
-  }
-  const imgW = SCENE_W * scale, imgH = SCENE_H * scale;
-  img.style.width = imgW + "px"; img.style.height = imgH + "px";
-  img.style.left = (-offsetX) + "px"; img.style.top = (-yTop * scale) + "px";
-  img.style.webkitMaskImage = img.style.maskImage = narrow ? "none" : "linear-gradient(90deg, transparent 0, rgba(0,0,0,.4) 22%, #000 40%)";
-  box.querySelectorAll(".sbubble, .schip").forEach(el => el.remove());
-  const fs = Math.max(phone ? 7 : 11, Math.round(10.5 * scale));
-  SCENE_ITEMS.forEach(item => {
-    const bub = document.createElement("div");
-    bub.className = "sbubble";
-    bub.style.cssText = `left:${item.x * scale - offsetX}px;top:${(item.y - yTop) * scale}px;width:${item.w * scale}px;height:${(item.h - 6) * scale}px;font-size:${fs}px`;
-    bub.innerHTML = `<div class="body"></div><div class="tail"></div>`;
-    bub.firstChild.textContent = item.text;
-    box.appendChild(bub);
-    const [cx, cy, name] = item.chip;
-    const c = document.createElement("div");
-    c.className = "schip";
-    c.style.cssText = `left:${cx * scale - offsetX}px;top:${(cy - yTop) * scale}px;font-size:${Math.max(phone ? 7 : 10, Math.round(10 * scale))}px`;
-    c.textContent = name;
-    box.appendChild(c);
-  });
-}
-window.addEventListener("resize", layoutScene);
-window.addEventListener("load", layoutScene);
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutScene);
-if (window.ResizeObserver) new ResizeObserver(layoutScene).observe(document.querySelector(".hero"));
-layoutScene();
+hydrateIcons();
 
 meeting = loadDraft(); // 새로고침 전에 하던 회의가 있으면 불러온다
 renderExamples();

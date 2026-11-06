@@ -4,885 +4,141 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>결정국 — 고민은 접수하고, 결정은 즐겁게!</title>
-  <meta name="description" content="고민을 접수하면 성향이 다른 장관 4명이 질문하고 투표해 판결을 내려 주는 픽셀 국무회의. 점심 메뉴부터 쇼핑까지, 결정은 즐겁게!" />
-  <meta name="theme-color" content="#19274d" />
+  <meta name="description" content="고민을 접수하면 성향이 다른 장관 4명이 질문하고 투표해 판결을 내려 주는 국무회의. 점심 메뉴부터 쇼핑까지, 결정은 즐겁게!" />
+  <meta name="theme-color" content="#854B45" />
   <link rel="icon" type="image/png" href="assets/favicon.png" />
   <link rel="apple-touch-icon" href="assets/icon-192.png" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="결정국 — 고민은 접수하고, 결정은 즐겁게!" />
-  <meta property="og:description" content="장관 4명이 질문하고 투표해 판결을 내려 주는 픽셀 국무회의" />
+  <meta property="og:description" content="장관 4명이 질문하고 투표해 판결을 내려 주는 국무회의" />
   <meta property="og:image" content="https://decision-guk.vercel.app/assets/og.jpg" />
   <meta property="og:url" content="https://decision-guk.vercel.app/" />
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/quiple/galmuri@latest/dist/galmuri.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
-  <style>
-    :root {
-      --navy: #19274d;
-      --navy-light: #304877;
-      --ink: #17264b;
-      --cream: #fff1df;
-      --cream-deep: #f5d8b9;
-      --gold: #ffc960;
-      --orange: #f2a02a;
-      --line: #d8b99a;
-      --shadow: 0 5px 0 rgba(35, 47, 77, .18), 0 9px 20px rgba(34, 45, 73, .15);
-    }
-
-    * { box-sizing: border-box; }
-    .brand, .hero h1, .hero-subtitle { font-family: "Galmuri11", "Pretendard", sans-serif; font-weight: 700; letter-spacing: 0; font-synthesis: none; -webkit-font-smoothing: none; text-rendering: optimizeSpeed; }
-    body {
-      margin: 0;
-      color: var(--ink);
-      font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-      background: #a9c9ed;
-    }
-    button, input, textarea, select { font: inherit; }
-    button { cursor: pointer; }
-
-    .topbar {
-      min-height: 88px;
-      padding: 12px 24px;
-      display: flex;
-      align-items: center;
-      gap: 22px;
-      color: #fff;
-      background: linear-gradient(100deg, #172344, #29385f);
-      border-bottom: 4px solid #425b88;
-      position: relative;
-      z-index: 2;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      white-space: nowrap;
-      font-size: 36px;
-      text-shadow: 3px 3px 0 #0e1630;
-    }
-    .brand-icon { font-size: 47px; filter: drop-shadow(2px 3px 0 #101b36); }
-    .tagline {
-      padding-left: 20px;
-      border-left: 2px solid #56698f;
-      font-size: 17px;
-      white-space: nowrap;
-    }
-    .sparkle { color: var(--gold); }
-    nav {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-left: auto;
-    }
-    nav button, .login-btn {
-      color: #fff;
-      border: 1px solid transparent;
-      background: transparent;
-      padding: 12px 15px;
-      border-radius: 22px;
-      font-weight: 800;
-      white-space: nowrap;
-    }
-    nav button:hover, nav button.active, .login-btn:hover {
-      color: var(--ink);
-      background: #ffe4bf;
-    }
-    .login-btn { border-color: #617398; }
-
-    .hero {
-      min-height: 540px;
-      padding: 28px 24px 36px;
-      display: block;
-      position: relative;
-      overflow: hidden;
-      background: #8fc2f4;
-      border-bottom: 5px solid #465a7e;
-    }
-    .hero::after {
-      content: "";
-      position: absolute;
-      inset: auto 0 0;
-      height: 90px;
-      background: linear-gradient(180deg, transparent, rgba(27, 39, 72, .5));
-      pointer-events: none;
-    }
-    @media (min-width: 1001px) {
-      .hero { background: linear-gradient(90deg, #17223f 0%, #22345c 45%, #2c4a6e 100%); }
-      .hero-copy { width: min(700px, 40%); }
-      .hero::after { display: none; }
-    }
-    .hero-copy { position: relative; z-index: 2; }
-    .hero-copy { max-width: 640px; }
-    .hero h1 {
-      margin: 0 0 12px;
-      color: #fff9f0;
-      font-size: 48px;
-      line-height: 1.25;
-      text-shadow: 4px 4px 0 #0e1630;
-    }
-    .hero h1 em { color: #ffd36e; font-style: normal; }
-    .hero-subtitle {
-      margin: 0 0 22px;
-      color: #fff;
-      font-size: 24px;
-      line-height: 1.3;
-      text-shadow: 2px 2px 0 #0e1630;
-    }
-    .intake {
-      padding: 16px;
-      border: 3px solid #bd9b78;
-      border-radius: 20px;
-      background: rgba(255, 241, 223, .97);
-      box-shadow: var(--shadow);
-    }
-    .intake-label {
-      display: inline-block;
-      margin: -34px 0 12px;
-      padding: 7px 15px;
-      color: white;
-      background: var(--navy);
-      border-radius: 16px;
-      font-weight: 900;
-      font-size: 19px;
-    }
-    .intake input {
-      width: 100%;
-      padding: 15px 17px;
-      color: var(--ink);
-      border: 2px solid #ddc7b2;
-      border-radius: 16px;
-      background: #fffaf5;
-      outline: none;
-      font-size: 18px;
-    }
-    .intake input:focus, textarea:focus, select:focus {
-      border-color: #6989bd;
-      box-shadow: 0 0 0 3px rgba(105, 137, 189, .18);
-    }
-    .categories {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 12px 0;
-    }
-    .category {
-      padding: 8px 14px;
-      color: var(--ink);
-      border: 2px solid #efd0b0;
-      border-radius: 24px;
-      background: #ffe6ce;
-      font-weight: 800;
-    }
-    .category.selected, .category:hover {
-      background: #ffd278;
-      border-color: #eab450;
-    }
-    .primary {
-      width: min(100%, 400px);
-      display: block;
-      margin: 8px auto 0;
-      padding: 12px 18px;
-      color: white;
-      border: 2px solid #657da9;
-      border-radius: 26px;
-      background: linear-gradient(#354e7e, #22365f);
-      box-shadow: 0 4px 0 #182848;
-      font-size: 18px;
-      font-weight: 900;
-    }
-    .primary:hover { transform: translateY(-1px); filter: brightness(1.08); }
-
-    .hero-art-box { position: absolute; inset: 0; overflow: hidden; z-index: 0; }
-    .hero-art-box img.scene { position: absolute; left: 0; top: 0; max-width: none; user-select: none; -webkit-user-drag: none; }
-    .sbubble {
-      position: absolute;
-      display: flex; flex-direction: column; justify-content: flex-start;
-      pointer-events: none;
-    }
-    .sbubble .body {
-      flex: 1;
-      display: flex; align-items: center; justify-content: center;
-      padding: 0 .4em;
-      color: var(--ink);
-      font-weight: 900; line-height: 1.25; text-align: center;
-      background: #fff8ee;
-      border: 2px solid var(--navy);
-      border-radius: 9px;
-      box-shadow: 2px 3px 0 rgba(24, 37, 68, .22);
-    }
-    .sbubble .tail { height: 0; position: relative; }
-    .sbubble .tail::after {
-      content: ""; position: absolute; left: 50%; top: -6px;
-      width: 9px; height: 9px; background: #fff8ee;
-      border: solid var(--navy); border-width: 0 2px 2px 0;
-      transform: translateX(-50%) rotate(45deg);
-    }
-    .schip {
-      position: absolute; transform: translate(-50%, -50%);
-      padding: .15em .7em; color: #fff8eb; font-weight: 900; white-space: nowrap;
-      background: #5b3b2a; border: 2px solid #3c2a20; border-radius: 6px;
-      pointer-events: none;
-    }
-
-    .dashboard {
-      display: grid;
-      grid-template-columns: 1.08fr 1fr .72fr;
-      gap: 14px;
-      padding: 14px 22px 18px;
-      background: #9ebbe1;
-    }
-    .panel {
-      min-width: 0;
-      padding: 14px;
-      border: 3px solid #c09a75;
-      border-radius: 17px;
-      background: linear-gradient(145deg, #fff1df, #ffe5cb);
-      box-shadow: var(--shadow);
-    }
-    .panel-heading {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin: 0 0 10px;
-      font-size: 19px;
-      font-weight: 1000;
-    }
-    .panel-heading .more {
-      margin-left: auto;
-      padding: 4px;
-      color: #795f4c;
-      border: 0;
-      background: transparent;
-      font-weight: 800;
-    }
-    .records-list, .popular-list {
-      overflow: hidden;
-      border: 2px solid #ead2bc;
-      border-radius: 15px;
-      background: rgba(255,255,255,.48);
-    }
-    .record-row {
-      display: grid;
-      grid-template-columns: 38px minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 10px;
-      border-bottom: 1px solid #ead7c6;
-      font-size: 14px;
-    }
-    .record-row:last-child { border-bottom: 0; }
-    .record-empty { grid-column: 1 / -1; white-space: normal; font-weight: 700; color: #6b5a4b; }
-    .record-icon { font-size: 25px; }
-    .record-title {
-      overflow: hidden;
-      color: var(--ink);
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-weight: 800;
-    }
-    .verdict-pill {
-      padding: 5px 8px;
-      border-radius: 20px;
-      background: #ffe091;
-      color: #614b23;
-      font-size: 12px;
-      font-weight: 900;
-      white-space: nowrap;
-    }
-    .record-date { color: #776e6d; font-size: 12px; white-space: nowrap; }
-
-    .popular-item {
-      display: grid;
-      grid-template-columns: 40px 48px minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 8px;
-      padding: 14px 10px;
-      border-bottom: 1px solid #ead7c6;
-    }
-    .popular-item:last-child { border-bottom: 0; }
-    .rank {
-      width: 36px; height: 36px; display: grid; place-items: center;
-      border-radius: 50%; background: #ffb92e; color: white;
-      border: 2px solid #e59613; font-weight: 1000; font-size: 20px;
-    }
-    .popular-item:nth-child(2) .rank { background: #aeb5c8; border-color: #8c95ad; }
-    .popular-item:nth-child(3) .rank { background: #ce8140; border-color: #ae622b; }
-    .pop-icon { font-size: 30px; }
-    .pop-title { font-weight: 900; font-size: 14px; }
-    .pop-count { font-weight: 900; font-size: 12px; white-space: nowrap; }
-    .bar {
-      height: 7px; margin-top: 6px; background: #ead0b7;
-      border-radius: 8px; overflow: hidden;
-    }
-    .bar i { display: block; height: 100%; background: #f4a51f; border-radius: inherit; }
-
-    .special-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 9px;
-    }
-    .special {
-      min-height: 105px;
-      padding: 10px 5px;
-      color: var(--ink);
-      border: 2px solid #e5cdb8;
-      border-radius: 15px;
-      background: rgba(255,255,255,.38);
-      font-weight: 900;
-    }
-    .special:hover { background: #fff6e9; transform: translateY(-2px); }
-    .special b { display: block; margin-bottom: 4px; font-size: 31px; }
-    .special span { display: block; font-size: 14px; }
-    .special small { font-weight: 700; color: #5c5b66; }
-
-    .avatar { width: 38px; height: 44px; object-fit: contain; image-rendering: pixelated; flex: none; }
-    .avatar.emoji { font-size: 34px; line-height: 44px; text-align: center; }
-    .opinion { display: flex; gap: 10px; align-items: flex-start; }
-    .opinion.small { display: block; font-size: 14px; }
-    .verdict-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .verdict-line b { font-size: 22px; }
-    .stamp {
-      padding: 2px 10px; color: #c23a2e; border: 3px solid #c23a2e; border-radius: 6px;
-      font-weight: 900; transform: rotate(-8deg); animation: stampIn .5s .2s both cubic-bezier(.2, 1.6, .4, 1);
-    }
-    @keyframes stampIn { from { opacity: 0; transform: rotate(-8deg) scale(2.6); } to { opacity: 1; transform: rotate(-8deg) scale(1); } }
-    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
-    .btn-row .primary { flex: 1 1 160px; margin-top: 8px; }
-    .primary.secondary { background: linear-gradient(#f4d9b8, #e8c39b); color: var(--ink); border-color: #c9a27a; box-shadow: 0 4px 0 #b38a62; }
-    .record-detail > summary { cursor: pointer; list-style: none; }
-    .record-detail > summary::-webkit-details-marker { display: none; }
-    .record-body { padding: 4px 6px 12px 34px; }
-    .owl { height: 64px; width: auto; image-rendering: pixelated; }
-    .empty .owl { height: 96px; margin-bottom: 6px; }
-    .clerk { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; font-weight: 800; font-size: 14px; }
-    .record-note { font-size: 13px; opacity: .75; }
-    .footer-cat img { height: 52px; image-rendering: pixelated; vertical-align: middle; }
-    footer {
-      min-height: 72px;
-      padding: 14px 26px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: white;
-      background: #1e2d53;
-      font-weight: 800;
-    }
-    .footer-brand { font-size: 17px; }
-    .footer-cat { font-size: 45px; }
-
-
-    .avatar-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 8px 0 14px; }
-    .avatar-opt { display: grid; place-items: end center; height: 104px; padding: 6px 2px; border: 3px solid #d9bfa2; border-radius: 14px; background: #fff9f0; }
-    .avatar-opt img { max-height: 84px; max-width: 100%; width: auto; image-rendering: pixelated; }
-    .avatar-opt[aria-pressed="true"] { border-color: #2f4c85; background: #e4edff; box-shadow: 0 0 0 2px #2f4c85; }
-    .avatar-opt span { font-size: 12px; font-weight: 700; color: #3b4a6b; }
-    .login-btn img { height: 22px; width: auto; vertical-align: -5px; margin-right: 4px; image-rendering: pixelated; }
-    @media (max-width: 650px) { .avatar-grid { grid-template-columns: repeat(4, 1fr); } }
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      z-index: 10;
-      display: grid;
-      place-items: center;
-      padding: 18px;
-      background: rgba(15, 25, 48, .67);
-    }
-    .modal {
-      width: min(680px, 100%);
-      max-height: min(88vh, 850px);
-      overflow: auto;
-      padding: 22px;
-      border: 3px solid #c49b75;
-      border-radius: 20px;
-      background: #fff1df;
-      box-shadow: 0 16px 55px rgba(0,0,0,.3);
-    }
-    .modal-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    .modal-head h2 { margin: 0; font-size: 24px; }
-    .close {
-      width: 38px; height: 38px; border: 0; border-radius: 50%;
-      color: var(--ink); background: #f2d7bd; font-size: 22px;
-    }
-    .field { margin: 12px 0; }
-    .field label { display: block; margin-bottom: 6px; font-weight: 900; }
-    .field input, .field textarea, .field select {
-      width: 100%; padding: 11px 12px;
-      border: 2px solid #ddc7b2; border-radius: 11px;
-      color: var(--ink); background: #fffaf5; outline: none;
-    }
-    .field textarea { min-height: 82px; resize: vertical; }
-    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .hint { color: #74685f; font-size: 13px; line-height: 1.6; }
-    .result-summary {
-      padding: 15px;
-      margin-bottom: 14px;
-      border-radius: 13px;
-      background: #ffe0a6;
-      font-weight: 900;
-      line-height: 1.6;
-    }
-    .opinion {
-      padding: 12px 14px;
-      margin: 9px 0;
-      border: 1px solid #e5ccb2;
-      border-radius: 12px;
-      background: rgba(255,255,255,.62);
-      line-height: 1.6;
-    }
-    .opinion strong { display: block; margin-bottom: 3px; }
-    .notice {
-      padding: 12px;
-      margin-top: 12px;
-      border-left: 4px solid #e19b34;
-      background: #fff7e9;
-      color: #665642;
-      font-size: 13px;
-      line-height: 1.6;
-    }
-    .empty { padding: 20px; text-align: center; color: #766b62; }
-    .list-action {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 0; border-bottom: 1px solid #ead7c6;
-    }
-    .list-action:last-child { border-bottom: 0; }
-    .list-action .record-title { flex: 1; }
-    .delete-btn {
-      padding: 6px 9px; border: 0; border-radius: 9px;
-      background: #f4d0c2; color: #793a2a; font-weight: 800;
-    }
-
-
-    /* ===== 국무회의 단계 화면 ===== */
-    .steps { display: flex; gap: 4px; margin: 0 0 14px; padding: 0; list-style: none; counter-reset: st; }
-    .steps li { flex: 1; padding: 6px 4px; border-radius: 9px; background: #f1e2d2; color: #8a7a6c; font-size: 12px; font-weight: 800; text-align: center; counter-increment: st; }
-    .steps li::before { content: counter(st) ". "; }
-    .steps li.done { background: #d9e6cf; color: #44613a; }
-    .steps li.now { background: var(--navy); color: #fff; }
-    .label { display: block; margin-bottom: 6px; font-weight: 900; }
-    .label small { font-weight: 600; color: #8a7a6c; }
-    .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
-    .chip { padding: 7px 12px; border: 2px solid #ddc7b2; border-radius: 999px; background: #fffaf5; color: var(--ink); font-weight: 800; }
-    .chip[aria-pressed="true"] { border-color: #2f4c85; background: #2f4c85; color: #fff; }
-    .opt-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-    .opt-no { width: 24px; height: 24px; flex: none; border-radius: 50%; background: #f2d7bd; display: grid; place-items: center; font-size: 13px; font-weight: 900; }
-    .opt-input { flex: 1; min-width: 0; padding: 10px 12px; border: 2px solid #ddc7b2; border-radius: 11px; background: #fffaf5; color: var(--ink); }
-    .opt-del { flex: none; width: 34px; height: 34px; border: 0; border-radius: 9px; background: #f4d0c2; color: #793a2a; font-weight: 900; }
-    .add-opt { margin: 2px 0 6px; padding: 7px 12px; border: 2px dashed #c9a27a; border-radius: 11px; background: transparent; color: #7a5636; font-weight: 800; }
-    .more summary { cursor: pointer; font-weight: 800; color: #6b5a4b; margin-bottom: 8px; }
-    .more textarea { width: 100%; min-height: 82px; padding: 11px 12px; border: 2px solid #ddc7b2; border-radius: 11px; background: #fffaf5; color: var(--ink); resize: vertical; }
-    .info-box { margin: 12px 0; padding: 12px 14px; border-radius: 12px; background: #e4edff; line-height: 1.6; }
-    .err { margin: 8px 0 0; padding: 9px 12px; border-radius: 10px; background: #fde3dc; color: #9a2f1c; font-weight: 800; font-size: 14px; }
-    .ok { margin: 8px 0 0; padding: 9px 12px; border-radius: 10px; background: #dff1d8; color: #2f5a22; font-weight: 800; font-size: 14px; }
-    .link-btn { padding: 0; border: 0; background: none; color: #2f4c85; font-weight: 900; text-decoration: underline; }
-    .tabs { margin-bottom: 6px; }
-    .err.small { padding: 4px 8px; font-size: 12.5px; }
-    .field input[aria-invalid="true"] { border-color: #d0533c; background: #fff3f0; }
-    .q-card { display: flex; align-items: flex-end; gap: 12px; margin: 4px 0 10px; }
-    .q-sprite { width: 118px; height: auto; flex: none; image-rendering: pixelated; }
-    .q-bubble { position: relative; flex: 1; padding: 12px 14px; border: 3px solid #2b3552; border-radius: 16px; background: #fff; box-shadow: 0 4px 0 rgba(43,53,82,.18); margin-bottom: 18px; }
-    .q-bubble::before { content: ""; position: absolute; left: -12px; bottom: 16px; border: 9px solid transparent; border-right-color: #2b3552; border-left: 0; }
-    .q-who { font-weight: 900; font-size: 14px; color: #44506e; display: flex; justify-content: space-between; gap: 8px; }
-    .q-count { font-weight: 700; color: #8a7a6c; }
-    .q-text { margin-top: 4px; font-size: 18px; font-weight: 900; line-height: 1.45; }
-    .q-title { margin: 0 0 10px; font-weight: 900; color: #5d4e42; }
-    .choice-list { display: grid; gap: 8px; margin-bottom: 6px; }
-    .choice { padding: 13px 14px; border: 3px solid #ddc7b2; border-radius: 13px; background: #fffaf5; color: var(--ink); font-size: 17px; font-weight: 900; text-align: left; }
-    .choice:hover, .choice:focus-visible { border-color: #2f4c85; }
-    .choice[aria-pressed="true"] { border-color: #2f4c85; background: #e4edff; }
-    .choice.abstain { font-size: 15px; color: #6b5a4b; border-style: dashed; }
-    .prio-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 6px; }
-    .prio { display: grid; justify-items: center; gap: 2px; padding: 8px 4px 10px; border: 3px solid #ddc7b2; border-radius: 14px; background: #fffaf5; color: var(--ink); }
-    .prio img { height: 62px; width: auto; image-rendering: pixelated; }
-    .prio b { font-size: 15px; }
-    .prio small { color: #7b6d61; font-size: 12px; }
-    .prio[aria-pressed="true"] { border-color: #2f4c85; background: #e4edff; box-shadow: 0 0 0 2px #2f4c85; }
-    .tally { margin: 6px 0 12px; padding: 12px 14px; border-radius: 13px; background: rgba(255,255,255,.6); border: 1px solid #e5ccb2; }
-    .tally-row { display: grid; grid-template-columns: minmax(80px, 30%) 1fr auto; align-items: center; gap: 10px; margin: 5px 0; font-weight: 800; }
-    .tally-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bar { height: 14px; border-radius: 7px; background: #f0e1d1; overflow: hidden; }
-    .bar > span { display: block; height: 100%; border-radius: 7px; background: #c9a27a; transform-origin: left; animation: grow .9s .2s both ease-out; }
-    .tally-row.win .bar > span { background: linear-gradient(90deg, #f0a52a, #e57a1f); }
-    .tally-row.win .tally-name::before { content: "👑 "; }
-    @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-    .m-cards { display: grid; gap: 8px; }
-    .m-card { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid #e5ccb2; border-radius: 12px; background: rgba(255,255,255,.62); line-height: 1.55; }
-    .m-card img { width: 64px; height: auto; flex: none; image-rendering: pixelated; }
-    .m-card > div { flex: 1; min-width: 0; }
-    .m-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 2px; }
-    .badge { padding: 1px 8px; border-radius: 999px; background: #2f4c85; color: #fff; font-size: 12px; font-weight: 800; }
-    .pick-chip { margin-left: auto; padding: 2px 10px; border-radius: 999px; background: #ffe0a6; font-weight: 900; font-size: 14px; }
-    .pick-chip.none { background: #eee3d8; color: #7b6d61; }
-    .result-summary { margin: 0 0 4px; }
-    .label-chip { display: inline-block; margin-bottom: 4px; padding: 2px 10px; border-radius: 999px; background: #fff; color: #c23a2e; font-size: 13px; }
-    .pm-line, .next-line { font-weight: 700; font-size: 14px; line-height: 1.6; }
-    .next-line { margin-top: 4px; }
-    .minority { margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: #eef3ff; font-size: 14px; line-height: 1.7; }
-    .reveal { animation: popIn .45s var(--d, 0s) both ease-out; }
-    .stamp.late { animation-delay: .7s; }
-    @keyframes popIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-    @media (prefers-reduced-motion: reduce) { .reveal, .bar > span, .stamp { animation: none !important; } }
-    @media (max-width: 650px) {
-      .prio-grid { grid-template-columns: repeat(2, 1fr); }
-      .q-sprite { width: 84px; }
-      .q-text { font-size: 16px; }
-      .steps li { font-size: 11px; }
-      .m-card img { width: 48px; }
-    }
-
-    /* ===== 대화형 결재 ===== */
-    .chat { display: grid; gap: 12px; padding: 4px 2px 6px; }
-    .msg.cont { margin-top: -6px; }
-    .msg.cont .face { visibility: hidden; height: 1px; overflow: hidden; }
-    .msg { display: flex; align-items: flex-end; gap: 8px; animation: popIn .3s both ease-out; }
-    .msg.me { justify-content: flex-end; }
-    .face { display: grid; justify-items: center; gap: 2px; flex: none; width: 66px; }
-    .face img { width: 56px; height: 56px; object-fit: cover; border-radius: 50%; background: #fff; border: 2px solid #e5ccb2; image-rendering: pixelated; }
-    .msg.them .face img { width: auto; height: 84px; max-width: 70px; object-fit: contain; object-position: bottom; border: 0; border-radius: 0; background: none; }
-    .msg.them .face { width: 72px; }
-    .msg.me .face img { width: auto; height: 84px; max-width: 70px; object-fit: contain; object-position: bottom; border: 0; border-radius: 0; background: none; }
-    .msg.me .face { width: 72px; }
-    .msg.wide .bubble { flex: 1; max-width: 560px; }
-    .face small { font-size: 11px; font-weight: 800; color: #6b5a4b; text-align: center; line-height: 1.2; }
-    .face-emoji { font-size: 40px; line-height: 58px; }
-    .bubble { position: relative; max-width: min(78%, 520px); padding: 10px 13px; border-radius: 16px; background: #fff; border: 2px solid #e5ccb2; line-height: 1.6; font-size: 15px; }
-    .msg.them .bubble { border-bottom-left-radius: 4px; }
-    .msg.me .bubble { background: #2f4c85; border-color: #2f4c85; color: #fff; border-bottom-right-radius: 4px; }
-    .msg.pm .bubble { background: #fff7e6; border-color: #e7b766; }
-    .msg.scribe .bubble { background: #eef3ff; border-color: #c5d3f0; font-weight: 800; }
-    .msg.verdict-msg .bubble { background: #ffe0a6; border-color: #e19b34; max-width: min(88%, 560px); }
-    .msg.verdict-msg .verdict-line b { font-size: 24px; }
-    .msg .tally { margin: 8px 0 2px; background: #fffaf2; }
-    .msg .m-head { margin-bottom: 4px; }
-    .msg .m-head .pick-chip { margin-left: 0; }
-    .bubble .sub { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; font-size: 13px; opacity: .95; }
-    .opt-tag { padding: 1px 8px; border-radius: 999px; background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.45); }
-    .dots { display: inline-flex; gap: 4px; padding: 4px 2px; }
-    .dots i { width: 7px; height: 7px; border-radius: 50%; background: #b9a58f; animation: blink 1s infinite ease-in-out; }
-    .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
-    @keyframes blink { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
-    .chat-tools { text-align: right; margin: 2px 0 6px; }
-    .btn-row.three .primary { flex: 1 1 140px; }
-    .btn-row.slim { margin-top: 8px; align-items: center; }
-    .btn-row.slim .delete-btn { margin-left: auto; }
-    .answer-row { display: flex; gap: 10px; align-items: flex-start; }
-    .answer-col { flex: 1; min-width: 0; }
-    .me-face { margin-top: 28px; }
-    .center { text-align: center; margin: 10px 0 0; }
-    .danger-link { color: #a33b25; }
-    .primary.danger { background: linear-gradient(#d65a44, #b8402c); border-color: #9c3322; box-shadow: 0 4px 0 #7f2819; }
-    .example-item { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border: 0; border-bottom: 1px solid #ead7c6; background: transparent; color: var(--ink); text-align: left; }
-    .example-item:last-child { border-bottom: 0; }
-    .example-item:hover, .example-item:focus-visible { background: #fff6e9; }
-    .pop-sub { display: block; font-size: 12px; color: #7b6d61; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .pop-go { font-size: 12px; font-weight: 900; color: #2f4c85; white-space: nowrap; }
-    .record-row.as-btn { width: 100%; border: 0; border-bottom: 1px solid #ead7c6; background: transparent; text-align: left; color: var(--ink); }
-    .record-row.as-btn:hover { background: #fff6e9; }
-    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0 14px; }
-    .stat { display: grid; justify-items: center; gap: 2px; padding: 12px 6px; border-radius: 13px; background: #fff; border: 1px solid #e5ccb2; text-align: center; }
-    .stat b { font-size: 26px; color: #19274d; }
-    .stat span { font-size: 12px; font-weight: 700; color: #6b5a4b; }
-    .sub-h { margin: 6px 0 2px; font-size: 17px; }
-    .stat-note { font-weight: 700; }
-    .rec-tools { display: grid; gap: 8px; margin-bottom: 6px; }
-    .rec-tools input { width: 100%; padding: 10px 12px; border: 2px solid #ddc7b2; border-radius: 11px; background: #fffaf5; color: var(--ink); }
-    .empty-faces { display: flex; justify-content: center; align-items: flex-end; gap: 10px; margin-bottom: 8px; }
-    .empty-faces img { height: 80px; width: auto; image-rendering: pixelated; }
-    .empty .primary { margin-top: 12px; }
-    .share-preview { display: grid; place-items: center; margin-bottom: 8px; }
-    .share-preview img { width: min(100%, 360px); border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
-    .footer-links { display: block; margin-top: 3px; font-size: 12px; opacity: .8; font-weight: 600; }
-    .footer-links a { color: inherit; }
-    @media (max-width: 650px) {
-      .modal-backdrop { padding: 0; place-items: stretch; }
-      .modal { width: 100%; max-height: none; height: 100%; border-radius: 0; border-width: 0; padding: 16px 14px 24px; }
-      .stat-grid { grid-template-columns: repeat(2, 1fr); }
-      .face { width: 52px; } .face img { width: 46px; height: 46px; }
-      .msg .face { width: 56px; } .msg .face img { height: 66px !important; max-width: 54px !important; }
-      .bubble { max-width: 82%; font-size: 14px; }
-      .me-face { display: none; }
-    }
-
-    @media (max-width: 1000px) {
-      .topbar { flex-wrap: wrap; }
-      nav { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 6px; } /* 가로 스크롤 대신 줄바꿈: 로그인 버튼이 잘리지 않게 */
-      .tagline { margin-left: auto; }
-      .hero { min-height: 0; padding-bottom: 0; }
-      .hero-copy { max-width: none; }
-      .hero-art-box { position: relative; inset: auto; height: 250px; margin: 18px -24px 0; }
-      .dashboard { grid-template-columns: 1fr 1fr; }
-      .special-panel { grid-column: 1 / -1; }
-      .special-grid { grid-template-columns: repeat(4, 1fr); }
-    }
-    @media (max-width: 650px) {
-      .topbar { padding: 10px 14px; gap: 10px; }
-      .brand { font-size: 24px; }
-      .brand-icon { font-size: 38px; }
-      .tagline { width: 100%; padding-left: 0; border: 0; font-size: 14px; }
-      nav button { padding: 9px 11px; font-size: 13px; }
-      .hero { padding: 24px 14px 16px; }
-      .hero h1 { font-size: 36px; text-shadow: 3px 3px 0 #0e1630; }
-      .hero-subtitle { font-family: "Pretendard", sans-serif; font-weight: 800; font-size: 16px; -webkit-font-smoothing: auto; text-rendering: auto; }
-      .dashboard { grid-template-columns: 1fr; padding: 12px; }
-      .special-panel { grid-column: auto; }
-      .special-grid { grid-template-columns: repeat(2, 1fr); }
-      .hero-art-box { height: 215px; margin: 16px -14px 0; }
-      .field-row { grid-template-columns: 1fr; gap: 0; }
-      footer { padding: 12px 15px; font-size: 13px; }
-      .footer-cat { font-size: 34px; }
-    }
-
-    /* ===== 데스크톱: 한 화면에 들어오도록 높이를 줄인 레이아웃 ===== */
-    @media (min-width: 1001px) {
-      body { min-height: 100vh; display: flex; flex-direction: column; }
-      main { flex: 1 0 auto; display: flex; flex-direction: column; }
-      .topbar { min-height: 76px; padding: 12px 24px 8px; }
-      .brand { font-size: 36px; }
-      .brand-icon { font-size: 38px; }
-      .tagline { font-size: 15px; }
-      nav button, .login-btn { padding: 8px 14px; font-size: 15px; }
-      .hero { flex: 1 0 auto; min-height: 0; padding: 18px 24px 22px; border-bottom-width: 4px; }
-      .hero h1 { font-size: 48px; margin-bottom: 8px; }
-      @media (max-width: 1350px) { .hero h1 { font-size: 36px; text-shadow: 3px 3px 0 #0e1630; } }
-      .hero-subtitle { margin-bottom: 12px; font-size: 24px; }
-      .intake { padding: 10px 14px 12px; }
-      .intake-label { margin: -28px 0 8px; padding: 5px 13px; font-size: 16px; }
-      .intake input { padding: 10px 14px; font-size: 16px; }
-      .categories { margin: 8px 0; gap: 6px; }
-      .category { padding: 6px 12px; font-size: 14px; }
-      .primary { padding: 9px 16px; font-size: 16px; margin-top: 4px; }
-      .dashboard { gap: 12px; padding: 12px 22px 14px; }
-      .panel { padding: 10px 14px 12px; }
-      .panel-heading { margin-bottom: 6px; font-size: 18px; }
-      .record-row { padding: 6px 4px; }
-      .record-icon { font-size: 20px; }
-      .record-date { display: none; }
-      .popular-item { padding: 6px 4px; }
-      .pop-icon { font-size: 24px; }
-      .special { padding: 8px 6px; }
-      .special b { font-size: 24px; margin-bottom: 2px; }
-      .special span { font-size: 13px; }
-      footer { padding: 6px 24px; }
-      .footer-brand { font-size: 15px; }
-      .footer-cat img { height: 38px; }
-    }
-
-    /* ===== 로고 · 제목 (시안 스타일: 흰 픽셀 글자 + 남색 외곽선) ===== */
-    .brand { text-decoration: none; color: #fff; gap: 14px; }
-    .logo-icon { width: 52px; height: 49px; flex: none; filter: drop-shadow(3px 3px 0 #0b1226); }
-    .logo-word { position: relative; font-size: 36px; color: #fff;
-      text-shadow: 3px 0 0 #121c3a, -3px 0 0 #121c3a, 0 3px 0 #121c3a, 0 -3px 0 #121c3a, 3px 3px 0 #121c3a, -3px 3px 0 #121c3a, 3px -3px 0 #121c3a, -3px -3px 0 #121c3a, 5px 6px 0 #0b1226; }
-    .logo-word .last { position: relative; }
-    .logo-crown { position: absolute; right: -13px; top: -4px; width: 27px; height: 15px; transform: rotate(14deg); filter: drop-shadow(1px 1px 0 #121c3a); }
-    .hero h1, .hero-subtitle { position: relative; }
-    .hero h1 { color: #fff; text-shadow: 3px 0 0 #121c3a, -3px 0 0 #121c3a, 0 3px 0 #121c3a, 0 -3px 0 #121c3a, 3px 3px 0 #121c3a, -3px 3px 0 #121c3a, 3px -3px 0 #121c3a, -3px -3px 0 #121c3a, 6px 6px 0 #0b1226 !important; }
-    .hero h1 em { color: #ffd23f; }
-    .hero-subtitle { text-shadow: 2px 0 0 #121c3a, -2px 0 0 #121c3a, 0 2px 0 #121c3a, 0 -2px 0 #121c3a, 3px 3px 0 #0b1226 !important; }
-    .spark { position: absolute; color: #ffd23f; font-family: sans-serif; text-shadow: none !important; line-height: 1; }
-    .spark.s1 { left: -40px; top: 2px; font-size: 32px; }
-    .spark.s2 { left: -22px; top: 40px; font-size: 18px; }
-    @media (min-width: 1001px) {
-      .hero h1, .hero-subtitle { margin-left: 52px; }
-    }
-    /* ===== 푸터 부엉이 ===== */
-    footer { position: relative; }
-    .footer-owl { position: absolute; right: 26px; bottom: 2px; display: flex; align-items: flex-end; gap: 6px; padding: 0; border: 0; background: none; cursor: pointer; }
-    .footer-owl img { height: 92px; width: auto; image-rendering: pixelated; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.3)); }
-    .owl-bubble { position: relative; margin-bottom: 14px; padding: 6px 14px; border: 3px solid #121c3a; border-radius: 16px; background: #fff8ee; color: #19274d; font-size: 14px; font-weight: 900; line-height: 1.4; text-align: center; box-shadow: 3px 3px 0 rgba(11,18,38,.35); }
-    .owl-bubble u { text-decoration-thickness: 2px; text-underline-offset: 3px; }
-    .owl-bubble::after { content: ""; position: absolute; right: -11px; bottom: 12px; width: 14px; height: 14px; background: #fff8ee; border: solid #121c3a; border-width: 3px 3px 0 0; transform: rotate(45deg); }
-    .footer-owl:hover .owl-bubble { background: #fff; }
-    .tw { position: absolute; color: #ffd23f; font-family: sans-serif; }
-    .tw.t1 { right: -14px; top: 0; font-size: 18px; } .tw.t2 { right: 104px; top: -10px; font-size: 13px; }
-    @media (max-width: 1000px) {
-      .footer-owl { position: static; } .owl-bubble { margin-bottom: 30px; font-size: 13px; } .footer-owl img { height: 72px; }
-      .spark { display: none; }
-    }
-    @media (max-width: 650px) { .tw { display: none; } .hero-subtitle { text-shadow: 1px 1px 0 #121c3a !important; } .hero h1 { text-shadow: 2px 0 0 #121c3a, -2px 0 0 #121c3a, 0 2px 0 #121c3a, 0 -2px 0 #121c3a, 4px 4px 0 #0b1226 !important; } .owl-bubble { display: none; } .logo-icon { width: 44px; height: 41px; } .logo-word { font-size: 24px; } }
-
-    /* ===== 근거 수집 ===== */
-    .stage { justify-self: center; margin: 6px 0 -2px; padding: 3px 14px; border-radius: 999px; background: #19274d; color: #ffe0a6; font-size: 12px; font-weight: 900; letter-spacing: .5px; }
-    .ev { margin-top: 8px; padding: 8px 12px; border-radius: 10px; background: #fff; border: 1px solid #c5d3f0; font-weight: 600; }
-    .ev ul { margin: 4px 0; padding-left: 18px; }
-    .ev small, .ev-foot { color: #6b5a4b; font-size: 12px; font-weight: 600; }
-    .ev.fail { background: #fff3f0; border-color: #f0c2b6; }
-    .ev-foot { margin-top: 6px; }
-    .moves { margin: 6px 0; font-weight: 800; }
-    .ev-rec { margin: 6px 0; padding: 6px 10px; border-radius: 8px; background: #eef3ff; font-size: 13px; line-height: 1.6; }
-    .tag-pick { display: inline-flex; gap: 3px; flex: none; }
-    .tag { width: 34px; height: 34px; padding: 0; border: 2px solid #ddc7b2; border-radius: 9px; background: #fffaf5; font-size: 16px; filter: grayscale(1); opacity: .6; }
-    .tag[aria-pressed="true"] { border-color: #2f4c85; background: #e4edff; filter: none; opacity: 1; }
-    .ctx-row input { width: 100%; }
-    .check { display: flex; gap: 6px; align-items: center; margin: 4px 0 6px; font-weight: 800; font-size: 14px; }
-    .check small { font-weight: 600; color: #7b6d61; }
-    .slim-row { align-items: center; margin-top: 6px; }
-    .price-row { display: flex; gap: 6px; }
-    .price-row input { flex: 1; min-width: 0; }
-    .price-row select { width: auto; flex: none; }
-    /* 📮 국민 여론 광장 */
-    .poll-intro { margin: 0 0 10px; font-weight: 700; line-height: 1.6; }
-    .poll-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
-    .poll-top .chip-row { margin: 0; }
-    .poll-top .primary { width: auto; margin: 0; padding: 10px 16px; }
-    .poll-list { display: grid; gap: 10px; margin: 8px 0 12px; }
-    .poll-card { padding: 12px 14px; border: 1px solid #e5ccb2; border-radius: 14px; background: rgba(255,255,255,.7); }
-    .poll-card.closed { background: rgba(240,230,218,.6); }
-    .poll-head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
-    .poll-title { flex: 1; min-width: 0; line-height: 1.5; overflow-wrap: anywhere; }
-    .poll-left { flex: none; padding: 2px 10px; border-radius: 999px; background: #ffe0a6; font-size: 12px; font-weight: 800; white-space: nowrap; }
-    .poll-left.done { background: #e6dcd2; color: #6f6156; }
-    .poll-card .tally { margin: 4px 0 6px; }
-    .poll-vote { margin: 6px 0 2px; }
-    .poll-vote .chip { white-space: normal; text-align: left; }
-    .poll-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: #6f6156; font-weight: 700; }
-    .poll-ask { display: block; min-height: 44px; margin: 6px auto 0; padding: 10px 12px; }
-    @media (max-width: 650px) { .poll-top .primary { width: 100%; } }
-    .poll-panel .example-item .pop-go { color: #c2571a; }
-    .poll-home-new { display: block; margin: 8px auto 0; }
-    .poll-card.focus { box-shadow: 0 0 0 3px #f0a52a; }
-    /* 판결 근거 요약 */
-    .summary-box { margin-top: 4px; }
-    .sum-title { font-weight: 900; margin-bottom: 6px; }
-    .sum-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.5; background: rgba(255,255,255,.7); border-radius: 10px; overflow: hidden; }
-    .sum-table th, .sum-table td { padding: 6px 8px; border-bottom: 1px solid #ead7c6; text-align: left; vertical-align: top; }
-    .sum-table thead th { background: #f3e4d3; font-size: 12px; }
-    .sum-table tbody th { white-space: nowrap; }
-    .sum-table tbody th small { display: block; color: #7b6d61; font-weight: 700; }
-    .sum-pick { font-weight: 800; }
-    .sum-w { white-space: nowrap; }
-    .sum-total { margin-top: 8px; font-weight: 800; }
-    .sum-rule { margin-top: 4px; font-size: 12px; color: #6f6156; line-height: 1.6; }
-    .sum-if { margin-top: 8px; padding: 8px 12px; border-radius: 10px; background: #eef3ff; font-size: 14px; line-height: 1.6; }
-    .sum-if ul { margin: 4px 0 0; padding-left: 18px; }
-    .sum-chip { display: block; width: fit-content; margin: 0 0 3px; padding: 1px 8px; border-radius: 999px; background: #ffe0a6; font-weight: 900; }
-    @media (max-width: 650px) { .sum-table { font-size: 12px; } .sum-table th, .sum-table td { padding: 5px; } }
-    [hidden] { display: none !important; }
-    @media (max-width: 650px) { nav { gap: 4px; } nav button, .login-btn { padding: 6px 10px; font-size: 13px; } }
-    .money-echo { min-height: 18px; margin-top: 4px; font-size: 13px; font-weight: 800; color: #5b6b8c; }
-    .sum-chip.win { background: #ffd23f; }
-    .sum-chip.lose { background: #efe6d6; color: #5d5446; }
-    .sum-chip.none { background: #eee; color: #777; }
-    .fu-later { font-size: 14px; line-height: 1.6; }
-    .resume-row { background: #fff3d6; border-radius: 10px; }
-    .resume-row .verdict-pill { background: #19274d; color: #fff; }
-    .auto-hint { color: #1f5f3a; font-weight: 800; }
-    .guide-line { margin: -4px 0 12px; padding: 8px 12px; border-radius: 10px; background: #fff6e2; font-size: 13px; font-weight: 700; line-height: 1.6; }
-    /* 판결 이후 기록 */
-    .followup { margin: 4px 0 10px; padding: 10px 12px; border-radius: 12px; background: #f6f1ff; }
-    .fu-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
-    .fu-q { font-weight: 800; font-size: 14px; margin-right: 4px; }
-    .fu-row .chip { margin: 0; }
-    .star { min-width: 36px; min-height: 36px; border: 0; background: transparent; font-size: 24px; line-height: 1; color: #e3a008; cursor: pointer; }
-    .star:focus-visible { outline: 3px solid #f0a52a; border-radius: 8px; }
-    .fu-note { color: #6f6156; font-weight: 700; }
-    .fu-badge { font-size: 12px; font-weight: 800; color: #b07a00; white-space: nowrap; }
-    .poll-sort { margin: -2px 0 6px; }
-    .poll-sort .chip { font-size: 13px; }
-    .poll-compare { margin: 2px 0 6px; padding: 8px 10px; border-radius: 10px; background: #eef3ff; font-size: 13px; line-height: 1.6; }
-    .poll-compare small { display: block; color: #6f6156; }
-    /* 홈: 4단계 안내 띠 (한 줄) */
-    .howto { padding: 8px 22px 0; background: #9ebbe1; }
-    .howto + .dashboard { padding-top: 8px; }
-    .howto-card { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 5px 16px; border: 2px solid #c09a75; border-radius: 14px; background: linear-gradient(145deg, #fff8ec, #ffeeda); box-shadow: var(--shadow); }
-    .howto-card h2 { margin: 0; font-size: 16px; font-weight: 1000; white-space: nowrap; }
-    .howto-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0; padding: 0; list-style: none; }
-    .howto-steps li { padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.8); font-size: 14px; font-weight: 800; white-space: nowrap; }
-    .howto-steps li:not(:last-child)::after { content: " ▸"; color: #c09a75; }
-    .howto-note { margin: 0 0 0 auto; font-size: 13px; color: #5a4c41; white-space: nowrap; }
-    @media (max-width: 1100px) { .howto-note { margin-left: 0; white-space: normal; } }
-    @media (max-width: 650px) {
-      .howto { padding: 10px 12px 0; }
-      .howto-card { padding: 9px 12px; }
-      .howto-card h2 { font-size: 15px; }
-      .howto-steps li { padding: 2px 8px; font-size: 13px; }
-    }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="./" aria-label="결정국 홈"><svg class="logo-icon" viewBox="0 0 16 15" shape-rendering="crispEdges" aria-hidden="true"><rect x="6" y="0" width="1" height="1" fill="#121c3a"/><rect x="7" y="0" width="1" height="1" fill="#121c3a"/><rect x="6" y="1" width="1" height="1" fill="#121c3a"/><rect x="7" y="1" width="1" height="1" fill="#ffc93c"/><rect x="8" y="1" width="1" height="1" fill="#ffc93c"/><rect x="6" y="2" width="1" height="1" fill="#121c3a"/><rect x="7" y="2" width="1" height="1" fill="#ffc93c"/><rect x="8" y="2" width="1" height="1" fill="#ffc93c"/><rect x="9" y="2" width="1" height="1" fill="#ffc93c"/><rect x="6" y="3" width="1" height="1" fill="#121c3a"/><rect x="4" y="4" width="1" height="1" fill="#121c3a"/><rect x="5" y="4" width="1" height="1" fill="#121c3a"/><rect x="6" y="4" width="1" height="1" fill="#121c3a"/><rect x="7" y="4" width="1" height="1" fill="#121c3a"/><rect x="8" y="4" width="1" height="1" fill="#121c3a"/><rect x="9" y="4" width="1" height="1" fill="#121c3a"/><rect x="10" y="4" width="1" height="1" fill="#121c3a"/><rect x="11" y="4" width="1" height="1" fill="#121c3a"/><rect x="2" y="5" width="1" height="1" fill="#121c3a"/><rect x="3" y="5" width="1" height="1" fill="#121c3a"/><rect x="4" y="5" width="1" height="1" fill="#fff1d6"/><rect x="5" y="5" width="1" height="1" fill="#fff1d6"/><rect x="6" y="5" width="1" height="1" fill="#fff1d6"/><rect x="7" y="5" width="1" height="1" fill="#fff1d6"/><rect x="8" y="5" width="1" height="1" fill="#fff1d6"/><rect x="9" y="5" width="1" height="1" fill="#fff1d6"/><rect x="10" y="5" width="1" height="1" fill="#fff1d6"/><rect x="11" y="5" width="1" height="1" fill="#fff1d6"/><rect x="12" y="5" width="1" height="1" fill="#121c3a"/><rect x="13" y="5" width="1" height="1" fill="#121c3a"/><rect x="1" y="6" width="1" height="1" fill="#121c3a"/><rect x="2" y="6" width="1" height="1" fill="#fff1d6"/><rect x="3" y="6" width="1" height="1" fill="#fff1d6"/><rect x="4" y="6" width="1" height="1" fill="#fff1d6"/><rect x="5" y="6" width="1" height="1" fill="#fff1d6"/><rect x="6" y="6" width="1" height="1" fill="#fff1d6"/><rect x="7" y="6" width="1" height="1" fill="#fff1d6"/><rect x="8" y="6" width="1" height="1" fill="#fff1d6"/><rect x="9" y="6" width="1" height="1" fill="#fff1d6"/><rect x="10" y="6" width="1" height="1" fill="#fff1d6"/><rect x="11" y="6" width="1" height="1" fill="#fff1d6"/><rect x="12" y="6" width="1" height="1" fill="#fff1d6"/><rect x="13" y="6" width="1" height="1" fill="#fff1d6"/><rect x="14" y="6" width="1" height="1" fill="#121c3a"/><rect x="0" y="7" width="1" height="1" fill="#121c3a"/><rect x="1" y="7" width="1" height="1" fill="#121c3a"/><rect x="2" y="7" width="1" height="1" fill="#121c3a"/><rect x="3" y="7" width="1" height="1" fill="#121c3a"/><rect x="4" y="7" width="1" height="1" fill="#121c3a"/><rect x="5" y="7" width="1" height="1" fill="#121c3a"/><rect x="6" y="7" width="1" height="1" fill="#121c3a"/><rect x="7" y="7" width="1" height="1" fill="#121c3a"/><rect x="8" y="7" width="1" height="1" fill="#121c3a"/><rect x="9" y="7" width="1" height="1" fill="#121c3a"/><rect x="10" y="7" width="1" height="1" fill="#121c3a"/><rect x="11" y="7" width="1" height="1" fill="#121c3a"/><rect x="12" y="7" width="1" height="1" fill="#121c3a"/><rect x="13" y="7" width="1" height="1" fill="#121c3a"/><rect x="14" y="7" width="1" height="1" fill="#121c3a"/><rect x="15" y="7" width="1" height="1" fill="#121c3a"/><rect x="0" y="8" width="1" height="1" fill="#121c3a"/><rect x="1" y="8" width="1" height="1" fill="#fff1d6"/><rect x="2" y="8" width="1" height="1" fill="#fff1d6"/><rect x="3" y="8" width="1" height="1" fill="#121c3a"/><rect x="4" y="8" width="1" height="1" fill="#fff1d6"/><rect x="5" y="8" width="1" height="1" fill="#fff1d6"/><rect x="6" y="8" width="1" height="1" fill="#121c3a"/><rect x="7" y="8" width="1" height="1" fill="#fff1d6"/><rect x="8" y="8" width="1" height="1" fill="#fff1d6"/><rect x="9" y="8" width="1" height="1" fill="#121c3a"/><rect x="10" y="8" width="1" height="1" fill="#fff1d6"/><rect x="11" y="8" width="1" height="1" fill="#fff1d6"/><rect x="12" y="8" width="1" height="1" fill="#121c3a"/><rect x="13" y="8" width="1" height="1" fill="#fff1d6"/><rect x="14" y="8" width="1" height="1" fill="#fff1d6"/><rect x="15" y="8" width="1" height="1" fill="#121c3a"/><rect x="0" y="9" width="1" height="1" fill="#121c3a"/><rect x="1" y="9" width="1" height="1" fill="#fff1d6"/><rect x="2" y="9" width="1" height="1" fill="#fff1d6"/><rect x="3" y="9" width="1" height="1" fill="#121c3a"/><rect x="4" y="9" width="1" height="1" fill="#fff1d6"/><rect x="5" y="9" width="1" height="1" fill="#fff1d6"/><rect x="6" y="9" width="1" height="1" fill="#121c3a"/><rect x="7" y="9" width="1" height="1" fill="#fff1d6"/><rect x="8" y="9" width="1" height="1" fill="#fff1d6"/><rect x="9" y="9" width="1" height="1" fill="#121c3a"/><rect x="10" y="9" width="1" height="1" fill="#fff1d6"/><rect x="11" y="9" width="1" height="1" fill="#fff1d6"/><rect x="12" y="9" width="1" height="1" fill="#121c3a"/><rect x="13" y="9" width="1" height="1" fill="#fff1d6"/><rect x="14" y="9" width="1" height="1" fill="#fff1d6"/><rect x="15" y="9" width="1" height="1" fill="#121c3a"/><rect x="0" y="10" width="1" height="1" fill="#121c3a"/><rect x="1" y="10" width="1" height="1" fill="#fff1d6"/><rect x="2" y="10" width="1" height="1" fill="#fff1d6"/><rect x="3" y="10" width="1" height="1" fill="#121c3a"/><rect x="4" y="10" width="1" height="1" fill="#fff1d6"/><rect x="5" y="10" width="1" height="1" fill="#fff1d6"/><rect x="6" y="10" width="1" height="1" fill="#121c3a"/><rect x="7" y="10" width="1" height="1" fill="#fff1d6"/><rect x="8" y="10" width="1" height="1" fill="#fff1d6"/><rect x="9" y="10" width="1" height="1" fill="#121c3a"/><rect x="10" y="10" width="1" height="1" fill="#fff1d6"/><rect x="11" y="10" width="1" height="1" fill="#fff1d6"/><rect x="12" y="10" width="1" height="1" fill="#121c3a"/><rect x="13" y="10" width="1" height="1" fill="#fff1d6"/><rect x="14" y="10" width="1" height="1" fill="#fff1d6"/><rect x="15" y="10" width="1" height="1" fill="#121c3a"/><rect x="0" y="11" width="1" height="1" fill="#121c3a"/><rect x="1" y="11" width="1" height="1" fill="#fff1d6"/><rect x="2" y="11" width="1" height="1" fill="#fff1d6"/><rect x="3" y="11" width="1" height="1" fill="#121c3a"/><rect x="4" y="11" width="1" height="1" fill="#fff1d6"/><rect x="5" y="11" width="1" height="1" fill="#fff1d6"/><rect x="6" y="11" width="1" height="1" fill="#121c3a"/><rect x="7" y="11" width="1" height="1" fill="#fff1d6"/><rect x="8" y="11" width="1" height="1" fill="#fff1d6"/><rect x="9" y="11" width="1" height="1" fill="#121c3a"/><rect x="10" y="11" width="1" height="1" fill="#fff1d6"/><rect x="11" y="11" width="1" height="1" fill="#fff1d6"/><rect x="12" y="11" width="1" height="1" fill="#121c3a"/><rect x="13" y="11" width="1" height="1" fill="#fff1d6"/><rect x="14" y="11" width="1" height="1" fill="#fff1d6"/><rect x="15" y="11" width="1" height="1" fill="#121c3a"/><rect x="0" y="12" width="1" height="1" fill="#121c3a"/><rect x="1" y="12" width="1" height="1" fill="#121c3a"/><rect x="2" y="12" width="1" height="1" fill="#121c3a"/><rect x="3" y="12" width="1" height="1" fill="#121c3a"/><rect x="4" y="12" width="1" height="1" fill="#121c3a"/><rect x="5" y="12" width="1" height="1" fill="#121c3a"/><rect x="6" y="12" width="1" height="1" fill="#121c3a"/><rect x="7" y="12" width="1" height="1" fill="#121c3a"/><rect x="8" y="12" width="1" height="1" fill="#121c3a"/><rect x="9" y="12" width="1" height="1" fill="#121c3a"/><rect x="10" y="12" width="1" height="1" fill="#121c3a"/><rect x="11" y="12" width="1" height="1" fill="#121c3a"/><rect x="12" y="12" width="1" height="1" fill="#121c3a"/><rect x="13" y="12" width="1" height="1" fill="#121c3a"/><rect x="14" y="12" width="1" height="1" fill="#121c3a"/><rect x="15" y="12" width="1" height="1" fill="#121c3a"/><rect x="0" y="13" width="1" height="1" fill="#121c3a"/><rect x="1" y="13" width="1" height="1" fill="#fff1d6"/><rect x="2" y="13" width="1" height="1" fill="#fff1d6"/><rect x="3" y="13" width="1" height="1" fill="#fff1d6"/><rect x="4" y="13" width="1" height="1" fill="#fff1d6"/><rect x="5" y="13" width="1" height="1" fill="#fff1d6"/><rect x="6" y="13" width="1" height="1" fill="#fff1d6"/><rect x="7" y="13" width="1" height="1" fill="#fff1d6"/><rect x="8" y="13" width="1" height="1" fill="#fff1d6"/><rect x="9" y="13" width="1" height="1" fill="#fff1d6"/><rect x="10" y="13" width="1" height="1" fill="#fff1d6"/><rect x="11" y="13" width="1" height="1" fill="#fff1d6"/><rect x="12" y="13" width="1" height="1" fill="#fff1d6"/><rect x="13" y="13" width="1" height="1" fill="#fff1d6"/><rect x="14" y="13" width="1" height="1" fill="#fff1d6"/><rect x="15" y="13" width="1" height="1" fill="#121c3a"/><rect x="0" y="14" width="1" height="1" fill="#121c3a"/><rect x="1" y="14" width="1" height="1" fill="#121c3a"/><rect x="2" y="14" width="1" height="1" fill="#121c3a"/><rect x="3" y="14" width="1" height="1" fill="#121c3a"/><rect x="4" y="14" width="1" height="1" fill="#121c3a"/><rect x="5" y="14" width="1" height="1" fill="#121c3a"/><rect x="6" y="14" width="1" height="1" fill="#121c3a"/><rect x="7" y="14" width="1" height="1" fill="#121c3a"/><rect x="8" y="14" width="1" height="1" fill="#121c3a"/><rect x="9" y="14" width="1" height="1" fill="#121c3a"/><rect x="10" y="14" width="1" height="1" fill="#121c3a"/><rect x="11" y="14" width="1" height="1" fill="#121c3a"/><rect x="12" y="14" width="1" height="1" fill="#121c3a"/><rect x="13" y="14" width="1" height="1" fill="#121c3a"/><rect x="14" y="14" width="1" height="1" fill="#121c3a"/><rect x="15" y="14" width="1" height="1" fill="#121c3a"/></svg><span class="logo-word">결정<span class="last">국<svg class="logo-crown" viewBox="0 0 9 5" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="1" height="1" fill="#ffc93c"/><rect x="4" y="0" width="1" height="1" fill="#ffc93c"/><rect x="8" y="0" width="1" height="1" fill="#ffc93c"/><rect x="0" y="1" width="1" height="1" fill="#ffc93c"/><rect x="1" y="1" width="1" height="1" fill="#ffc93c"/><rect x="3" y="1" width="1" height="1" fill="#ffc93c"/><rect x="4" y="1" width="1" height="1" fill="#ffc93c"/><rect x="5" y="1" width="1" height="1" fill="#ffc93c"/><rect x="7" y="1" width="1" height="1" fill="#ffc93c"/><rect x="8" y="1" width="1" height="1" fill="#ffc93c"/><rect x="0" y="2" width="1" height="1" fill="#ffc93c"/><rect x="1" y="2" width="1" height="1" fill="#ffc93c"/><rect x="2" y="2" width="1" height="1" fill="#ffc93c"/><rect x="3" y="2" width="1" height="1" fill="#ffc93c"/><rect x="4" y="2" width="1" height="1" fill="#ffc93c"/><rect x="5" y="2" width="1" height="1" fill="#ffc93c"/><rect x="6" y="2" width="1" height="1" fill="#ffc93c"/><rect x="7" y="2" width="1" height="1" fill="#ffc93c"/><rect x="8" y="2" width="1" height="1" fill="#ffc93c"/><rect x="0" y="3" width="1" height="1" fill="#ffc93c"/><rect x="1" y="3" width="1" height="1" fill="#ffc93c"/><rect x="2" y="3" width="1" height="1" fill="#ffc93c"/><rect x="3" y="3" width="1" height="1" fill="#ffc93c"/><rect x="4" y="3" width="1" height="1" fill="#ffc93c"/><rect x="5" y="3" width="1" height="1" fill="#ffc93c"/><rect x="6" y="3" width="1" height="1" fill="#ffc93c"/><rect x="7" y="3" width="1" height="1" fill="#ffc93c"/><rect x="8" y="3" width="1" height="1" fill="#ffc93c"/><rect x="0" y="4" width="1" height="1" fill="#b7791f"/><rect x="1" y="4" width="1" height="1" fill="#b7791f"/><rect x="2" y="4" width="1" height="1" fill="#b7791f"/><rect x="3" y="4" width="1" height="1" fill="#b7791f"/><rect x="4" y="4" width="1" height="1" fill="#b7791f"/><rect x="5" y="4" width="1" height="1" fill="#b7791f"/><rect x="6" y="4" width="1" height="1" fill="#b7791f"/><rect x="7" y="4" width="1" height="1" fill="#b7791f"/><rect x="8" y="4" width="1" height="1" fill="#b7791f"/></svg></span></span></a>
-    <div class="tagline">고민은 접수하고, 결정은 즐겁게! <span class="sparkle">✨</span></div>
-    <nav aria-label="주 메뉴">
-      <button class="active" data-action="home">🏠 홈</button>
-      <button data-action="meeting">🏛️ 국무회의</button>
-      <button data-action="polls">📮 국민 여론</button>
-      <button data-action="records">📜 결정 기록실</button>
-      <button data-action="stats">📊 내 통계</button>
-      <button data-action="settings">⚙️ 설정</button>
-      <button class="login-btn" data-action="login">👤 로그인</button>
+    <a class="brand" href="./" aria-label="결정국 홈"><svg class="logo-icon" viewBox="0 0 16 15" shape-rendering="crispEdges" aria-hidden="true"><rect x="6" y="0" width="1" height="1" fill="#50372F"/><rect x="7" y="0" width="1" height="1" fill="#50372F"/><rect x="6" y="1" width="1" height="1" fill="#50372F"/><rect x="7" y="1" width="1" height="1" fill="#C9973F"/><rect x="8" y="1" width="1" height="1" fill="#C9973F"/><rect x="6" y="2" width="1" height="1" fill="#50372F"/><rect x="7" y="2" width="1" height="1" fill="#C9973F"/><rect x="8" y="2" width="1" height="1" fill="#C9973F"/><rect x="9" y="2" width="1" height="1" fill="#C9973F"/><rect x="6" y="3" width="1" height="1" fill="#50372F"/><rect x="4" y="4" width="1" height="1" fill="#50372F"/><rect x="5" y="4" width="1" height="1" fill="#50372F"/><rect x="6" y="4" width="1" height="1" fill="#50372F"/><rect x="7" y="4" width="1" height="1" fill="#50372F"/><rect x="8" y="4" width="1" height="1" fill="#50372F"/><rect x="9" y="4" width="1" height="1" fill="#50372F"/><rect x="10" y="4" width="1" height="1" fill="#50372F"/><rect x="11" y="4" width="1" height="1" fill="#50372F"/><rect x="2" y="5" width="1" height="1" fill="#50372F"/><rect x="3" y="5" width="1" height="1" fill="#50372F"/><rect x="4" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="7" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="10" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="5" width="1" height="1" fill="#50372F"/><rect x="13" y="5" width="1" height="1" fill="#50372F"/><rect x="1" y="6" width="1" height="1" fill="#50372F"/><rect x="2" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="4" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="7" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="10" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="13" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="6" width="1" height="1" fill="#50372F"/><rect x="0" y="7" width="1" height="1" fill="#50372F"/><rect x="1" y="7" width="1" height="1" fill="#50372F"/><rect x="2" y="7" width="1" height="1" fill="#50372F"/><rect x="3" y="7" width="1" height="1" fill="#50372F"/><rect x="4" y="7" width="1" height="1" fill="#50372F"/><rect x="5" y="7" width="1" height="1" fill="#50372F"/><rect x="6" y="7" width="1" height="1" fill="#50372F"/><rect x="7" y="7" width="1" height="1" fill="#50372F"/><rect x="8" y="7" width="1" height="1" fill="#50372F"/><rect x="9" y="7" width="1" height="1" fill="#50372F"/><rect x="10" y="7" width="1" height="1" fill="#50372F"/><rect x="11" y="7" width="1" height="1" fill="#50372F"/><rect x="12" y="7" width="1" height="1" fill="#50372F"/><rect x="13" y="7" width="1" height="1" fill="#50372F"/><rect x="14" y="7" width="1" height="1" fill="#50372F"/><rect x="15" y="7" width="1" height="1" fill="#50372F"/><rect x="0" y="8" width="1" height="1" fill="#50372F"/><rect x="1" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="8" width="1" height="1" fill="#50372F"/><rect x="4" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="8" width="1" height="1" fill="#50372F"/><rect x="7" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="8" width="1" height="1" fill="#50372F"/><rect x="10" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="8" width="1" height="1" fill="#50372F"/><rect x="13" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="8" width="1" height="1" fill="#50372F"/><rect x="0" y="9" width="1" height="1" fill="#50372F"/><rect x="1" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="9" width="1" height="1" fill="#50372F"/><rect x="4" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="9" width="1" height="1" fill="#50372F"/><rect x="7" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="9" width="1" height="1" fill="#50372F"/><rect x="10" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="9" width="1" height="1" fill="#50372F"/><rect x="13" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="9" width="1" height="1" fill="#50372F"/><rect x="0" y="10" width="1" height="1" fill="#50372F"/><rect x="1" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="10" width="1" height="1" fill="#50372F"/><rect x="4" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="10" width="1" height="1" fill="#50372F"/><rect x="7" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="10" width="1" height="1" fill="#50372F"/><rect x="10" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="10" width="1" height="1" fill="#50372F"/><rect x="13" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="10" width="1" height="1" fill="#50372F"/><rect x="0" y="11" width="1" height="1" fill="#50372F"/><rect x="1" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="11" width="1" height="1" fill="#50372F"/><rect x="4" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="11" width="1" height="1" fill="#50372F"/><rect x="7" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="11" width="1" height="1" fill="#50372F"/><rect x="10" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="11" width="1" height="1" fill="#50372F"/><rect x="13" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="11" width="1" height="1" fill="#50372F"/><rect x="0" y="12" width="1" height="1" fill="#50372F"/><rect x="1" y="12" width="1" height="1" fill="#50372F"/><rect x="2" y="12" width="1" height="1" fill="#50372F"/><rect x="3" y="12" width="1" height="1" fill="#50372F"/><rect x="4" y="12" width="1" height="1" fill="#50372F"/><rect x="5" y="12" width="1" height="1" fill="#50372F"/><rect x="6" y="12" width="1" height="1" fill="#50372F"/><rect x="7" y="12" width="1" height="1" fill="#50372F"/><rect x="8" y="12" width="1" height="1" fill="#50372F"/><rect x="9" y="12" width="1" height="1" fill="#50372F"/><rect x="10" y="12" width="1" height="1" fill="#50372F"/><rect x="11" y="12" width="1" height="1" fill="#50372F"/><rect x="12" y="12" width="1" height="1" fill="#50372F"/><rect x="13" y="12" width="1" height="1" fill="#50372F"/><rect x="14" y="12" width="1" height="1" fill="#50372F"/><rect x="15" y="12" width="1" height="1" fill="#50372F"/><rect x="0" y="13" width="1" height="1" fill="#50372F"/><rect x="1" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="4" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="7" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="10" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="13" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="13" width="1" height="1" fill="#50372F"/><rect x="0" y="14" width="1" height="1" fill="#50372F"/><rect x="1" y="14" width="1" height="1" fill="#50372F"/><rect x="2" y="14" width="1" height="1" fill="#50372F"/><rect x="3" y="14" width="1" height="1" fill="#50372F"/><rect x="4" y="14" width="1" height="1" fill="#50372F"/><rect x="5" y="14" width="1" height="1" fill="#50372F"/><rect x="6" y="14" width="1" height="1" fill="#50372F"/><rect x="7" y="14" width="1" height="1" fill="#50372F"/><rect x="8" y="14" width="1" height="1" fill="#50372F"/><rect x="9" y="14" width="1" height="1" fill="#50372F"/><rect x="10" y="14" width="1" height="1" fill="#50372F"/><rect x="11" y="14" width="1" height="1" fill="#50372F"/><rect x="12" y="14" width="1" height="1" fill="#50372F"/><rect x="13" y="14" width="1" height="1" fill="#50372F"/><rect x="14" y="14" width="1" height="1" fill="#50372F"/><rect x="15" y="14" width="1" height="1" fill="#50372F"/></svg><span class="brand-text"><span class="logo-word">결정국</span><small>DECISION GUK</small></span></a>
+    <nav class="main-nav" aria-label="주 메뉴">
+      <button class="active" data-action="home">홈</button>
+      <button data-action="meeting">국무회의</button>
+      <button data-action="polls">국민 여론</button>
+      <button data-action="records">결정 기록실</button>
+      <button data-action="stats">내 통계</button>
     </nav>
+    <div class="top-actions">
+      <button class="ghost-btn" data-action="settings" aria-label="설정"><span data-icon="settings"></span><span class="lbl">설정</span></button>
+      <button class="login-btn" data-action="login">👤 로그인</button>
+    </div>
   </header>
 
   <main>
     <section class="hero">
       <div class="hero-copy">
-        <h1><span class="spark s1" aria-hidden="true">✦</span><span class="spark s2" aria-hidden="true">✦</span>지금, 당신의 고민이<br><em>결정될</em> 차례입니다!</h1>
-        <p class="hero-subtitle">장관들과 함께하는 고민 해결 국무회의!</p>
-        <form class="intake" id="quick-form">
-          <div class="intake-label">📣 오늘의 고민을 접수하세요!</div>
-          <input id="quick-title" maxlength="100" placeholder="예) 오늘 저녁 뭐 먹지?, 이 옷 사도 될까?" aria-label="고민 제목" />
-          <div class="categories" aria-label="고민 유형">
-            <button class="category" type="button" data-category="나들이">✈️ 나들이</button>
-            <button class="category" type="button" data-category="맛집">🍴 맛집</button>
-            <button class="category" type="button" data-category="쇼핑">🛍️ 쇼핑</button>
-            <button class="category" type="button" data-category="일상">📌 일상</button>
-          </div>
-          <button class="primary" type="submit">⚒️ 국무회의 시작하기 ▸</button>
-        </form>
+        <span class="hero-pill">사소한 고민도 정책 안건으로</span>
+        <h1><span class="laurel l" aria-hidden="true"></span>오늘의 고민,<br>국무회의에 올려보세요!<span class="laurel r" aria-hidden="true"></span></h1>
+        <p class="hero-subtitle">네 명의 장관이 서로 다른 기준으로<br>당신의 결정을 도와드립니다.</p>
       </div>
 
-      <div class="hero-art-box" id="hero-art" aria-hidden="true">
-        <img class="scene" id="scene-img" src="assets/court-scene.png" alt="" />
+      <div class="hero-art" aria-hidden="true">
+        <svg class="hero-bldg" viewBox="0 0 420 230" preserveAspectRatio="xMidYMax meet">
+          <g fill="#EFE2D0" stroke="#E2CFB8" stroke-width="2">
+            <polygon points="70,78 210,22 350,78" />
+            <rect x="80" y="78" width="260" height="14" />
+            <rect x="96" y="92" width="18" height="110" /><rect x="132" y="92" width="18" height="110" /><rect x="168" y="92" width="18" height="110" />
+            <rect x="234" y="92" width="18" height="110" /><rect x="270" y="92" width="18" height="110" /><rect x="306" y="92" width="18" height="110" />
+            <rect x="200" y="92" width="20" height="110" />
+            <rect x="70" y="202" width="280" height="12" /><rect x="58" y="214" width="304" height="14" />
+          </g>
+          <circle cx="210" cy="58" r="10" fill="#F6EADB" stroke="#E2CFB8" stroke-width="2" />
+          <rect x="207" y="2" width="2" height="22" fill="#D2B79A" /><polygon points="209,3 224,8 209,13" fill="#B85C4E" />
+        </svg>
+        <span class="flag f1"></span><span class="flag f2"></span>
+        <div class="bench-row">
+          <img src="assets/stand_rabbit.png" alt="" style="height:150px" />
+          <img src="assets/stand_quokka.png" alt="" style="height:156px" />
+          <img src="assets/stand_bear.png" alt="" style="height:156px" />
+          <img src="assets/stand_chick.png" alt="" style="height:110px" />
+        </div>
+        <div class="bench"><span class="bench-emblem" data-icon="landmark"></span></div>
       </div>
+
+      <form class="intake" id="quick-form">
+        <label class="intake-input">
+          <span class="ii-icon" data-icon="pencil"></span>
+          <span class="ii-body">
+            <span class="ii-label">어떤 고민이 있으신가요?</span>
+            <input id="quick-title" maxlength="100" placeholder="예: 오늘 저녁 치킨 vs 피자?" aria-label="고민 제목" />
+          </span>
+        </label>
+        <div class="categories" role="group" aria-label="고민 유형">
+          <button class="category selected" type="button" data-category="auto" aria-pressed="true"><span data-icon="grid"></span>자동</button>
+          <button class="category" type="button" data-category="나들이" aria-pressed="false"><span data-icon="tent"></span>나들이</button>
+          <button class="category" type="button" data-category="맛집" aria-pressed="false"><span data-icon="utensils"></span>맛집</button>
+          <button class="category" type="button" data-category="쇼핑" aria-pressed="false"><span data-icon="bag"></span>쇼핑</button>
+          <button class="category" type="button" data-category="일상" aria-pressed="false"><span data-icon="cup"></span>일상</button>
+        </div>
+        <button class="primary big" type="submit">국무회의 시작하기 <span data-icon="arrow"></span></button>
+        <p class="intake-note" id="intake-note">'자동'은 제목을 보고 유형을 골라요. 직접 골라도 돼요.</p>
+      </form>
     </section>
 
     <section class="howto" aria-labelledby="howto-title">
-      <div class="howto-card">
-        <h2 id="howto-title">당신의 고민은 이렇게 결정됩니다</h2>
-        <ol class="howto-steps">
-          <li><span aria-hidden="true">📝</span> 고민 접수</li>
-          <li><span aria-hidden="true">💬</span> 장관 질문</li>
-          <li><span aria-hidden="true">⚖️</span> 기준 선택</li>
-          <li><span aria-hidden="true">📜</span> 최종 결재</li>
-        </ol>
-        <p class="howto-note">네 장관이 서로 다른 기준으로 투표하고, 가장 중요한 기준의 장관은 <b>1.5표</b> · 약 1분</p>
-      </div>
+      <h2 id="howto-title"><span data-icon="clipboard"></span>이렇게 결정해요</h2>
+      <ol class="howto-steps">
+        <li><span class="hs-icon" data-icon="clipboard"></span><span><b class="hs-no">01</b><b>안건 접수</b><small>고민을 입력해요</small></span></li>
+        <li><span class="hs-icon" data-icon="chat"></span><span><b class="hs-no">02</b><b>장관 질문</b><small>네 장관의 질문에 답해요</small></span></li>
+        <li><span class="hs-icon" data-icon="scale"></span><span><b class="hs-no">03</b><b>기준 선택</b><small>중요한 기준은 1.5표</small></span></li>
+        <li><span class="hs-icon" data-icon="gavel"></span><span><b class="hs-no">04</b><b>최종 결재</b><small>표결로 결정을 내려요</small></span></li>
+      </ol>
     </section>
 
     <section class="dashboard">
       <article class="panel">
-        <h2 class="panel-heading">🕒 최근 결정 기록 <span id="recent-note" class="record-note"></span>
-          <button class="more" data-action="records">더보기 ›</button>
+        <h2 class="panel-heading"><span data-icon="file"></span>최근 결정 기록 <span id="recent-note" class="record-note"></span>
+          <button class="more" data-action="records">더보기 <span data-icon="chev"></span></button>
         </h2>
         <div class="records-list" id="recent-list"></div>
       </article>
 
       <article class="panel" id="example-panel">
-        <h2 class="panel-heading">💡 이런 고민도 접수해 보세요</h2>
-        <div class="popular-list" id="example-list"></div>
+        <h2 class="panel-heading"><span data-icon="bulb"></span>이런 고민도 접수해 보세요</h2>
+        <div class="example-grid" id="example-list"></div>
       </article>
 
       <article class="panel poll-panel">
-        <h2 class="panel-heading">📮 국민 여론 <span class="record-note">진행 중</span>
-          <button class="more" data-action="polls">더보기 ›</button>
+        <h2 class="panel-heading"><span data-icon="users"></span>국민 여론
+          <button class="more" data-action="polls">더보기 <span data-icon="chev"></span></button>
         </h2>
-        <div class="popular-list" id="poll-home"></div>
-        <button type="button" class="link-btn poll-home-new" id="poll-home-new">✍️ 내 고민도 여론에 올리기</button>
+        <div id="poll-home"></div>
+        <button type="button" class="link-btn poll-home-new" id="poll-home-new">＋ 내 고민도 여론에 올리기</button>
       </article>
+    </section>
+
+    <section class="cta-band">
+      <button type="button" class="band-owl" data-action="meeting" aria-label="고민 접수하기">
+        <img src="assets/stand_owl.png" alt="서기관 부엉이" />
+        <span class="owl-bubble">결정국에서, 당신의 고민도<br>국무회의의 안건이 될 수 있어요!</span>
+      </button>
+      <p class="band-slogan"><span class="laurel l sm" aria-hidden="true"></span><span>고민은 가볍게, 결정은 함께!<br>지금 바로 국무회의를 열어보세요.</span><span class="laurel r sm" aria-hidden="true"></span></p>
+      <button type="button" class="primary band-go" data-action="meeting">국무회의 시작하기 <span data-icon="arrow"></span></button>
     </section>
   </main>
 
   <footer>
-    <div class="footer-brand">🏛️ 결정국은 여러분의 현명한 결정을 응원합니다! 🧡
-      <span class="footer-links"><a href="privacy.html">개인정보 처리 안내</a> · 놀이용 서비스이며 전문 판단을 대신하지 않습니다</span></div>
-    <button type="button" class="footer-owl" data-action="meeting" aria-label="고민 접수하기"><span class="owl-bubble">고민이 있다면,<br><u>지금 바로 접수하세요!</u></span><img src="assets/stand_owl.png" alt="서기관 부엉이" /><span class="tw t1" aria-hidden="true">✦</span><span class="tw t2" aria-hidden="true">✦</span></button>
+    <span class="footer-brand"><svg class="logo-icon" viewBox="0 0 16 15" shape-rendering="crispEdges" aria-hidden="true"><rect x="6" y="0" width="1" height="1" fill="#50372F"/><rect x="7" y="0" width="1" height="1" fill="#50372F"/><rect x="6" y="1" width="1" height="1" fill="#50372F"/><rect x="7" y="1" width="1" height="1" fill="#C9973F"/><rect x="8" y="1" width="1" height="1" fill="#C9973F"/><rect x="6" y="2" width="1" height="1" fill="#50372F"/><rect x="7" y="2" width="1" height="1" fill="#C9973F"/><rect x="8" y="2" width="1" height="1" fill="#C9973F"/><rect x="9" y="2" width="1" height="1" fill="#C9973F"/><rect x="6" y="3" width="1" height="1" fill="#50372F"/><rect x="4" y="4" width="1" height="1" fill="#50372F"/><rect x="5" y="4" width="1" height="1" fill="#50372F"/><rect x="6" y="4" width="1" height="1" fill="#50372F"/><rect x="7" y="4" width="1" height="1" fill="#50372F"/><rect x="8" y="4" width="1" height="1" fill="#50372F"/><rect x="9" y="4" width="1" height="1" fill="#50372F"/><rect x="10" y="4" width="1" height="1" fill="#50372F"/><rect x="11" y="4" width="1" height="1" fill="#50372F"/><rect x="2" y="5" width="1" height="1" fill="#50372F"/><rect x="3" y="5" width="1" height="1" fill="#50372F"/><rect x="4" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="7" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="10" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="5" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="5" width="1" height="1" fill="#50372F"/><rect x="13" y="5" width="1" height="1" fill="#50372F"/><rect x="1" y="6" width="1" height="1" fill="#50372F"/><rect x="2" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="4" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="7" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="10" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="13" y="6" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="6" width="1" height="1" fill="#50372F"/><rect x="0" y="7" width="1" height="1" fill="#50372F"/><rect x="1" y="7" width="1" height="1" fill="#50372F"/><rect x="2" y="7" width="1" height="1" fill="#50372F"/><rect x="3" y="7" width="1" height="1" fill="#50372F"/><rect x="4" y="7" width="1" height="1" fill="#50372F"/><rect x="5" y="7" width="1" height="1" fill="#50372F"/><rect x="6" y="7" width="1" height="1" fill="#50372F"/><rect x="7" y="7" width="1" height="1" fill="#50372F"/><rect x="8" y="7" width="1" height="1" fill="#50372F"/><rect x="9" y="7" width="1" height="1" fill="#50372F"/><rect x="10" y="7" width="1" height="1" fill="#50372F"/><rect x="11" y="7" width="1" height="1" fill="#50372F"/><rect x="12" y="7" width="1" height="1" fill="#50372F"/><rect x="13" y="7" width="1" height="1" fill="#50372F"/><rect x="14" y="7" width="1" height="1" fill="#50372F"/><rect x="15" y="7" width="1" height="1" fill="#50372F"/><rect x="0" y="8" width="1" height="1" fill="#50372F"/><rect x="1" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="8" width="1" height="1" fill="#50372F"/><rect x="4" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="8" width="1" height="1" fill="#50372F"/><rect x="7" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="8" width="1" height="1" fill="#50372F"/><rect x="10" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="8" width="1" height="1" fill="#50372F"/><rect x="13" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="8" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="8" width="1" height="1" fill="#50372F"/><rect x="0" y="9" width="1" height="1" fill="#50372F"/><rect x="1" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="9" width="1" height="1" fill="#50372F"/><rect x="4" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="9" width="1" height="1" fill="#50372F"/><rect x="7" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="9" width="1" height="1" fill="#50372F"/><rect x="10" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="9" width="1" height="1" fill="#50372F"/><rect x="13" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="9" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="9" width="1" height="1" fill="#50372F"/><rect x="0" y="10" width="1" height="1" fill="#50372F"/><rect x="1" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="10" width="1" height="1" fill="#50372F"/><rect x="4" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="10" width="1" height="1" fill="#50372F"/><rect x="7" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="10" width="1" height="1" fill="#50372F"/><rect x="10" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="10" width="1" height="1" fill="#50372F"/><rect x="13" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="10" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="10" width="1" height="1" fill="#50372F"/><rect x="0" y="11" width="1" height="1" fill="#50372F"/><rect x="1" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="11" width="1" height="1" fill="#50372F"/><rect x="4" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="11" width="1" height="1" fill="#50372F"/><rect x="7" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="11" width="1" height="1" fill="#50372F"/><rect x="10" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="11" width="1" height="1" fill="#50372F"/><rect x="13" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="11" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="11" width="1" height="1" fill="#50372F"/><rect x="0" y="12" width="1" height="1" fill="#50372F"/><rect x="1" y="12" width="1" height="1" fill="#50372F"/><rect x="2" y="12" width="1" height="1" fill="#50372F"/><rect x="3" y="12" width="1" height="1" fill="#50372F"/><rect x="4" y="12" width="1" height="1" fill="#50372F"/><rect x="5" y="12" width="1" height="1" fill="#50372F"/><rect x="6" y="12" width="1" height="1" fill="#50372F"/><rect x="7" y="12" width="1" height="1" fill="#50372F"/><rect x="8" y="12" width="1" height="1" fill="#50372F"/><rect x="9" y="12" width="1" height="1" fill="#50372F"/><rect x="10" y="12" width="1" height="1" fill="#50372F"/><rect x="11" y="12" width="1" height="1" fill="#50372F"/><rect x="12" y="12" width="1" height="1" fill="#50372F"/><rect x="13" y="12" width="1" height="1" fill="#50372F"/><rect x="14" y="12" width="1" height="1" fill="#50372F"/><rect x="15" y="12" width="1" height="1" fill="#50372F"/><rect x="0" y="13" width="1" height="1" fill="#50372F"/><rect x="1" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="2" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="3" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="4" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="5" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="6" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="7" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="8" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="9" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="10" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="11" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="12" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="13" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="14" y="13" width="1" height="1" fill="#F6E6D2"/><rect x="15" y="13" width="1" height="1" fill="#50372F"/><rect x="0" y="14" width="1" height="1" fill="#50372F"/><rect x="1" y="14" width="1" height="1" fill="#50372F"/><rect x="2" y="14" width="1" height="1" fill="#50372F"/><rect x="3" y="14" width="1" height="1" fill="#50372F"/><rect x="4" y="14" width="1" height="1" fill="#50372F"/><rect x="5" y="14" width="1" height="1" fill="#50372F"/><rect x="6" y="14" width="1" height="1" fill="#50372F"/><rect x="7" y="14" width="1" height="1" fill="#50372F"/><rect x="8" y="14" width="1" height="1" fill="#50372F"/><rect x="9" y="14" width="1" height="1" fill="#50372F"/><rect x="10" y="14" width="1" height="1" fill="#50372F"/><rect x="11" y="14" width="1" height="1" fill="#50372F"/><rect x="12" y="14" width="1" height="1" fill="#50372F"/><rect x="13" y="14" width="1" height="1" fill="#50372F"/><rect x="14" y="14" width="1" height="1" fill="#50372F"/><rect x="15" y="14" width="1" height="1" fill="#50372F"/></svg><b>결정국</b></span>
+    <span class="footer-links"><a href="privacy.html">개인정보 처리 안내</a></span>
+    <span class="footer-note"><span data-icon="info"></span>결정국의 판결은 공개된 규칙으로 만든 재미용 참고 의견이며(AI 미사용), 법률·의료·재정 등 전문적인 조언이 아닙니다.</span>
   </footer>
+
+  <div class="tabbar" role="navigation" aria-label="하단 메뉴">
+    <button class="active" data-action="home"><span data-icon="home"></span>홈</button>
+    <button data-action="meeting"><span data-icon="landmark"></span>국무회의</button>
+    <button data-action="polls"><span data-icon="users"></span>여론</button>
+    <button data-action="records"><span data-icon="file"></span>기록</button>
+    <button data-action="stats"><span data-icon="chart"></span>통계</button>
+  </div>
 
   <div id="modal-root"></div>
 
