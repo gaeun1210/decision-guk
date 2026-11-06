@@ -29,7 +29,7 @@ const run = (spec) => p.evaluate(spec => {
 { const r = await run({ category: '나들이', title: '부산 여행 갈까?', options: ['부산 여행', '집에서 쉬기'], priority: 'fun', budgetTight: true, timeTight: true,
     facts: { risk: [1, 0], appeal: [0, 2], cost: [2, 0], ready: [1, 0] } });
   ok('J-01 끌림은 낭만주의만: 쿼카는 여행, 곰·토끼는 비용·예산으로 집에서 쉬기', r.votes['낭만주의'] === 0 && r.votes['현실주의'] === 1 && r.votes['신중주의'] === 1, JSON.stringify(r.votes) + ' ' + JSON.stringify(r.scores));
-  const notes = r.ops.filter(t => t.includes('마음이 「부산 여행」 쪽으로 기운 건 알지만'));
+  const notes = r.ops.filter(t => t.includes('마음이 「부산 여행」 쪽인 건 알지만'));
   ok('J-01b 장관이 사용자 선호와 다른 판단을 숨기지 않고 설명(한 번만)', notes.length === 1, notes[0]); }
 // J-02 같은 입력 10회 → 같은 점수·표·결과
 { const spec = { category: '일상', options: ['운동', '쉬기', '공부'], priority: 'safe', facts: { risk: [0, 1, 2], appeal: [1, 0, 2], cost: [1, 0, 1], ready: [0, 0, 1] } };
@@ -62,7 +62,7 @@ const run = (spec) => p.evaluate(spec => {
 // J-07 구매 비교: 두 상품의 가격·필요성이 상충 → 장관별 다른 판단, 예산 초과 상품은 직권 제외
 { const r = await p.evaluate(() => {
     const m = { ...newMeeting('이어폰 뭐 살까'), category: '쇼핑', shopMode: 'compare', options: ['비싼 A', '싼 B'], priority: 'fun',
-      cmp: { budgetValue: 200000, owned: false, items: [{ priceValue: 190000, need: 'high', use: 'week', appeal: 'high' }, { priceValue: 60000, need: 'mid', use: 'month', appeal: 'low' }] } };
+      cmp: { budgetValue: 200000, items: [{ priceValue: 190000 }, { priceValue: 60000 }] }, facts: { ...emptyFacts(), need: [0, 2], use: [0, 2], appeal: [0, 2] } };
     const r1 = decide(m);
     const m2 = { ...m, cmp: { ...m.cmp, budgetValue: 150000 } };
     const r2 = decide(m2);
@@ -73,8 +73,8 @@ const run = (spec) => p.evaluate(spec => {
   ok('J-07 구매 비교: 곰은 싼 B, 쿼카는 끌리는 A — 서로 다른 판단과 이유', r.v1['현실주의'] === 1 && r.v1['낭만주의'] === 0 && r.ops[2].includes('예산의'), JSON.stringify(r.v1));
   ok('J-07b 예산을 넘는 상품은 표가 많아도 총리 직권으로 제외, 전부 넘으면 모두 보류', r.w2 === 1 && r.l2 === '총리 직권' && r.v3 === '모두 보류!', JSON.stringify([r.w2, r.l2, r.v3])); }
 // 할까 말까: '안 한다'는 비용 자동 '적음', 행동파는 하는 쪽을 실행 기준으로 평가
-{ const r = await run({ category: '일상', title: '운동 갈까', options: ['한다', '안 한다'], yesNo: true, priority: 'easy', facts: { risk: [0, 1], appeal: [1, 1], cost: [0], ready: [0] } });
-  ok('Y-01 할까 말까: 안 하는 쪽 비용은 자동, 행동파는 바로 가능한 「한다」 지지', r.votes['행동파'] === 0 && r.scores['현실주의'][1] === 4.5, JSON.stringify(r.votes)); }
+{ const r = await run({ category: '일상', title: '운동 갈까', options: ['한다', '안 한다'], yesNo: true, priority: 'easy', facts: { risk: [0, 2], appeal: [2, 0], cost: [0, 2], ready: [0, 2] } });
+  ok('Y-01 할까 말까: 행동파는 하지 않는 쪽(2.5점)보다 바로 할 수 있는 「한다」 지지', r.votes['행동파'] === 0 && r.scores['행동파'][1] === 2.5, JSON.stringify(r.votes)); }
 // C-01 화면: 쇼핑 '이것 중 뭘 살까?' 비교 모드 전체 흐름
 { await p.click('[data-action="meeting"] >> visible=true'); await p.waitForTimeout(200);
   if (await p.locator('#resume-new').count()) { await p.click('#resume-new'); await p.waitForTimeout(150); }
@@ -84,9 +84,10 @@ const run = (spec) => p.evaluate(spec => {
   await p.locator('.opt-input').nth(0).fill('비싼 A'); await p.locator('.opt-input').nth(1).fill('싼 B');
   await p.locator('#agenda-form button[type="submit"]').click(); await p.waitForTimeout(300);
   await p.fill('#cmp-budget', '200000'); await p.fill('#cmp-price-0', '190000'); await p.fill('#cmp-price-1', '60000');
-  for (const [i, k, v] of [[0, 'need', 'high'], [0, 'use', 'week'], [0, 'appeal', 'high'], [1, 'need', 'mid'], [1, 'use', 'month'], [1, 'appeal', 'low']]) await p.locator(`[data-ci="${i}"][data-ck="${k}"][data-val="${v}"]`).click();
-  await p.locator('[data-cown="false"]').click();
   await p.locator('#cmp-form button[type="submit"]').click(); await p.waitForTimeout(300);
+  const qn = await p.locator('.q-count').innerText();
+  for (let k = 0; k < 3; k++) { await p.locator('.modal .choice', { hasText: '비싼 A' }).first().click(); await p.waitForTimeout(150); }
+  ok('C-00 구매 비교 질문은 3개(곰은 가격으로 자동 계산)', /1 \/ 3/.test(qn), qn);
   await p.locator('.modal .prio').nth(2).click(); await p.locator('.modal button', { hasText: '표결 시작' }).click(); await p.waitForTimeout(600);
   if (await p.locator('[data-tb]').count()) { await p.locator('[data-tb]').first().click(); await p.waitForTimeout(300); }
   await p.click('#chat-skip'); await p.waitForTimeout(400);

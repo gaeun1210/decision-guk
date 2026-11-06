@@ -42,9 +42,11 @@ async function intake(p, { title, cat, place, opts = [], tags = [] }) {
 }
 async function factPage(p, levels) { for (let i = 0; i < levels.length; i++) { const btn = p.locator(`.modal [data-fact="${i}"][data-lv="${levels[i]}"]`); if (await btn.count()) await btn.click(); } await p.click('#q-next'); await p.waitForTimeout(150); }
 async function facts(p, matrix) { for (const row of matrix) await factPage(p, row); }
-// matrix: 장관 질문 4개(위험·기대·비용·준비)마다 선택지별 등급(0·1·2, 모름 -1)
-async function answer(p, matrix, prio = 0, tiebreak) {
-  await facts(p, matrix);
+async function pickPage(p, t) { await p.locator('.modal .choice', { hasText: t }).first().click(); await p.waitForTimeout(180); }
+async function picks(p, list) { for (const t of list) await pickPage(p, t); }
+// 장관 질문 4개: 위험이 가장 큰 쪽 · 가장 설레는 쪽 · 돈·시간이 가장 많이 드는 쪽 · 바로 할 수 있는 쪽 (비슷해요 가능)
+async function answer(p, list, prio = 0, tiebreak) {
+  await picks(p, list);
   await p.locator('.modal .prio').nth(prio).click(); await p.waitForTimeout(120);
   await p.locator('.modal button', { hasText: '표결 시작' }).click(); await p.waitForTimeout(700);
   if (tiebreak !== undefined && await p.locator('[data-tb]').count()) { await p.locator('[data-tb]').nth(tiebreak).click(); await p.waitForTimeout(400); }
@@ -62,7 +64,7 @@ await p.locator('#agenda-form button[type="submit"]').click(); await p.waitForTi
 ok('QA1 중복 선택지 → 안내', (await p.locator('#agenda-err').innerText()).includes('두 번'));
 // 1-1 이어서 하기
 await p.locator('.opt-input').nth(1).fill('짬뽕'); await p.locator('#agenda-form button[type="submit"]').click(); await p.waitForTimeout(300);
-await factPage(p, [0, 1]);
+await pickPage(p, '짜장');
 await clear(p); await p.click('[data-action="meeting"] >> visible=true'); await p.waitForTimeout(200);
 ok('1-1 닫았다 다시 열면 이어서 하기 제안', (await modal(p)).includes('진행 중이던 회의') && (await modal(p)).includes('장관 질문 2/4'));
 await p.click('#resume-go'); await p.waitForTimeout(200);
@@ -76,9 +78,9 @@ p.dialogAnswer = true; await p.fill('#quick-title', '');
 await clear(p);
 
 // [QA2] 동점 → 결선, 전원 기권 → 보류
-// 신중주의는 A(위험 낮음), 낭만주의는 B(기대 큼), 현실·행동은 차이 없음(기권), 중요 기준=비용(기권한 장관) → 1:1 동점
+// 신중주의: 위험이 가장 큰 쪽 B → A, 낭만주의: 가장 설레는 B → B, 현실·행동: 비슷해요(기권), 중요 기준=비용(기권한 장관) → 1:1 동점
 await intake(p, { title: '동점 테스트2', opts: ['A안', 'B안'] });
-await facts(p, [[0, 2], [2, 0], [1, 1], [1, 1]]);
+await picks(p, ['B안', 'B안', '비슷해요', '비슷해요']);
 await p.locator('.modal .prio').nth(2).click(); await p.waitForTimeout(100);
 await p.locator('.modal button', { hasText: '표결 시작' }).click(); await p.waitForTimeout(600);
 const tieScreen = await modal(p);
@@ -87,7 +89,7 @@ if (await p.locator('[data-tb]').count()) { await p.locator('[data-tb]').nth(1).
 ok('QA2 결선 후 판결에 결선 사유 표시', (await modal(p)).includes('결선'));
 await clear(p);
 await intake(p, { title: '기권 테스트', opts: ['A안', 'B안'] });
-await answer(p, [[-1, -1], [-1, -1], [-1, -1], [-1, -1]], 1);
+await answer(p, ['비슷해요', '비슷해요', '비슷해요', '비슷해요'], 1);
 const ab = await modal(p);
 ok('QA2 전원 기권 → 판단 보류 + 사유', ab.includes('판단 보류') && ab.includes('기권'));
 await clear(p);
@@ -106,7 +108,7 @@ await clear(p);
 
 // [QA4-a] 날씨 정상: 비 80% → 신중주의가 실내로 표 이동 + 요약에 반영
 await intake(p, { title: '토요일 뭐 할까?', cat: '나들이', place: '강릉', opts: ['바다 산책', '카페'], tags: ['out', 'in'] });
-await answer(p, [[0, 0], [0, 1], [0, 1], [0, 0]], 0);
+await answer(p, ['비슷해요', '바다 산책', '카페', '바다 산책'], 0);
 const wx = await modal(p);
 ok('QA4 근거: 출처·조회 시각 표시', wx.includes('Open-Meteo(테스트)') && wx.includes('조회'));
 ok('QA4 비 예보 → 신중주의가 확인된 근거로 다시 판단(요약·회의록에 표시)', wx.includes('다시 판단') && wx.includes('비 예보'));
@@ -115,7 +117,7 @@ await clear(p);
 const p2 = await page(1280, 860, 'down');
 await intake(p2, { title: '토요일 뭐 할까?', cat: '나들이', place: '강릉', opts: ['바다 산책', '카페'], tags: ['out', 'in'] });
 const stillIntake = await p2.locator('#agenda-form').count();
-if (!stillIntake) await answer(p2, [[0, 1], [0, 1], [1, 0], [0, 1]], 0);
+if (!stillIntake) await answer(p2, ['카페', '바다 산책', '바다 산책', '바다 산책'], 0);
 const down = await modal(p2);
 ok('QA4 API 장애 → 실패 표시 후 판결 정상 진행', !stillIntake && down.includes('반영하지 않고') && down.includes('판결'), stillIntake ? '접수 단계에서 막힘' : '');
 await p2.close();
@@ -175,7 +177,7 @@ ok('PC: 자바스크립트 오류 없음', !p.errs.length, p.errs.join('|'));
 for (const w of [360, 390]) {
   const m = await page(w, 760);
   await intake(m, { title: '오늘 저녁 뭐 먹지?', opts: ['마라탕', '김치찌개'] });
-  await answer(m, [[0, 1], [0, 2], [1, 0], [0, 1]], 0);
+  await answer(m, ['김치찌개', '마라탕', '마라탕', '김치찌개'], 0);
   const overflow = await m.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1 || [...document.querySelectorAll('.modal *')].some(el => el.getBoundingClientRect().right > innerWidth + 1));
   const btns = await m.evaluate(() => [...document.querySelectorAll('.modal button')].filter(x => x.offsetParent).every(x => { const r = x.getBoundingClientRect(); return r.height >= 30; }));
   await m.locator('.modal').screenshot({ path: path.join(HERE, 'out', `qa-mobile-${w}.png`) });

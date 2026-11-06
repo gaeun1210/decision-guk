@@ -838,3 +838,17 @@ html.modal-open, html.modal-open body { overflow: hidden; }
   .fact-row { grid-template-columns: 1fr; gap: 6px; }
   .chip.fact { min-height: 44px; flex: 1 1 auto; }
 }
+/* 구매 비교: 예산·가격 입력(이름 | 입력칸 두 줄 정렬) */
+.cmp-grid { display: grid; grid-template-columns: minmax(110px, 200px) 1fr; gap: 10px 14px; align-items: start; margin-top: 6px; }
+.cmp-label { padding-top: 12px; font-weight: 800; color: var(--ink); overflow-wrap: anywhere; }
+.cmp-grid .money-echo { min-height: 0; }
+@media (max-width: 650px) { .cmp-grid { grid-template-columns: 1fr; gap: 4px; } .cmp-label { padding-top: 8px; } }
+/* 액자 안쪽 선(6px 안쪽 + 2px)과 안의 상자·그림이 겹치지 않게 여백 확보 */
+@media (min-width: 651px) {
+  .hero.frame { padding-bottom: 16px !important; }
+  .hero-art { align-self: end; }
+  .howto.frame { padding: 16px 20px !important; }
+  .howto.frame h2 { padding-left: 4px; }
+}
+.cmp-grid .opt-input { width: 100%; }
+.cmp-grid .money-echo { margin-top: 2px; }
