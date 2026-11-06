@@ -611,7 +611,7 @@
 
     @media (max-width: 1000px) {
       .topbar { flex-wrap: wrap; }
-      nav { width: 100%; justify-content: flex-start; overflow-x: auto; }
+      nav { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 6px; } /* 가로 스크롤 대신 줄바꿈: 로그인 버튼이 잘리지 않게 */
       .tagline { margin-left: auto; }
       .hero { min-height: 0; padding-bottom: 0; }
       .hero-copy { max-width: none; }
@@ -762,6 +762,16 @@
     .sum-if ul { margin: 4px 0 0; padding-left: 18px; }
     .sum-chip { display: block; width: fit-content; margin: 0 0 3px; padding: 1px 8px; border-radius: 999px; background: #ffe0a6; font-weight: 900; }
     @media (max-width: 650px) { .sum-table { font-size: 12px; } .sum-table th, .sum-table td { padding: 5px; } }
+    [hidden] { display: none !important; }
+    @media (max-width: 650px) { nav { gap: 4px; } nav button, .login-btn { padding: 6px 10px; font-size: 13px; } }
+    .money-echo { min-height: 18px; margin-top: 4px; font-size: 13px; font-weight: 800; color: #5b6b8c; }
+    .sum-chip.win { background: #ffd23f; }
+    .sum-chip.lose { background: #efe6d6; color: #5d5446; }
+    .sum-chip.none { background: #eee; color: #777; }
+    .fu-later { font-size: 14px; line-height: 1.6; }
+    .resume-row { background: #fff3d6; border-radius: 10px; }
+    .resume-row .verdict-pill { background: #19274d; color: #fff; }
+    .auto-hint { color: #1f5f3a; font-weight: 800; }
     .guide-line { margin: -4px 0 12px; padding: 8px 12px; border-radius: 10px; background: #fff6e2; font-size: 13px; font-weight: 700; line-height: 1.6; }
     /* 판결 이후 기록 */
     .followup { margin: 4px 0 10px; padding: 10px 12px; border-radius: 12px; background: #f6f1ff; }
