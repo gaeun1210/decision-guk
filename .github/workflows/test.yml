@@ -3,24 +3,31 @@ on:
   push:
     branches: [main]
   pull_request:
+# 공급망 보안: 최소 권한, 액션은 태그가 아닌 커밋 SHA로 고정, 외부 패키지는 정확한 버전으로 설치(설치 스크립트 실행 안 함)
 permissions:
   contents: read
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      - run: npm i --no-save playwright@1.49.1 && npx playwright install --with-deps chromium
+      - run: npm i --no-save --ignore-scripts playwright@1.49.1 && npx playwright install --with-deps chromium
       - run: python3 -m http.server 8771 >/dev/null 2>&1 &
       - run: sleep 2 && node tests/qa.mjs | tee qa.txt && grep -q "28/28" qa.txt
       - run: node tests/fix.mjs | tee fix.txt && grep -q "35/35" fix.txt
-      - run: node tests/rel.mjs | tee rel.txt && grep -q "24/24" rel.txt
+      - run: node tests/rel.mjs | tee rel.txt && grep -q "통과" rel.txt && ! grep -q "^FAIL" rel.txt
+      - run: node tests/sec.mjs | tee sec.txt && ! grep -q "^FAIL" sec.txt
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: screenshots
           path: tests/out/

@@ -1,0 +1,7 @@
+# GitHub Actions 버전(커밋 SHA 고정)을 매주 점검해 보안 업데이트를 PR로 알려 준다
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

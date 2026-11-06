@@ -3,6 +3,7 @@
 // - 입력값을 검증하고, 같은 요청은 캐시하며, IP별 호출 횟수를 제한한다.
 // - 응답에는 출처(source)와 조회 시각(fetchedAt)을 항상 담는다.
 
+const crypto = require("crypto");
 const CACHE = new Map();          // key -> { exp, data } (인스턴스 메모리 캐시)
 const HITS = new Map();           // ip -> [timestamps]
 const LIMIT = 40, WINDOW = 60_000; // IP당 1분에 40회
@@ -14,6 +15,25 @@ function tooMany(ip) {
   list.push(now); HITS.set(ip, list);
   if (HITS.size > 5000) HITS.clear();
   return list.length > LIMIT;
+}
+// 모든 서버 인스턴스가 함께 쓰는 호출 제한(Supabase 공용 카운터). IP 원문 대신 비밀값(RATE_SALT)으로 만든 해시만 보낸다.
+// 공개(publishable) 키로 api_hit() 함수 하나만 부를 수 있다. 카운터 서버가 응답하지 않으면 인스턴스별 제한만 적용(서비스는 계속).
+const SB_URL = "https://acujnijqjbwblqtuxatj.supabase.co";
+const SB_KEY = "sb_publishable_UxzsgGhTjOXjL8zlI9v5Nw_vtfGi5jO";
+async function sharedTooMany(ip) {
+  const salt = process.env.RATE_SALT;
+  if (!salt) return false;
+  const key = crypto.createHmac("sha256", salt).update(ip).digest("hex");
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 1500);
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/api_hit`, {
+      method: "POST", signal: ctrl.signal,
+      headers: { "Content-Type": "application/json", apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+      body: JSON.stringify({ p_key: key, p_limit: 60 })
+    });
+    if (!r.ok) return false;
+    return (await r.json()) === false;
+  } catch { return false; } finally { clearTimeout(t); }
 }
 async function cached(key, ttlMs, fn) {
   const hit = CACHE.get(key);
@@ -202,8 +222,11 @@ module.exports = async (req, res) => {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("X-Content-Type-Options", "nosniff");
   if (req.method !== "GET") { res.statusCode = 405; return res.end(JSON.stringify({ ok: false, reason: "GET만 허용" })); }
-  const ip = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "?").split(",")[0].trim();
-  if (tooMany(ip)) { res.statusCode = 429; return res.end(JSON.stringify({ ok: false, reason: "요청이 너무 많아요. 잠시 후 다시 시도해 주세요." })); }
+  // 다른 사이트의 페이지가 이 API를 대신 불러 쓰지 못하게(브라우저가 보내는 Sec-Fetch-Site 기준)
+  if (req.headers["sec-fetch-site"] === "cross-site") { res.statusCode = 403; return res.end(JSON.stringify({ ok: false, reason: "허용되지 않은 요청" })); }
+  // Vercel이 채워 주는 접속 IP(사용자가 위조한 X-Forwarded-For 앞부분을 믿지 않음)
+  const ip = String(req.headers["x-real-ip"] || req.headers["x-vercel-forwarded-for"] || req.socket?.remoteAddress || "?").split(",")[0].trim();
+  if (tooMany(ip) || await sharedTooMany(ip)) { res.statusCode = 429; return res.end(JSON.stringify({ ok: false, reason: "요청이 너무 많아요. 잠시 후 다시 시도해 주세요." })); }
   const u = new URL(req.url, "http://x");
   const type = u.searchParams.get("type");
   try {

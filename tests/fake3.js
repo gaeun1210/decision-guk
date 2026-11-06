@@ -10,7 +10,7 @@
       const mv = vs.find(v => v.user_id === u);
       return { id: p.id, title: p.title, category: p.category, options: p.options, created_at: p.created_at, closes_at: p.closes_at,
         is_open: Date.parse(p.closes_at) > now, counts: p.options.map((_, i) => vs.filter(v => v.option_index === i).length), total: vs.length,
-        mine: u ? p.user_id === u : null, my_vote: mv ? mv.option_index : null, reported: S.reports.some(r => r.poll_id === p.id && r.user_id === u), minister_pick: Number.isInteger(p.minister_pick) ? p.minister_pick : null };
+        mine: u ? p.user_id === u : null, my_vote: mv ? mv.option_index : null, reported: S.reports.some(r => r.poll_id === p.id && r.user_id === u), minister_pick: Number.isInteger(p.minister_pick) ? p.minister_pick : null, is_hidden: !!(p.hidden && p.user_id === u) };
     });
   }
   function q(table) {

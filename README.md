@@ -98,6 +98,25 @@
 
 반영하지 않은 것(사유): UI-01(장식 줄이기)은 사용자가 고른 시안 디자인과 충돌해 보류. PERF-01(여러 서버 인스턴스에 걸친 호출 제한)은 외부 저장소가 필요해 범위 밖. UX-02(5~7명 사용성 테스트)는 사람이 직접 해야 하는 일.
 
+## 보안 보완 (2026-11-06)
+
+| 우선 | 항목 | 조치 | 확인 방법·결과 |
+|---|---|---|---|
+| P0 | 운영자가 숨긴 글이 다시 공개됨 | 원인: 신고가 들어올 때마다 `hidden = (신고 ≥ 3)`으로 다시 계산 → 운영자가 신고 1~2건일 때 숨긴 글이 다음 신고로 재공개. 운영자 숨김을 별도 칸 `mod_hidden`(이용자 읽기·쓰기 권한 없음)에 두고, 신고 집계는 숨김을 켜기만 하고 끄지 않게 수정. 숨김은 목록·투표에서 모두 확인 | SQL 시나리오(롤백): 신고 1 → 운영자 숨김 → 신고 1 추가 후에도 숨김 유지, 숨김 글 투표 거부, 비로그인 목록 0건, 글쓴이에게만 숨김 안내, 복원 시 다시 보이고 신고 초기화 — 통과 |
+| P1 | 공개되는 '장관 판결' 위조 | 여론조사에 장관 판결을 붙이려면 내 계정에 저장된 판결 기록 id(`decision_id`)를 함께 보내야 하고, DB가 그 기록의 판결과 선택지가 맞는지 확인. 남의 기록·없는 기록·다른 선택지는 거부(확인 실패 시 화면은 비교 표시 없이 올림) | SQL: 맞는 판결 허용 / 틀린 선택지·기록 없음·남의 기록 거부 — 통과. 화면: sec S8 |
+| P1 | API 호출 제한 | IP를 Vercel이 채우는 `x-real-ip`로 판단(위조 가능한 X-Forwarded-For 앞부분 사용 안 함), 다른 사이트 페이지에서의 호출(`Sec-Fetch-Site: cross-site`) 거부. 모든 서버 인스턴스 공용 카운터(`api_hit()`, IP는 비밀값으로 해시)를 만들었으나 Vercel 환경변수 `RATE_SALT` 등록 전까지 꺼 둠 | SQL: 60회 허용·61회째 차단·형식 틀린 키 거부 — 통과 |
+| P1 | Auth 설정 | 아래 '운영자가 대시보드에서 할 일' 참고(유출 비밀번호 차단은 Security Advisor 경고) | — |
+| P1 | RLS·RPC 실제 적용 상태 | 운영 DB에서 직접 조회: 모든 public 테이블 RLS 켜짐(7개), 정책은 전부 `authenticated` 본인 행만, `anon` 테이블 권한 0, `polls`는 DELETE만(나머지는 칸 단위), 운영자 함수 `mod_poll`·트리거 함수는 이용자 실행 불가, 공개 함수는 `poll_board`(읽기 전용)·`delete_my_account`(본인만) | 조회 결과 위 요약과 일치 |
+| P2 | XSS 회귀 테스트 | `<img onerror>`·`<svg onload>`·`<script>`를 제목·선택지·내용·여론 글에 넣고 판결·회의록·판결서·공유·기록실·홈·여론 화면에서 실행되지 않는지 자동 검사 | `tests/sec.mjs` S1~S6 통과 |
+| P2 | 외부 스크립트 관리 | jsDelivr의 supabase-js·글꼴 CSS에 SRI(sha384) + `crossorigin` 지정 → CDN 파일이 바뀌면 브라우저가 실행 거부. 버전은 정확히 고정 | sec S9, CSP 검사 S10, 키 노출 검사 S11 |
+| P2 | CI/CD 공급망 | GitHub Actions를 커밋 SHA로 고정, 권한 `contents: read`, 체크아웃 자격 증명 저장 안 함, 패키지 설치 스크립트 실행 안 함, Dependabot으로 액션 업데이트 알림 | `.github/workflows/test.yml`, `.github/dependabot.yml` |
+
+운영자가 대시보드에서 할 일(코드로 바꿀 수 없는 설정):
+- Supabase → Authentication → 비밀번호 보안: **유출 비밀번호 차단(Leaked password protection)** 켜기(요금제에 따라 제공), 최소 길이 8자 이상
+- Supabase → Authentication → URL 설정: Site URL·Redirect URL을 `https://decision-guk.vercel.app`만 허용
+- Supabase → Authentication → 이메일 확인(Confirm email) 켜짐 유지
+- (선택) Vercel → Settings → Environment Variables에 `RATE_SALT` 등록 → `api_hit` 실행 권한 켜기(`supabase/security_fixes.sql` 주석 참고)
+
 ## 사용자 관점 UX 검토서 반영 (2026-11-06)
 
 외부 UX·UI 검토서(디자인 항목 제외)를 현재 코드와 대조해 반영했습니다.
@@ -190,6 +209,7 @@
 - `api/info.js` — 근거 수집 서버 함수(날씨·공휴일·환율·장소)
 - `supabase/evidence.sql` — 판결 근거 저장 칸 추가
 - `supabase/delete_account.sql` — 회원 탈퇴 함수(본인 계정만 삭제)
+- `supabase/security_fixes.sql` — 운영자 숨김 재공개 방지, 장관 판결 서버 검증, 공용 API 호출 제한(대기)
 - `supabase/release_fixes.sql` — 투표 전 득표 비공개, 신고 사유, 운영자 조치 함수·기록, 글쓰기 입력 검사
 - `tests/` — 자동 회귀 테스트(가짜 서버 사용), `.github/workflows/test.yml` — push·PR마다 자동 실행
 - `assets/court-scene.png` — 이전 홈 화면의 법정 배경(디자인 개편 후 미사용, 기록용으로 보관)

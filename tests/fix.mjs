@@ -15,6 +15,8 @@ async function page(w, h = 800, ctx) {
   const p = await c.newPage();
   p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('dialog', d => d.accept());
   await p.route('**/*', r => { const u = r.request().url();
+    // 테스트는 가짜 서버(fake*.js)를 끼우므로 SRI 무결성 검사만 테스트 페이지에서 뺀다(실제 사이트는 그대로)
+    if (u.endsWith('/index.html')) return r.fetch().then(async resp => r.fulfill({ response: resp, body: (await resp.text()).replace(/ integrity="[^"]+"/g, '') }));
     if (u.includes('supabase-js')) return r.fulfill({ contentType: 'application/javascript', body: fake });
     if (u.includes('/api/info')) {
       const q = new URL(u).searchParams, t = q.get('type');

@@ -1600,7 +1600,9 @@ function showResult(m, r) {
       document.getElementById("result-poll").onclick = () => openPollForm({
         title: m.title, category: m.category,
         options: shop ? ["산다", "안 산다"] : m.options,
-        ministerPick: shop ? (r.winner === 0 ? "산다" : "안 산다") : (r.winner >= 0 ? m.options[r.winner] : null)
+        ministerPick: shop ? (r.winner === 0 ? "산다" : "안 산다") : (r.winner >= 0 ? m.options[r.winner] : null),
+        // 장관 판결 표시는 내 계정에 저장된 판결 기록과 함께 보내야 서버가 검증 후 받아 준다
+        decisionId: saveRes && saveRes.ok && saveRes.source === "server" ? record.key : null
       });
       document.getElementById("result-share").onclick = () => save.then(() => openShare(record));
       document.getElementById("result-reconsider").onclick = () => {
@@ -2170,6 +2172,7 @@ function pollCard(p) {
       <b class="poll-title">${escapeHTML(p.title)}</b>
       <span class="poll-left ${p.is_open ? "" : "done"}">${p.is_open ? "⏳ " + pollLeft(p.closes_at) : "🔒 마감"}</span>
     </div>
+    ${p.is_hidden ? `<div class="state-error hidden-note">🚫 신고 또는 운영자 조치로 다른 사람에게 숨겨진 글이에요. 잘못된 조치라면 개인정보 안내의 문의 창구로 알려 주세요.</div>` : ""}
     ${body}
     ${compareLine(p, opts, counts, total, showResult)}
     <div class="poll-foot">
@@ -2194,7 +2197,7 @@ async function renderPollPanel(polls) {
       return;
     }
   }
-  const open = polls.filter(p => p.is_open);
+  const open = polls.filter(p => p.is_open && !p.is_hidden); // 숨겨진 내 글은 홈에 띄우지 않음
   if (!open.length) { box.innerHTML = `<div class="empty-line">진행 중인 여론조사가 없어요. 첫 고민을 올려 보세요!</div>`; return; }
   // 참여가 가장 많은 글을 크게, 나머지 2개는 작게. 진행 중인 글의 결과는 투표한 사람(또는 작성자)에게만 보여 준다.
   const hot = open.slice().sort((x, y) => (Number(y.total) || 0) - (Number(x.total) || 0) || new Date(x.closes_at) - new Date(y.closes_at))[0];
@@ -2336,10 +2339,15 @@ function openPollForm(prefill = {}) {
         form.querySelector('button[type="submit"]').disabled = true;
         // 작성자·작성 시각·마감 시각은 보내지 않는다. DB가 로그인 정보와 서버 시각으로 정한다.
         // 판결 화면에서 왔다면 장관 판결이 몇 번째 선택지인지 함께 저장(선택지 문구가 그대로 남아 있을 때만)
-        const pickIdx = prefill.ministerPick ? options.indexOf(prefill.ministerPick) : -1;
+        const pickIdx = prefill.ministerPick && prefill.decisionId ? options.indexOf(prefill.ministerPick) : -1;
         const row = { title, category, options, duration_hours: hours };
-        if (pickIdx >= 0) row.minister_pick = pickIdx;
-        const { error } = await db.from("polls").insert(row);
+        if (pickIdx >= 0) { row.minister_pick = pickIdx; row.decision_id = prefill.decisionId; }
+        let { error } = await db.from("polls").insert(row);
+        if (error && /장관 판결을 확인할 수 없어요|decision_id/.test(String(error.message))) {
+          // 서버가 판결 기록을 확인하지 못하면(예: 기록이 지워짐) 장관 판결 비교 없이 올린다
+          delete row.minister_pick; delete row.decision_id;
+          ({ error } = await db.from("polls").insert(row));
+        }
         if (error) { err.textContent = "올리지 못했어요. " + pollError(error); form.querySelector('button[type="submit"]').disabled = false; return; }
         pollFilter = "open";
         openPolls();

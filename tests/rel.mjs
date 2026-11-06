@@ -13,6 +13,8 @@ async function page(w, h = 900, pre = '') {
   const p = await b.newPage({ viewport: { width: w, height: h } });
   p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('dialog', d => { p.dialog = d.message(); d.dismiss(); });
   await p.route('**/*', r => { const u = r.request().url();
+    // 테스트는 가짜 서버(fake*.js)를 끼우므로 SRI 무결성 검사만 테스트 페이지에서 뺀다(실제 사이트는 그대로)
+    if (u.endsWith('/index.html')) return r.fetch().then(async resp => r.fulfill({ response: resp, body: (await resp.text()).replace(/ integrity="[^"]+"/g, '') }));
     if (u.includes('supabase-js')) return r.fulfill({ contentType: 'application/javascript', body: fake + pre });
     if (u.includes('/api/info')) return r.fulfill({ contentType: 'application/json', body: '{"ok":false,"reason":"테스트"}' });
     if (u.startsWith(BASE)) return r.continue(); return r.abort(); });
