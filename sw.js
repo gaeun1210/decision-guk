@@ -1,6 +1,6 @@
 // 결정국 앱(홈 화면에 추가) — 이 사이트의 화면 파일만 저장해 두어 빠르게 열고, 인터넷이 끊겨도 체험 모드로 열리게 한다.
 // 개인 기록·로그인·여론·날씨 같은 데이터 요청(Supabase, /api/)은 절대 저장하지 않는다.
-const VERSION = "dg-v3";
+const VERSION = "dg-v4";
 const CORE = [
   "./", "index.html", "style.css", "app.js", "privacy.html", "manifest.webmanifest",
   "assets/hero-assembly.png", "assets/owl.png", "assets/stand_owl.png", "assets/stand_cat.png", "assets/cat_podium.png",

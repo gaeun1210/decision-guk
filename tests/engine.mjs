@@ -59,6 +59,14 @@ const run = (spec) => p.evaluate(spec => {
             decide(mk({ priceValue: 50000, budgetValue: 100000, owned: true, use: 'unknown', need: 'low' }, 'safe')).verdict];
   });
   ok('J-06 살까 말까 기존 규칙 유지(승인 / 예산 초과 총리 직권 / 보류)', r[0] === '구매 승인!' && r[1] === '총리 직권' && r[2] === '보류!', JSON.stringify(r)); }
+// J-06b 경계값: 반올림하지 않고 원 단위로 비교 (예산 1원 초과는 보류, 69.5%는 70% 미만)
+{ const r = await p.evaluate(() => {
+    const mk = (priceValue, budgetValue, priority) => ({ ...newMeeting('경계값'), category: '쇼핑', shopMode: 'single', options: ['구매 승인', '하루 더 생각하기', '보류'], priority,
+      shop: { priceValue, budgetValue, owned: false, use: 'week', need: 'high', fx: null } });
+    const a = decide(mk(100001, 100000, 'cost')), b = decide(mk(100000, 100000, 'cost')), c = decide(mk(69500, 100000, 'cost')), d = decide(mk(70000, 100000, 'cost'));
+    return [a.verdict, a.label, a.pct, b.verdict, b.votes['현실주의'], c.votes['현실주의'], c.pct, d.votes['현실주의'], d.pct];
+  });
+  ok('J-06b 예산 1원 초과 → 총리 직권 보류, 예산과 같으면 승인 가능, 69.5%는 부담 적음, 정확히 70%는 주의', r[0] === '보류!' && r[1] === '총리 직권' && r[2] === 101 && r[3] === '구매 승인!' && r[4] === 1 && r[5] === 0 && r[6] === 69 && r[7] === 1 && r[8] === 70, JSON.stringify(r)); }
 // J-07 구매 비교: 두 상품의 가격·필요성이 상충 → 장관별 다른 판단, 예산 초과 상품은 직권 제외
 { const r = await p.evaluate(() => {
     const m = { ...newMeeting('이어폰 뭐 살까'), category: '쇼핑', shopMode: 'compare', options: ['비싼 A', '싼 B'], priority: 'fun',

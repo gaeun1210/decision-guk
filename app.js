@@ -1305,7 +1305,7 @@ function scoreGeneral(m, name, i, E) {
 function scoreCompare(m, name, i) {
   const c = m.cmp, it = (c.items || [])[i] || {}, pros = [], cons = [], evs = [];
   const price = it.priceValue, budget = c.budgetValue;
-  const over = price > budget, pct = Math.round(price / budget * 100);
+  const over = price > budget, pct = budgetPct(price, budget);
   let s = null;
   const lv = key => factOf(m, key, i);
   if (name === "현실주의") {
@@ -1481,12 +1481,21 @@ function debateOf(m, r) {
   return turns;
 }
 
+// 화면에 보여 줄 %: 판정과 어긋나지 않게 맞춘다 (초과면 101% 이상, 70% 미만이면 69% 이하).
+function budgetPct(price, budget) {
+  const raw = price / budget * 100;
+  if (price > budget) return Math.max(101, Math.ceil(raw));
+  if (price * 100 >= budget * 70) return Math.min(100, Math.max(70, Math.floor(raw)));
+  return Math.min(69, Math.floor(raw));
+}
 function decideShop(m) {
   const s = m.shop;
-  const pct = Math.round(s.priceValue / s.budgetValue * 100);
+  // 경계값은 반올림한 %가 아니라 원 단위로 직접 비교한다 (100,001원 > 100,000원은 예산 초과, 69.5%는 70% 미만).
+  const over = s.priceValue > s.budgetValue, warn = !over && s.priceValue * 100 >= s.budgetValue * 70;
+  const pct = budgetPct(s.priceValue, s.budgetValue);
   const rule = {
-    현실주의: pct > 100 ? [2, `가격이 예산보다 ${pct - 100}% 비쌉니다.`]
-            : pct >= 70 ? [1, `예산의 ${pct}%를 한 번에 씁니다. 다른 지출부터 확인해 보세요.`]
+    현실주의: over ? [2, `가격이 예산보다 ${pct - 100}% 비쌉니다.`]
+            : warn ? [1, `예산의 ${pct}%를 한 번에 씁니다. 다른 지출부터 확인해 보세요.`]
             : [0, `예산의 ${pct}% 수준이라 부담이 적습니다.`],
     신중주의: s.owned && s.need !== "high" ? [2, "비슷한 물건이 있고, 없어도 크게 불편하지 않다고 하셨습니다."]
             : s.owned ? [1, "비슷한 물건이 있으니 새로 필요한 이유를 한 줄로 적어 보세요."]
@@ -1509,13 +1518,13 @@ function decideShop(m) {
   let winner = count.indexOf(Math.max(...count));
   let label = marginLabel(count, winner, 4, MINISTERS.every(x => votes[x.name] === winner));
   let pmExtra = "";
-  if (pct > 100 && winner !== 2) { winner = 2; label = "총리 직권"; pmExtra = " 가격이 예산을 넘으면 표결과 관계없이 국무총리 직권으로 보류합니다."; }
+  if (over && winner !== 2) { winner = 2; label = "총리 직권"; pmExtra = " 가격이 예산을 넘으면 표결과 관계없이 국무총리 직권으로 보류합니다."; }
   const verdict = `${m.options[winner]}!`;
   const next = winner === 0 ? "사기 전에 같은 상품의 최저가와 반품 조건만 확인하세요."
     : winner === 1 ? "장바구니에 담아 두고 내일 같은 시간에 다시 열어 보세요. 그래도 갖고 싶다면 그때 사도 늦지 않습니다."
     : "지금은 사지 않기로 해요. 정말 필요해지면 재심을 청구해 주세요.";
   return {
-    votes, count, abstain: 0, winner, label, verdict, reasons, pct,
+    votes, count, abstain: 0, winner, label, verdict, reasons, pct, over, warn,
     pmLine: `「${m.options[winner]}」${j(m.options[winner],"로")} 판결합니다.${pmExtra} 가장 중요한 기준(${PRIORITY_LABEL[m.priority]}) 장관의 표는 1.5표로 계산했습니다.`,
     nextLine: next
   };
@@ -1575,12 +1584,12 @@ function whatIf(m, r) {
     const fmtWon = n => n.toLocaleString() + "원";
     const tries = [];
     // 가격 조건은 판결이 바뀌는 가장 느슨한 조건 하나만 보여 준다(같은 결과를 두 번 말하지 않게)
-    if (r.pct > 100) {
+    if (r.over) {
       const alt = decideShop({ ...m, shop: { ...s, priceValue: s.budgetValue, fx: null } });
       if (alt.winner !== cur) out.push(`가격이 예산(${fmtWon(s.budgetValue)}) 이하였다면 → 총리 직권 보류가 풀리고 표결대로 ${q(m.options[alt.winner])}(${fmtVote(alt.count[alt.winner])}표)`);
       else tries.push([`가격이 ${fmtWon(Math.floor(s.budgetValue * 0.69))}(예산의 69%) 이하였다면`, { priceValue: Math.floor(s.budgetValue * 0.69) }]);
-    } else if (r.pct >= 70) tries.push([`가격이 ${fmtWon(Math.floor(s.budgetValue * 0.69))}(예산의 69%) 이하였다면 (현실주의 장관도 찬성)`, { priceValue: Math.floor(s.budgetValue * 0.69) }]);
-    if (r.pct < 70) tries.push([`가격이 예산의 70%(${fmtWon(Math.ceil(s.budgetValue * 0.7))}) 이상이었다면`, { priceValue: Math.ceil(s.budgetValue * 0.7) }]);
+    } else if (r.warn) tries.push([`가격이 ${fmtWon(Math.floor(s.budgetValue * 0.69))}(예산의 69%) 이하였다면 (현실주의 장관도 찬성)`, { priceValue: Math.floor(s.budgetValue * 0.69) }]);
+    if (!r.over && !r.warn) tries.push([`가격이 예산의 70%(${fmtWon(Math.ceil(s.budgetValue * 0.7))}) 이상이었다면`, { priceValue: Math.ceil(s.budgetValue * 0.7) }]);
     tries.push([s.owned ? "비슷한 물건이 없었다면" : "비슷한 물건이 이미 있었다면", { owned: !s.owned }]);
     if (s.need !== "high") tries.push(["없으면 많이 불편한 물건이었다면", { need: "high" }]);
     if (s.need !== "low") tries.push(["없어도 불편하지 않은 물건이었다면", { need: "low" }]);
