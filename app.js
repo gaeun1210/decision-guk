@@ -1606,7 +1606,7 @@ async function showRecords() {
   const wire = () => { const b = document.getElementById("rec-login"); if (b) b.onclick = () => openLogin(); };
   if (error) { openModal("📜 결정 기록실", mode + `<p class="err">${escapeHTML(dbMessage(error))}</p>`, wire); return; }
   if (!records.length) {
-    openModal("📜 결정 기록실", mode + `<div class="empty"><div class="empty-faces"><img class="owl" src="assets/owl.png" alt="서기관 부엉이" />${userFace()}</div>아직 저장된 결정이 없습니다.<br>고민을 접수하고 첫 결정을 만들어 보세요!<br><button class="primary" id="rec-start">고민 접수하기</button></div>`, () => { wire(); document.getElementById("rec-start").onclick = () => startMeeting(); });
+    openModal("📜 결정 기록실", mode + `<div class="empty"><div class="empty-faces"><img class="owl" src="assets/owl.png" alt="서기관 부엉이" /></div>아직 저장된 결정이 없습니다.<br>고민을 접수하고 첫 결정을 만들어 보세요!<br><button class="primary" id="rec-start">고민 접수하기</button></div>`, () => { wire(); document.getElementById("rec-start").onclick = () => startMeeting(); });
     return;
   }
   const cats = ["전체", ...[...CATEGORIES, ...Object.keys(LEGACY_CATEGORY)].filter(c => records.some(r => r.category === c))];

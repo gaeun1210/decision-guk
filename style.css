@@ -762,9 +762,4 @@ body {
   .panel.frame { padding: 14px 16px 12px; }
   .hero, .howto, .dashboard { margin-top: 18px; }
 }
-/* PC: 부엉이 줄을 화면 맨 아래에 붙인다 */
-@media (min-width: 821px) {
-  body { min-height: 100vh; display: flex; flex-direction: column; }
-  main { flex: 1 0 auto; width: 100%; }
-  .site-foot { width: 100%; }
-}
+/* 부엉이 줄은 칸 바로 아래에 붙인다(빈 여백 없이) */
